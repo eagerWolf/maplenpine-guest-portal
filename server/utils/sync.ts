@@ -18,8 +18,9 @@ function datesOverlap(from1: string, to1: string, from2: string, to2: string): b
   return from1 <= to2 && from2 <= to1
 }
 
-export async function syncBentral(tier: Tier): Promise<void> {
+export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<void> {
   const config = useRuntimeConfig()
+  const db = getDb()
   const today = new Date()
 
   const ranges: Record<Tier, { from: string; to: string }> = {
@@ -41,6 +42,8 @@ export async function syncBentral(tier: Tier): Promise<void> {
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error(`[sync:${tier}] Bentral fetch error: ${errMsg}`)
+    db.prepare(`INSERT INTO audit_log (action, user_email, detail, created_at) VALUES (?, ?, ?, ?)`)
+      .run('sync_error', triggeredBy, JSON.stringify({ tier, from, to, error: errMsg }), now())
     if (config.resendApiKey && config.adminEmailTo) {
       await sendAdminSyncError({
         tier,
@@ -58,6 +61,10 @@ export async function syncBentral(tier: Tier): Promise<void> {
   const settings = getSettings()
   const mapleUnitId = config.bentralUnitIdMaple
   const pineUnitId = config.bentralUnitIdPine
+
+  let inserted = 0
+  let updated = 0
+  let cancelled = 0
 
   // Group by guest name to detect multi-door overlaps
   const byGuest = new Map<string, { maple?: BentralReservation; pine?: BentralReservation }>()
@@ -77,12 +84,24 @@ export async function syncBentral(tier: Tier): Promise<void> {
     const { maple, pine } = entry
 
     if (maple && pine && datesOverlap(maple.arrival, maple.departure, pine.arrival, pine.departure)) {
-      // Multi-door: process as combined, skip pine separately
       processedBentralIds.add(pine.id)
-      await processReservation(maple, 'Maple,Pine', settings, pine)
+      const action = await processReservation(maple, 'Maple,Pine', settings, pine)
+      if (action === 'insert') inserted++
+      else if (action === 'update') updated++
+      else if (action === 'cancel') cancelled++
     } else {
-      if (maple) await processReservation(maple, 'Maple', settings)
-      if (pine) await processReservation(pine, 'Pine', settings)
+      if (maple) {
+        const action = await processReservation(maple, 'Maple', settings)
+        if (action === 'insert') inserted++
+        else if (action === 'update') updated++
+        else if (action === 'cancel') cancelled++
+      }
+      if (pine) {
+        const action = await processReservation(pine, 'Pine', settings)
+        if (action === 'insert') inserted++
+        else if (action === 'update') updated++
+        else if (action === 'cancel') cancelled++
+      }
     }
   }
 
@@ -96,38 +115,41 @@ export async function syncBentral(tier: Tier): Promise<void> {
 
     const key = res.guest.name.toLowerCase().trim()
     const entry = byGuest.get(key)
-    // Skip if already handled above
     if (entry?.maple?.id === res.id || entry?.pine?.id === res.id) continue
 
-    await processReservation(res, door, settings)
+    const action = await processReservation(res, door, settings)
+    if (action === 'insert') inserted++
+    else if (action === 'update') updated++
+    else if (action === 'cancel') cancelled++
   }
 
-  console.log(`[sync:${tier}] Done — processed ${bentralReservations.length} reservations`)
+  db.prepare(`INSERT INTO audit_log (action, user_email, detail, created_at) VALUES (?, ?, ?, ?)`)
+    .run('sync_run', triggeredBy, JSON.stringify({ tier, from, to, fetched: bentralReservations.length, inserted, updated, cancelled }), now())
+
+  console.log(`[sync:${tier}] Done — fetched ${bentralReservations.length}, inserted ${inserted}, updated ${updated}, cancelled ${cancelled}`)
 }
+
+type SyncAction = 'insert' | 'update' | 'cancel' | 'skip'
 
 async function processReservation(
   br: BentralReservation,
   door: string,
   settings: Record<string, string>,
   pairedRes?: BentralReservation,
-): Promise<void> {
+): Promise<SyncAction> {
   const db = getDb()
   const { firstName, lastName } = parseName(br.guest.name)
 
-  // Step 1: Fast filter by bentral_updated_at
   const existing = db.prepare(
     'SELECT * FROM reservations WHERE bentral_reservation_id = ?',
   ).get(br.id) as Reservation | undefined
 
-  // Determine the "effective" updated timestamp (use the latest of main + paired)
   const effectiveUpdated = pairedRes && pairedRes.updated > br.updated ? pairedRes.updated : br.updated
 
   if (existing && existing.bentral_updated_at === effectiveUpdated) {
-    // Nothing changed
-    return
+    return 'skip'
   }
 
-  // Step 2: Detailed field comparison
   const bentralStatus = br.status
   const bentralArrival = br.arrival
   const bentralDeparture = pairedRes
@@ -137,8 +159,7 @@ async function processReservation(
   const { validFrom, validUntil } = buildAccessTimes(bentralArrival, bentralDeparture, settings)
 
   if (!existing) {
-    // New reservation
-    if (bentralStatus === 'canceled') return // Don't track cancelled-before-seen
+    if (bentralStatus === 'canceled') return 'skip'
 
     const ts = now()
     const guestCount = br.persons ?? null
@@ -164,15 +185,13 @@ async function processReservation(
       'insert',
     )
     createJob(reservationId, 'insert', payload, 'bentral_sync')
-    return
+    return 'insert'
   }
 
-  // Existing reservation — compare fields
   const dateChanged = existing.bentral_arrival !== bentralArrival || existing.bentral_departure !== bentralDeparture
   const statusChanged = existing.bentral_status !== bentralStatus
   const isCancelled = bentralStatus === 'canceled'
 
-  // Step 4: Always update snapshot
   db.prepare(`
     UPDATE reservations SET
       bentral_arrival = ?, bentral_departure = ?, bentral_status = ?,
@@ -181,21 +200,25 @@ async function processReservation(
   `).run(bentralArrival, bentralDeparture, bentralStatus, bentralUnitId, effectiveUpdated, now(), existing.id)
 
   if (statusChanged && isCancelled && existing.status !== 'cancelled') {
-    // Cancel
     db.prepare(`UPDATE reservations SET status = 'cancelled', updated_at = ? WHERE id = ?`)
       .run(now(), existing.id)
     const payload = buildJobPayload(existing, 'cancel')
     createJob(existing.id, 'cancel', payload, 'bentral_sync')
-  } else if (dateChanged && !isCancelled) {
-    // Date update — recalculate access times
+    return 'cancel'
+  }
+
+  if (dateChanged && !isCancelled) {
     const { validFrom: newFrom, validUntil: newUntil } = buildAccessTimes(bentralArrival, bentralDeparture, settings)
     db.prepare(`
       UPDATE reservations SET
         check_in = ?, check_out = ?, access_valid_from = ?, access_valid_until = ?, updated_at = ?
       WHERE id = ?
     `).run(bentralArrival, bentralDeparture, newFrom, newUntil, now(), existing.id)
-    const updated = { ...existing, door, access_valid_from: newFrom, access_valid_until: newUntil }
-    const payload = buildJobPayload(updated, 'update')
+    const updatedRes = { ...existing, door, access_valid_from: newFrom, access_valid_until: newUntil }
+    const payload = buildJobPayload(updatedRes, 'update')
     createJob(existing.id, 'update', payload, 'bentral_sync')
+    return 'update'
   }
+
+  return 'skip'
 }

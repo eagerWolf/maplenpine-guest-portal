@@ -32,6 +32,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const settings = getSettings()
+  const checkinTime = settings.bentral_checkin_time || '15:00'
+  const checkoutTime = settings.bentral_checkout_time || '11:00'
 
   return {
     name: `${reservation.first_name} ${reservation.last_name}`,
@@ -40,8 +42,8 @@ export default defineEventHandler(async (event) => {
     accessValidFrom: reservation.access_valid_from,
     accessValidUntil: reservation.access_valid_until,
     status: reservation.status,
-    checkIn: reservation.check_in,
-    checkOut: reservation.check_out,
+    checkIn: `${reservation.check_in} ${checkinTime}`,
+    checkOut: `${reservation.check_out} ${checkoutTime}`,
     guestCount: reservation.guest_count,
     contactPhone: settings.contact_phone || null,
     propertyNavUrl: settings.property_nav_url || null,

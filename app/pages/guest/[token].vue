@@ -4,6 +4,9 @@ definePageMeta({ layout: 'guest' })
 const route = useRoute()
 const token = route.params.token as string
 
+const guestToken = useGuestToken()
+guestToken.value = token
+
 const { data, error, pending } = await useFetch(`/api/guest/${token}`)
 
 const pinVisible = ref(false)
@@ -24,15 +27,24 @@ const doorLabel = computed(() => {
   return `${list[0]} Apartment`
 })
 
-function formatDt(dt: string | null) {
+const guestCount = computed(() => (data.value as any)?.guestCount ?? null)
+const contactPhone = computed(() => (data.value as any)?.contactPhone ?? null)
+const propertyNavUrl = computed(() => (data.value as any)?.propertyNavUrl ?? null)
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
+function formatDt(dt: string | null, opts?: { short?: boolean }) {
   if (!dt) return '—'
-  // "YYYY-MM-DD HH:MM" → "Mon, 22 Jun · 11:30"
   const [datePart, timePart] = dt.split(' ')
   if (!datePart) return dt
   const d = new Date(datePart + 'T00:00:00')
   if (isNaN(d.getTime())) return dt
-  const day = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-  return timePart ? `${day} · ${timePart}` : day
+  const dow = DAYS[d.getDay()]
+  const day = d.getDate()
+  const mon = MONTHS[d.getMonth()]
+  if (opts?.short) return timePart ? `${day} ${mon} ${timePart}` : `${day} ${mon}`
+  return timePart ? `${dow} ${day} ${mon} · ${timePart}` : `${dow} ${day} ${mon}`
 }
 </script>
 
@@ -64,9 +76,44 @@ function formatDt(dt: string | null) {
         <h1>Welcome, {{ firstName }}!</h1>
         <p class="guest-hero__sub">
           {{ doorLabel }}
-          <span class="guest-hero__sep">·</span>
-          {{ (data as any).checkIn }} – {{ (data as any).checkOut }}
+          <template v-if="guestCount">
+            <span class="guest-hero__sep">·</span>
+            {{ guestCount }} {{ guestCount === 1 ? 'guest' : 'guests' }}
+          </template>
         </p>
+        <p class="guest-hero__dates">
+          <span class="guest-hero__date-item">
+            <span class="guest-hero__date-label">Check-in</span>
+            {{ formatDt((data as any).checkIn) }}
+          </span>
+          <span class="guest-hero__date-arrow" aria-hidden="true">→</span>
+          <span class="guest-hero__date-item">
+            <span class="guest-hero__date-label">Check-out</span>
+            {{ formatDt((data as any).checkOut) }}
+          </span>
+        </p>
+
+        <!-- Nav + Call buttons -->
+        <div v-if="propertyNavUrl || contactPhone" class="guest-hero__actions">
+          <a
+            v-if="propertyNavUrl"
+            :href="propertyNavUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="guest-action-btn guest-action-btn--nav"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Directions
+          </a>
+          <a
+            v-if="contactPhone"
+            :href="`tel:${contactPhone}`"
+            class="guest-action-btn guest-action-btn--call"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.64 3.42 2 2 0 0 1 3.6 1.26h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.38a16 16 0 0 0 5.66 5.66l1.34-1.34a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 15z"/></svg>
+            Call us
+          </a>
+        </div>
       </div>
 
       <!-- PIN panel -->
@@ -105,12 +152,12 @@ function formatDt(dt: string | null) {
       <!-- Validity strip -->
       <div class="validity-strip">
         <div class="validity-strip__item">
-          <span class="validity-strip__label">Access from</span>
+          <span class="validity-strip__label">PIN active from</span>
           <span class="validity-strip__value">{{ formatDt((data as any).accessValidFrom) }}</span>
         </div>
         <div class="validity-strip__divider" aria-hidden="true" />
         <div class="validity-strip__item">
-          <span class="validity-strip__label">Access until</span>
+          <span class="validity-strip__label">PIN expires</span>
           <span class="validity-strip__value">{{ formatDt((data as any).accessValidUntil) }}</span>
         </div>
       </div>
@@ -124,6 +171,27 @@ function formatDt(dt: string | null) {
           title="Vreme Bled — ARSO"
           loading="lazy"
         />
+      </div>
+
+      <!-- Parking -->
+      <div class="info-panel">
+        <p class="guest-kicker">Parking</p>
+        <div class="info-panel__row">
+          <svg class="info-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          <p>Parkiranje je možno na prvih dveh mestih na levi strani dovoza ob električni polnilnici.</p>
+        </div>
+      </div>
+
+      <!-- House rules -->
+      <div class="info-panel">
+        <p class="guest-kicker">House rules</p>
+        <ul class="info-rules">
+          <li>No smoking inside the apartment.</li>
+          <li>Please separate waste and flush toilet paper only.</li>
+          <li>Please do not feed the horses — unsuitable food can harm them.</li>
+          <li>Do not lean on or climb the upper-floor fence. The horse fence is electrified.</li>
+          <li>Tap water is safe to drink.</li>
+        </ul>
       </div>
 
     </template>
@@ -192,6 +260,73 @@ function formatDt(dt: string | null) {
   margin: 0 6px;
   color: #c4b9a8;
 }
+
+.guest-hero__dates {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 18px 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid #e4dccf;
+}
+
+.guest-hero__date-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.guest-hero__date-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7b947e;
+}
+
+.guest-hero__date-arrow {
+  color: #c4b9a8;
+  font-size: 1.1rem;
+  align-self: center;
+  padding-top: 14px;
+}
+
+.guest-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.guest-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 18px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-family: inherit;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.guest-action-btn--nav {
+  background: #26372c;
+  color: #fffdf8;
+  border: none;
+}
+.guest-action-btn--nav:hover { background: #3c5543; }
+
+.guest-action-btn--call {
+  background: transparent;
+  color: #26372c;
+  border: 1.5px solid #26372c;
+}
+.guest-action-btn--call:hover { background: #f0ebe1; }
 
 /* ── PIN panel ── */
 .pin-panel {
@@ -340,6 +475,59 @@ function formatDt(dt: string | null) {
   padding: 24px clamp(20px, 4vw, 32px);
   margin: 18px 0 0;
 }
+
+/* ── Info panels (parking, house rules) ── */
+.info-panel {
+  background: #fffdf8;
+  border: 1px solid #e4dccf;
+  padding: 24px clamp(20px, 4vw, 32px);
+  margin: 18px 0 0;
+}
+
+.info-panel__row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.info-panel__icon {
+  color: #7b947e;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.info-panel__row p {
+  margin: 0;
+  color: #243027;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.info-rules {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-rules li {
+  color: #243027;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.info-panel__link {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #26372c;
+  text-decoration: none;
+  border-bottom: 1px solid #c4b9a8;
+  padding-bottom: 1px;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+.info-panel__link:hover { color: #3c5543; border-color: #26372c; }
 
 @media (max-width: 480px) {
   .guest-page { padding: 20px 0 0; }
