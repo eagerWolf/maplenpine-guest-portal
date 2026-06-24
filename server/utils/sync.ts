@@ -163,18 +163,19 @@ async function processReservation(
 
     const ts = now()
     const guestCount = br.persons ?? null
+    const guestLang = br.guest.lang ?? null
     const insertResult = db.prepare(`
       INSERT INTO reservations (
         bentral_reservation_id, door, first_name, last_name, check_in, check_out,
         status, access_valid_from, access_valid_until,
-        guest_count, guest_email, guest_phone,
+        guest_count, guest_email, guest_phone, guest_lang,
         bentral_arrival, bentral_departure, bentral_status, bentral_unit_id, bentral_updated_at,
         created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       br.id, door, firstName, lastName, bentralArrival, bentralDeparture,
       'active', validFrom, validUntil,
-      guestCount, br.guest.email ?? null, br.guest.phone ?? null,
+      guestCount, br.guest.email ?? null, br.guest.phone ?? null, guestLang,
       bentralArrival, bentralDeparture, bentralStatus, bentralUnitId, effectiveUpdated,
       ts, ts,
     )

@@ -110,6 +110,9 @@ export default defineNitroPlugin(() => {
   if (!resCols.some(c => c.name === 'guest_count')) {
     db.exec("ALTER TABLE reservations ADD COLUMN guest_count INTEGER")
   }
+  if (!resCols.some(c => c.name === 'guest_lang')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN guest_lang TEXT")
+  }
 
   // Seed initial admin user (first run only)
   db.prepare(`

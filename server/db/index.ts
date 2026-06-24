@@ -18,6 +18,7 @@ export interface Reservation {
   guest_count: number | null
   guest_email: string | null
   guest_phone: string | null
+  guest_lang: string | null
   bentral_arrival: string | null
   bentral_departure: string | null
   bentral_status: string | null

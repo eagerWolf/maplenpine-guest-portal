@@ -7,7 +7,17 @@ const token = route.params.token as string
 const guestToken = useGuestToken()
 guestToken.value = token
 
+const { locale, setLocale, t } = useLocale()
+
 const { data, error, pending } = await useFetch(`/api/guest/${token}`)
+
+// Auto-set locale from reservation's guest_lang on first load
+watchEffect(() => {
+  if (data.value) {
+    const lang = (data.value as any)?.lang
+    if (lang) setLocale(lang)
+  }
+})
 
 const pinVisible = ref(false)
 
@@ -31,8 +41,24 @@ const guestCount = computed(() => (data.value as any)?.guestCount ?? null)
 const contactPhone = computed(() => (data.value as any)?.contactPhone ?? null)
 const propertyNavUrl = computed(() => (data.value as any)?.propertyNavUrl ?? null)
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const MONTHS_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const DAYS_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
+// Localised month/day abbreviations
+const MONTHS: Record<string, string[]> = {
+  en: MONTHS_EN,
+  sl: ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'],
+  de: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
+  hr: ['Sij','Velj','Ožu','Tra','Svi','Lip','Srp','Kol','Ruj','Lis','Stu','Pro'],
+  sr: ['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'],
+}
+const DAYS: Record<string, string[]> = {
+  en: DAYS_EN,
+  sl: ['Ned','Pon','Tor','Sre','Čet','Pet','Sob'],
+  de: ['So','Mo','Di','Mi','Do','Fr','Sa'],
+  hr: ['Ned','Pon','Uto','Sri','Čet','Pet','Sub'],
+  sr: ['Ned','Pon','Uto','Sre','Čet','Pet','Sub'],
+}
 
 function formatDt(dt: string | null, opts?: { short?: boolean }) {
   if (!dt) return '—'
@@ -40,9 +66,10 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   if (!datePart) return dt
   const d = new Date(datePart + 'T00:00:00')
   if (isNaN(d.getTime())) return dt
-  const dow = DAYS[d.getDay()]
+  const loc = locale.value
+  const dow = (DAYS[loc] ?? DAYS_EN)[d.getDay()]
   const day = d.getDate()
-  const mon = MONTHS[d.getMonth()]
+  const mon = (MONTHS[loc] ?? MONTHS_EN)[d.getMonth()]
   if (opts?.short) return timePart ? `${day} ${mon} ${timePart}` : `${day} ${mon}`
   return timePart ? `${dow} ${day} ${mon} · ${timePart}` : `${dow} ${day} ${mon}`
 }
@@ -59,7 +86,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
     <!-- Error -->
     <template v-else-if="error">
       <div class="guest-hero">
-        <p class="guest-kicker">Maple &amp; Pine · Bled</p>
+        <p class="guest-kicker">{{ t.hero.kicker }}</p>
         <h1>Access not found</h1>
         <p class="guest-hero__sub">
           {{ (error as any).data?.statusMessage ?? 'This link is invalid or has expired.' }}
@@ -72,26 +99,26 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
       <!-- Hero -->
       <div class="guest-hero">
-        <p class="guest-kicker">Maple &amp; Pine · Bled</p>
-        <h1>Welcome, {{ firstName }}!</h1>
+        <p class="guest-kicker">{{ t.hero.kicker }}</p>
+        <p class="guest-hero__welcome">{{ t.hero.welcome }}</p>
+        <h1 class="guest-hero__name-line"><span class="guest-hero__name">{{ firstName }}</span>!</h1>
         <p class="guest-hero__sub">
-          {{ doorLabel }}
+          <strong>{{ doorLabel }}</strong>
           <template v-if="guestCount">
             <span class="guest-hero__sep">·</span>
-            {{ guestCount }} {{ guestCount === 1 ? 'guest' : 'guests' }}
+            {{ guestCount }} {{ guestCount === 1 ? t.hero.guestSingular : t.hero.guestPlural }}
           </template>
         </p>
-        <p class="guest-hero__dates">
+        <div class="guest-hero__dates">
           <span class="guest-hero__date-item">
-            <span class="guest-hero__date-label">Check-in</span>
-            {{ formatDt((data as any).checkIn) }}
+            <span class="guest-hero__date-label">{{ t.hero.checkIn }}</span>
+            <span class="guest-hero__date-val">{{ formatDt((data as any).checkIn) }}</span>
           </span>
-          <span class="guest-hero__date-arrow" aria-hidden="true">→</span>
           <span class="guest-hero__date-item">
-            <span class="guest-hero__date-label">Check-out</span>
-            {{ formatDt((data as any).checkOut) }}
+            <span class="guest-hero__date-label">{{ t.hero.checkOut }}</span>
+            <span class="guest-hero__date-val">{{ formatDt((data as any).checkOut) }}</span>
           </span>
-        </p>
+        </div>
 
         <!-- Nav + Call buttons -->
         <div v-if="propertyNavUrl || contactPhone" class="guest-hero__actions">
@@ -103,7 +130,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
             class="guest-action-btn guest-action-btn--nav"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-            Directions
+            {{ t.hero.directions }}
           </a>
           <a
             v-if="contactPhone"
@@ -111,14 +138,14 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
             class="guest-action-btn guest-action-btn--call"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.64 3.42 2 2 0 0 1 3.6 1.26h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.38a16 16 0 0 0 5.66 5.66l1.34-1.34a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 15z"/></svg>
-            Call us
+            {{ t.hero.callUs }}
           </a>
         </div>
       </div>
 
       <!-- PIN panel -->
       <div class="pin-panel">
-        <p class="guest-kicker">Your access PIN</p>
+        <p class="guest-kicker">{{ t.pin.kicker }}</p>
 
         <template v-if="(data as any).pin">
           <div class="pin-box" :class="{ 'pin-box--visible': pinVisible }">
@@ -127,7 +154,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
             </span>
           </div>
           <button class="pin-reveal" @click="pinVisible = !pinVisible">
-            {{ pinVisible ? 'Hide PIN' : 'Reveal PIN' }}
+            {{ pinVisible ? t.pin.hide : t.pin.reveal }}
           </button>
         </template>
 
@@ -136,35 +163,14 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
             <circle cx="10" cy="10" r="9" stroke="#7b947e" stroke-width="1.5"/>
             <path d="M10 6v5l3 3" stroke="#7b947e" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <p>Your PIN is being set up. You'll receive an email as soon as it's ready.</p>
+          <p>{{ t.pin.pending }}</p>
         </div>
 
-        <div class="door-row">
-          <span
-            v-for="d in doorList"
-            :key="d"
-            class="door-badge"
-            :class="d === 'Maple' ? 'door-badge--maple' : 'door-badge--pine'"
-          >{{ d }} Apartment</span>
-        </div>
-      </div>
-
-      <!-- Validity strip -->
-      <div class="validity-strip">
-        <div class="validity-strip__item">
-          <span class="validity-strip__label">PIN active from</span>
-          <span class="validity-strip__value">{{ formatDt((data as any).accessValidFrom) }}</span>
-        </div>
-        <div class="validity-strip__divider" aria-hidden="true" />
-        <div class="validity-strip__item">
-          <span class="validity-strip__label">PIN expires</span>
-          <span class="validity-strip__value">{{ formatDt((data as any).accessValidUntil) }}</span>
-        </div>
       </div>
 
       <!-- Weather -->
       <div class="weather-panel">
-        <p class="guest-kicker">Vreme · Bled</p>
+        <p class="guest-kicker">{{ t.weather.kicker }}</p>
         <iframe
           src="https://vreme.arso.gov.si/widget/?&loc=Bled"
           style="border:0; height:185px; width:100%;"
@@ -175,24 +181,50 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
       <!-- Parking -->
       <div class="info-panel">
-        <p class="guest-kicker">Parking</p>
+        <p class="guest-kicker">{{ t.parking.kicker }}</p>
         <div class="info-panel__row">
           <svg class="info-panel__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-          <p>Parkiranje je možno na prvih dveh mestih na levi strani dovoza ob električni polnilnici.</p>
+          <p>{{ t.parking.text }}</p>
         </div>
       </div>
 
       <!-- House rules -->
       <div class="info-panel">
-        <p class="guest-kicker">House rules</p>
+        <p class="guest-kicker">{{ t.rules.kicker }}</p>
         <ul class="info-rules">
-          <li>No smoking inside the apartment.</li>
-          <li>Please separate waste and flush toilet paper only.</li>
-          <li>Please do not feed the horses — unsuitable food can harm them.</li>
-          <li>Do not lean on or climb the upper-floor fence. The horse fence is electrified.</li>
-          <li>Tap water is safe to drink.</li>
+          <li v-for="(rule, i) in t.rules.items" :key="i">
+            <span class="info-rules__bullet" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1.5C5 1.5 3.5 3 3.5 4.5c0 2 1.5 3.5 3.5 5.5 2-2 3.5-3.5 3.5-5.5C10.5 3 9 1.5 7 1.5z" fill="#7b947e"/>
+                <path d="M7 4.5v5" stroke="#fffdf8" stroke-width="0.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span>{{ rule }}</span>
+          </li>
         </ul>
       </div>
+
+      <!-- Adventure teaser -->
+      <NuxtLink to="/guest/info/suggestions" class="adventure-card">
+        <div class="adventure-card__video">
+          <iframe
+            src="https://www.youtube.com/embed/ZpIO7qyk760?si=HaZpAqX8mg89Ptbl"
+            title="Bled"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+          />
+        </div>
+        <div class="adventure-card__body">
+          <h2 class="adventure-card__title">{{ t.adventure.title }}</h2>
+          <p class="adventure-card__desc">{{ t.adventure.desc }}</p>
+          <span class="adventure-card__cta">
+            {{ t.adventure.cta }}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </span>
+        </div>
+      </NuxtLink>
 
     </template>
   </div>
@@ -239,14 +271,28 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   border: 1px solid #e4dccf;
   padding: clamp(28px, 5vw, 48px);
   margin: 0 0 18px;
+  text-align: center;
 }
 
-.guest-hero h1 {
+.guest-hero__welcome {
+  margin: 0 0 2px;
+  font-family: 'Dancing Script', cursive;
+  font-size: clamp(2.2rem, 7vw, 3.2rem);
+  font-weight: 600;
+  color: #7b947e;
+  line-height: 1.2;
+}
+
+.guest-hero__name-line {
   margin: 0;
   color: #202920;
   font-size: clamp(2.1rem, 6vw, 3.2rem);
   line-height: 1.06;
   font-weight: 620;
+}
+
+.guest-hero__name {
+  text-transform: uppercase;
 }
 
 .guest-hero__sub {
@@ -263,18 +309,19 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .guest-hero__dates {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  margin: 18px 0 0;
-  padding: 18px 0 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 20px 0 0;
   border-top: 1px solid #e4dccf;
+  width: 100%;
 }
 
 .guest-hero__date-item {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .guest-hero__date-label {
@@ -285,18 +332,19 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   color: #7b947e;
 }
 
-.guest-hero__date-arrow {
-  color: #c4b9a8;
-  font-size: 1.1rem;
-  align-self: center;
-  padding-top: 14px;
+.guest-hero__date-val {
+  font-size: 1rem;
+  font-weight: 620;
+  color: #202920;
+  line-height: 1.2;
 }
 
 .guest-hero__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 22px;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
 }
 
 .guest-action-btn {
@@ -355,7 +403,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 }
 
 .pin-box__code {
-  font-size: 2.6rem;
+  font-size: clamp(1.4rem, 8vw, 2.6rem);
   font-weight: 700;
   letter-spacing: 0.22em;
   font-variant-numeric: tabular-nums;
@@ -363,6 +411,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
   user-select: none;
   transition: opacity 160ms ease;
+  white-space: nowrap;
 }
 
 .pin-box:not(.pin-box--visible) .pin-box__code {
@@ -372,7 +421,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .pin-reveal {
   min-height: 44px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
@@ -385,7 +434,8 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   border: none;
   font-family: inherit;
   transition: background 160ms ease;
-  margin: 0 0 22px;
+  margin: 0 auto 22px;
+  width: fit-content;
 }
 .pin-reveal:hover { background: #3c5543; }
 
@@ -407,67 +457,6 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   line-height: 1.65;
 }
 .pin-pending svg { flex-shrink: 0; margin-top: 2px; }
-
-/* Door badges */
-.door-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.door-badge {
-  display: inline-flex;
-  align-items: center;
-  background: #eef1eb;
-  border: 1px solid #dbe3d8;
-  color: #536556;
-  padding: 5px 10px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  border-radius: 6px;
-}
-
-.door-badge--maple {
-  background: #fef9ee;
-  border-color: #f0e0b5;
-  color: #7a5a18;
-}
-
-/* ── Validity strip ── */
-.validity-strip {
-  background: #fffdf8;
-  border: 1px solid #e4dccf;
-  display: grid;
-  grid-template-columns: 1fr 1px 1fr;
-}
-
-.validity-strip__item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 24px clamp(20px, 4vw, 32px);
-}
-
-.validity-strip__divider {
-  background: #e4dccf;
-  width: 1px;
-  align-self: stretch;
-}
-
-.validity-strip__label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7b947e;
-}
-
-.validity-strip__value {
-  font-size: 1rem;
-  font-weight: 620;
-  color: #202920;
-  line-height: 1.3;
-}
 
 .weather-panel {
   background: #fffdf8;
@@ -504,17 +493,38 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 }
 
 .info-rules {
-  margin: 0 0 16px;
-  padding-left: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
 .info-rules li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   color: #243027;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 0.93rem;
+  line-height: 1.6;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee8de;
+}
+
+.info-rules li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.info-rules li:first-child {
+  padding-top: 0;
+}
+
+.info-rules__bullet {
+  flex-shrink: 0;
+  margin-top: 3px;
+  display: flex;
 }
 
 .info-panel__link {
@@ -529,16 +539,70 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 }
 .info-panel__link:hover { color: #3c5543; border-color: #26372c; }
 
+/* ── Adventure teaser ── */
+.adventure-card {
+  display: block;
+  background: #fffdf8;
+  border: 1px solid #e4dccf;
+  overflow: hidden;
+  margin: 18px 0 0;
+  text-decoration: none;
+  transition: border-color 180ms ease;
+}
+.adventure-card:hover { border-color: #9db39e; }
+
+.adventure-card__video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-bottom: 1px solid #e4dccf;
+  background: #1a1a1a;
+}
+.adventure-card__video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.adventure-card__body {
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.adventure-card__title {
+  margin: 0 0 10px;
+  color: #202920;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-weight: 620;
+  line-height: 1.15;
+}
+
+.adventure-card__desc {
+  margin: 0 0 18px;
+  color: #626a63;
+  line-height: 1.75;
+  font-size: 0.95rem;
+}
+
+.adventure-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #26372c;
+  border-bottom: 1.5px solid #9db39e;
+  padding-bottom: 1px;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.adventure-card:hover .adventure-card__cta { color: #3c5543; border-color: #26372c; }
+
 @media (max-width: 480px) {
   .guest-page { padding: 20px 0 0; }
-
-  .validity-strip {
-    grid-template-columns: 1fr;
-  }
-  .validity-strip__divider {
-    width: auto;
-    height: 1px;
-    align-self: auto;
-  }
+  .guest-hero__dates { flex-direction: column; gap: 16px; align-items: center; }
+  .guest-hero__date-item { align-items: center; }
 }
+
 </style>

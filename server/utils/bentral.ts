@@ -9,6 +9,7 @@ export interface BentralReservation {
     name: string
     email?: string
     phone?: string
+    lang?: string
   }
   persons?: number      // number of guests
   size?: number
