@@ -105,20 +105,65 @@ function doorBadgeClass(door: string) {
 // Detail modal
 const detail = ref<Reservation | null>(null)
 const pinVisible = ref(false)
+const extendFrom = ref('')
 const extendUntil = ref('')
 const extendLoading = ref(false)
 const extendError = ref('')
 const extendSaved = ref(false)
+const pinLoading = ref(false)
+const pinError = ref('')
+const pinQueued = ref(false)
+const sendPinLoading = ref(false)
+const sendPinError = ref('')
+const sendPinDone = ref(false)
 
 function openDetail(r: Reservation) {
   detail.value = r
   pinVisible.value = false
+  extendFrom.value = r.accessValidFrom?.replace(' ', 'T') ?? ''
   extendUntil.value = r.accessValidUntil?.replace(' ', 'T') ?? ''
   extendError.value = ''
   extendSaved.value = false
+  pinError.value = ''
+  pinQueued.value = false
+  sendPinError.value = ''
+  sendPinDone.value = false
 }
 
 function closeDetail() { detail.value = null }
+
+async function sendPin() {
+  if (!detail.value) return
+  sendPinLoading.value = true
+  sendPinError.value = ''
+  sendPinDone.value = false
+  try {
+    await $fetch(`/api/staff/guests/${detail.value.id}/send-pin`, { method: 'POST' })
+    sendPinDone.value = true
+  } catch (err: any) {
+    sendPinError.value = err?.data?.statusMessage ?? 'Napaka'
+  } finally {
+    sendPinLoading.value = false
+  }
+}
+
+async function createPin() {
+  if (!detail.value) return
+  pinLoading.value = true
+  pinError.value = ''
+  pinQueued.value = false
+  try {
+    await $fetch(`/api/staff/guests/${detail.value.id}/create-pin`, { method: 'POST' })
+    pinQueued.value = true
+    await refresh()
+    const fresh = allReservations.value.find(r => r.id === detail.value!.id)
+    if (fresh) { detail.value = fresh; pinVisible.value = false }
+  } catch (err: any) {
+    pinError.value = err?.data?.statusMessage ?? 'Napaka'
+  } finally {
+    pinLoading.value = false
+  }
+}
 
 async function submitExtend() {
   if (!detail.value) return
@@ -128,12 +173,14 @@ async function submitExtend() {
   try {
     await $fetch(`/api/staff/guests/${detail.value.id}/extend`, {
       method: 'PATCH',
-      body: { accessValidUntil: extendUntil.value },
+      body: {
+        ...(extendFrom.value ? { accessValidFrom: extendFrom.value } : {}),
+        ...(extendUntil.value ? { accessValidUntil: extendUntil.value } : {}),
+      },
     })
     extendSaved.value = true
     await refresh()
-    // Update the open detail with fresh data
-    const fresh = reservations.value.find(r => r.id === detail.value!.id)
+    const fresh = allReservations.value.find(r => r.id === detail.value!.id)
     if (fresh) detail.value = fresh
   } catch (err: any) {
     extendError.value = err?.data?.statusMessage ?? 'Napaka'
@@ -341,23 +388,44 @@ function isCurrentMonth() {
             <span v-else class="drawer__pin-pending">Nastavlja se…</span>
           </div>
 
-          <!-- Extend access -->
+          <!-- PIN actions -->
+          <div class="drawer__pin-actions">
+            <button
+              class="drawer__pin-action-btn"
+              :class="detail.pin ? 'drawer__pin-action-btn--regen' : 'drawer__pin-action-btn--create'"
+              :disabled="pinLoading"
+              @click="createPin"
+            >
+              {{ pinLoading ? '…' : detail.pin ? 'Kreiraj nov PIN' : 'Kreiraj PIN' }}
+            </button>
+            <button
+              v-if="detail.pin"
+              class="drawer__pin-action-btn drawer__pin-action-btn--send"
+              :disabled="sendPinLoading"
+              @click="sendPin"
+            >
+              {{ sendPinLoading ? '…' : 'Pošlji PIN' }}
+            </button>
+            <p v-if="pinError" class="drawer__pin-action-error">{{ pinError }}</p>
+            <p v-if="pinQueued" class="drawer__pin-action-ok">✓ V pripravi…</p>
+            <p v-if="sendPinError" class="drawer__pin-action-error">{{ sendPinError }}</p>
+            <p v-if="sendPinDone" class="drawer__pin-action-ok">✓ Sporočilo poslano</p>
+          </div>
+
+          <!-- Adjust access times -->
           <div class="drawer__extend">
-            <p class="drawer__extend-title">Podaljšaj dostop</p>
-            <div class="drawer__extend-row">
-              <input
-                v-model="extendUntil"
-                type="datetime-local"
-                class="drawer__extend-input"
-              />
-              <button
-                class="drawer__extend-btn"
-                :disabled="extendLoading"
-                @click="submitExtend"
-              >
-                {{ extendLoading ? '…' : 'Shrani' }}
-              </button>
+            <p class="drawer__extend-title">Uredi čas dostopa</p>
+            <div class="drawer__extend-field">
+              <label class="drawer__extend-label">Dostop od</label>
+              <input v-model="extendFrom" type="datetime-local" class="drawer__extend-input" />
             </div>
+            <div class="drawer__extend-field">
+              <label class="drawer__extend-label">Dostop do</label>
+              <input v-model="extendUntil" type="datetime-local" class="drawer__extend-input" />
+            </div>
+            <button class="drawer__extend-btn" :disabled="extendLoading" @click="submitExtend">
+              {{ extendLoading ? '…' : 'Shrani' }}
+            </button>
             <p v-if="extendError" class="drawer__extend-error">{{ extendError }}</p>
             <p v-if="extendSaved" class="drawer__extend-ok">✓ Shranjeno</p>
           </div>
@@ -827,6 +895,59 @@ function isCurrentMonth() {
   font-style: italic;
 }
 
+/* PIN actions */
+.drawer__pin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawer__pin-action-btn {
+  width: 100%;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 140ms, opacity 140ms;
+}
+.drawer__pin-action-btn:disabled { opacity: 0.5; cursor: default; }
+
+.drawer__pin-action-btn--create {
+  background: #26372c;
+  color: white;
+}
+.drawer__pin-action-btn--create:hover:not(:disabled) { background: #3c5543; }
+
+.drawer__pin-action-btn--regen {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.drawer__pin-action-btn--regen:hover:not(:disabled) { background: #e2e8f0; }
+
+.drawer__pin-action-btn--send {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.drawer__pin-action-btn--send:hover:not(:disabled) { background: #dbeafe; }
+
+.drawer__pin-action-error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #dc2626;
+}
+
+.drawer__pin-action-ok {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #16a34a;
+  font-weight: 600;
+}
+
 /* Extend */
 .drawer__extend {
   border-top: 1px solid #f1f5f9;
@@ -843,6 +964,20 @@ function isCurrentMonth() {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #64748b;
+}
+
+.drawer__extend-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer__extend-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
 }
 
 .drawer__extend-row {

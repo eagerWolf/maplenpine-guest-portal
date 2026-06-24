@@ -19,6 +19,9 @@ export default defineNuxtConfig({
     bentralColdCron: process.env.BENTRAL_COLD_CRON || '0 3 * * *',
     public: {
       baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+      gaId: process.env.NUXT_PUBLIC_GA_ID || '',
+      instagramUrl: process.env.NUXT_PUBLIC_INSTAGRAM_URL || 'https://www.instagram.com/maplenpine.bled',
+      facebookUrl: process.env.NUXT_PUBLIC_FACEBOOK_URL || 'https://www.facebook.com/maplenpinebled',
     },
   },
 

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { LOCALES } from '~/i18n/translations'
 
+const config = useRuntimeConfig()
+const instagramUrl = config.public.instagramUrl as string
+const facebookUrl = config.public.facebookUrl as string
+
 useHead({
   link: [
     { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -96,7 +100,35 @@ watch(() => route.path, closeDrawer)
 
     <footer class="guest-footer">
       <div class="guest-footer__inner">
-        Maple &amp; Pine Apartments · Bled, Slovenia
+        <div class="guest-footer__social">
+          <a
+            :href="instagramUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="social-btn"
+            aria-label="Instagram"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="social-btn__label">Instagram</span>
+          </a>
+          <a
+            :href="facebookUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="social-btn"
+            aria-label="Facebook"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+            <span class="social-btn__label">Facebook</span>
+          </a>
+        </div>
+        <span class="guest-footer__copy">Maple &amp; Pine Apartments · Bled, Slovenia</span>
       </div>
     </footer>
   </div>
@@ -210,8 +242,50 @@ body {
   color: rgba(255, 255, 255, 0.35);
   font-size: 0.82rem;
   text-align: center;
-  padding: 18px 24px;
+  padding: 28px 24px 20px;
   letter-spacing: 0.01em;
+}
+
+.guest-footer__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.guest-footer__copy {
+  display: block;
+}
+
+.guest-footer__social {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 8px 11px;
+  border-radius: 7px;
+  background: rgba(255, 253, 248, 0.08);
+  color: rgba(255, 253, 248, 0.6);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 160ms ease, color 160ms ease;
+  border: 1px solid rgba(255, 253, 248, 0.1);
+}
+.social-btn:hover {
+  background: rgba(255, 253, 248, 0.14);
+  color: #fffdf8;
+  border-color: rgba(255, 253, 248, 0.2);
+}
+
+.social-btn__label {
+  line-height: 1;
 }
 
 /* ── Mobile hamburger button ── */

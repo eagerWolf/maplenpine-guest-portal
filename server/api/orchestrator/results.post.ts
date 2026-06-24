@@ -1,13 +1,14 @@
 import { randomUUID } from 'crypto'
 import { getDb, now } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
-import { updateJobResult } from '../../utils/jobs'
+import { updateJobResult, getSettings, computeDisplayFrom, computeDisplayUntil } from '../../utils/jobs'
 import {
   sendGuestPin,
   sendAdminPinAdded,
   sendAdminPinUpdated,
   sendAdminJobFailed,
 } from '../../utils/email'
+import { sendBentralMessage, buildBentralPinMessage } from '../../utils/bentral'
 
 interface OrchestratorResult {
   _internalJobId?: number
@@ -89,6 +90,21 @@ export default defineEventHandler(async (event) => {
             apiKey: config.resendApiKey,
             from: config.guestEmailFrom,
           }).catch(err => console.error('[email:guest]', err))
+        }
+
+        // Bentral message
+        if (config.bentralApiKey) {
+          const settings = getSettings()
+          const bentralMsg = buildBentralPinMessage(
+            guestName,
+            reservation.door,
+            result.pin,
+            portalLink,
+            computeDisplayFrom(reservation, settings),
+            computeDisplayUntil(reservation, settings),
+          )
+          await sendBentralMessage(config.bentralApiKey, reservation.bentral_reservation_id, bentralMsg)
+            .catch(err => console.error('[bentral:message]', err))
         }
 
         // Admin notification

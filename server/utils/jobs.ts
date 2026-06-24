@@ -111,6 +111,31 @@ function applyOffset(dateStr: string, timeStr: string, offsetMin: number): strin
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
 }
 
+/**
+ * Returns the time string a guest should see in their message.
+ * Standard case: shows the official check-in/out time (e.g. 15:00, 11:00).
+ * If admin has manually adjusted the access time, shows the adjusted value directly.
+ */
+export function computeDisplayFrom(reservation: Reservation, settings: Record<string, string>): string {
+  const arrival = reservation.bentral_arrival ?? reservation.check_in
+  const departure = reservation.bentral_departure ?? reservation.check_out
+  const standard = buildAccessTimes(arrival, departure, settings)
+  if (!reservation.access_valid_from || reservation.access_valid_from === standard.validFrom) {
+    return `${arrival} ${settings.bentral_checkin_time || '15:00'}`
+  }
+  return reservation.access_valid_from
+}
+
+export function computeDisplayUntil(reservation: Reservation, settings: Record<string, string>): string {
+  const arrival = reservation.bentral_arrival ?? reservation.check_in
+  const departure = reservation.bentral_departure ?? reservation.check_out
+  const standard = buildAccessTimes(arrival, departure, settings)
+  if (!reservation.access_valid_until || reservation.access_valid_until === standard.validUntil) {
+    return `${departure} ${settings.bentral_checkout_time || '11:00'}`
+  }
+  return reservation.access_valid_until
+}
+
 export function buildAccessTimes(arrival: string, departure: string, settings: Record<string, string>) {
   const checkinTime = settings.bentral_checkin_time || '15:00'
   const checkoutTime = settings.bentral_checkout_time || '11:00'
