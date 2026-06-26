@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { LOCALES } from '~/i18n/translations'
 
-const config = useRuntimeConfig()
-const instagramUrl = config.public.instagramUrl as string
-const facebookUrl = config.public.facebookUrl as string
+const { data: publicSettings } = await useFetch<Record<string, string>>('/api/public/settings')
+const instagramUrl = computed(() => publicSettings.value?.instagram_url ?? '')
+const facebookUrl = computed(() => publicSettings.value?.facebook_url ?? '')
 
 useHead({
   link: [
@@ -40,6 +40,7 @@ watch(() => route.path, closeDrawer)
             <NuxtLink to="/guest/info/faq" class="guest-nav__link">{{ t.nav.faq }}</NuxtLink>
             <NuxtLink to="/guest/info/restaurants" class="guest-nav__link">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink to="/guest/info/suggestions" class="guest-nav__link">{{ t.nav.suggestions }}</NuxtLink>
+            <NuxtLink v-if="guestToken" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link guest-nav__link--breakfast">🍳 Zajtrk</NuxtLink>
           </nav>
           <div class="lang-switcher" role="group" aria-label="Language">
             <button
@@ -80,6 +81,7 @@ watch(() => route.path, closeDrawer)
             <NuxtLink to="/guest/info/faq" class="drawer__link">{{ t.nav.faq }}</NuxtLink>
             <NuxtLink to="/guest/info/restaurants" class="drawer__link">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink to="/guest/info/suggestions" class="drawer__link">{{ t.nav.suggestions }}</NuxtLink>
+            <NuxtLink v-if="guestToken" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">🍳 Zajtrk</NuxtLink>
           </nav>
           <div class="drawer__lang" role="group" aria-label="Language">
             <button
@@ -102,6 +104,7 @@ watch(() => route.path, closeDrawer)
       <div class="guest-footer__inner">
         <div class="guest-footer__social">
           <a
+            v-if="instagramUrl"
             :href="instagramUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -116,6 +119,7 @@ watch(() => route.path, closeDrawer)
             <span class="social-btn__label">Instagram</span>
           </a>
           <a
+            v-if="facebookUrl"
             :href="facebookUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -200,6 +204,11 @@ body {
 .guest-nav__link.router-link-active {
   color: #fffdf8;
   background: rgba(255, 253, 248, 0.1);
+}
+
+.guest-nav__link--breakfast {
+  border: 1px solid rgba(255, 253, 248, 0.2);
+  border-radius: 5px;
 }
 
 .lang-switcher {

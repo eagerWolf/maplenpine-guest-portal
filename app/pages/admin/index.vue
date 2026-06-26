@@ -163,6 +163,23 @@ const sendPinLoading = ref(false)
 const sendPinError = ref('')
 const sendPinDone = ref(false)
 
+const ekeyFirstNameCopied = ref(false)
+const ekeyLastNameCopied = ref(false)
+
+async function copyEkeyFirstName() {
+  if (!detail.value) return
+  await navigator.clipboard.writeText(`${detail.value.id}, ${detail.value.firstName}`)
+  ekeyFirstNameCopied.value = true
+  setTimeout(() => { ekeyFirstNameCopied.value = false }, 2000)
+}
+
+async function copyEkeyLastName() {
+  if (!detail.value) return
+  await navigator.clipboard.writeText(detail.value.lastName)
+  ekeyLastNameCopied.value = true
+  setTimeout(() => { ekeyLastNameCopied.value = false }, 2000)
+}
+
 function openDetail(r: Reservation) {
   detail.value = r
   pinVisible.value = false
@@ -496,6 +513,29 @@ function statusClass(status: string) {
               <span class="drawer__label">Bentral ID</span>
               <span class="drawer__val drawer__val--mono">{{ detail.bentralId }}</span>
             </div>
+            <div class="drawer__row drawer__row--ekey">
+              <span class="drawer__label">eKey ime</span>
+              <div class="drawer__ekey-names">
+                <button
+                  class="drawer__ekey-chip"
+                  :title="ekeyFirstNameCopied ? 'Kopirano!' : 'Klikni za kopiranje'"
+                  @click="copyEkeyFirstName"
+                >
+                  <span class="drawer__ekey-field">First name</span>
+                  <span class="drawer__ekey-val">{{ detail.id }}, {{ detail.firstName }}</span>
+                  <span class="drawer__ekey-icon">{{ ekeyFirstNameCopied ? '✓' : '⎘' }}</span>
+                </button>
+                <button
+                  class="drawer__ekey-chip"
+                  :title="ekeyLastNameCopied ? 'Kopirano!' : 'Klikni za kopiranje'"
+                  @click="copyEkeyLastName"
+                >
+                  <span class="drawer__ekey-field">Last name</span>
+                  <span class="drawer__ekey-val">{{ detail.lastName }}</span>
+                  <span class="drawer__ekey-icon">{{ ekeyLastNameCopied ? '✓' : '⎘' }}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- PIN display -->
@@ -828,6 +868,19 @@ function statusClass(status: string) {
 }
 .drawer__val { font-size: 0.88rem; font-weight: 500; color: #1e293b; text-align: right; }
 .drawer__val--mono { font-family: ui-monospace, monospace; font-size: 0.78rem; color: #64748b; }
+
+.drawer__row--ekey { align-items: flex-start; }
+.drawer__ekey-names { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.drawer__ekey-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px;
+  padding: 4px 8px; cursor: pointer; transition: background 0.15s;
+  font-size: 0.78rem; font-family: ui-monospace, monospace;
+}
+.drawer__ekey-chip:hover { background: #e2e8f0; }
+.drawer__ekey-field { color: #94a3b8; font-size: 0.72rem; }
+.drawer__ekey-val { color: #1e293b; font-weight: 500; }
+.drawer__ekey-icon { color: #64748b; font-size: 0.85rem; }
 
 .drawer__link { color: #26372c; text-decoration: none; font-weight: 500; }
 .drawer__link:hover { text-decoration: underline; }

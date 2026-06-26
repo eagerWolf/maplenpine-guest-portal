@@ -7,13 +7,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Ni dovoljenja' })
   }
 
-  const { email, role } = await readBody<{ email: string; role: string }>(event)
+  const { email, role, notification_level = 'none', whatsapp_phone = '' } = await readBody<{
+    email: string
+    role: string
+    notification_level?: string
+    whatsapp_phone?: string
+  }>(event)
 
   if (!email || !email.includes('@')) {
     throw createError({ statusCode: 400, statusMessage: 'Neveljaven email' })
   }
   if (!['admin', 'staff'].includes(role)) {
     throw createError({ statusCode: 400, statusMessage: 'Neveljavna vloga' })
+  }
+  if (!['none', 'errors', 'all'].includes(notification_level)) {
+    throw createError({ statusCode: 400, statusMessage: 'Neveljaven nivo obvestil' })
   }
 
   const db = getDb()
@@ -23,9 +31,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const ts = now()
+  const phone = whatsapp_phone.trim() || null
   const result = db.prepare(
-    'INSERT INTO users (email, role, created_at) VALUES (?, ?, ?)',
-  ).run(email.toLowerCase().trim(), role, ts)
+    'INSERT INTO users (email, role, notification_level, whatsapp_phone, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(email.toLowerCase().trim(), role, notification_level, phone, ts)
 
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)
@@ -33,9 +42,9 @@ export default defineEventHandler(async (event) => {
   `).run(
     session.user.id,
     session.user.email,
-    JSON.stringify({ added_email: email, role }),
+    JSON.stringify({ added_email: email, role, notification_level }),
     ts,
   )
 
-  return { id: result.lastInsertRowid, email, role, created_at: ts }
+  return { id: result.lastInsertRowid, email, role, notification_level, whatsapp_phone: phone, created_at: ts }
 })

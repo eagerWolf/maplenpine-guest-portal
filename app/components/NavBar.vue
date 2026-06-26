@@ -52,9 +52,23 @@ const isAdmin = computed(() => user.value?.role === 'admin')
                 Log
               </NuxtLink>
               <NuxtLink
-                to="/admin/settings"
+                to="/admin/notifications"
                 class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/settings' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+                :class="route.path === '/admin/notifications' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+              >
+                Obvestila
+              </NuxtLink>
+              <NuxtLink
+                to="/admin/sales"
+                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                :class="route.path === '/admin/sales' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+              >
+                Prodaja
+              </NuxtLink>
+              <NuxtLink
+                to="/admin/settings/general"
+                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                :class="route.path.startsWith('/admin/settings') ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
               >
                 Nastavitve
               </NuxtLink>

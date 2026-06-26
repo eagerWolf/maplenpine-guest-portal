@@ -10,6 +10,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
+  const db = getDb()
+  const publishSetting = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('auto_publish_ekey') as { value: string } | undefined
+  if (publishSetting && publishSetting.value === '0') {
+    return { jobs: [] }
+  }
+
   const pendingJobs = getPendingJobs()
 
   if (pendingJobs.length === 0) {

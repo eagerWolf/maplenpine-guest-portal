@@ -2,13 +2,9 @@ import { randomUUID } from 'crypto'
 import { getDb, now } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
 import { updateJobResult, getSettings, computeDisplayFrom, computeDisplayUntil } from '../../utils/jobs'
-import {
-  sendGuestPin,
-  sendAdminPinAdded,
-  sendAdminPinUpdated,
-  sendAdminJobFailed,
-} from '../../utils/email'
+import { sendGuestPin } from '../../utils/email'
 import { sendBentralMessage, buildBentralPinMessage } from '../../utils/bentral'
+import { notifyAdmins } from '../../utils/notify'
 
 interface OrchestratorResult {
   _internalJobId?: number
@@ -36,7 +32,6 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
 
   for (const result of results) {
-    // Find the job — prefer _internalJobId, fall back to searching by bentral_reservation_id
     let job = result._internalJobId
       ? (db.prepare("SELECT * FROM jobs WHERE id = ?").get(result._internalJobId) as Job | undefined)
       : undefined
@@ -64,11 +59,9 @@ export default defineEventHandler(async (event) => {
 
     if (result.status === 'success') {
       if (job.action === 'insert' && result.pin) {
-        // Store PIN
         db.prepare('UPDATE reservations SET pin = ?, updated_at = ? WHERE id = ?')
           .run(result.pin, now(), reservation.id)
 
-        // Create guest token
         const token = randomUUID()
         const expiresAt = new Date(
           new Date(reservation.check_out + 'T00:00:00').getTime() + 7 * 24 * 60 * 60 * 1000,
@@ -76,9 +69,9 @@ export default defineEventHandler(async (event) => {
         db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
           .run(reservation.id, token, expiresAt, now())
 
-        // Send guest email if we have their address
+        const portalLink = `${config.public.baseUrl}/guest/${token}`
+
         if (reservation.guest_email && config.resendApiKey) {
-          const portalLink = `${config.public.baseUrl}/guest/${token}`
           await sendGuestPin({
             to: reservation.guest_email,
             guestName,
@@ -89,10 +82,27 @@ export default defineEventHandler(async (event) => {
             portalLink,
             apiKey: config.resendApiKey,
             from: config.guestEmailFrom,
-          }).catch(err => console.error('[email:guest]', err))
+          }).catch(async (err) => {
+            console.error('[email:guest]', err)
+            const errMsg = err instanceof Error ? err.message : String(err)
+            await notifyAdmins({
+              event: 'pin_send_failed',
+              subject: `⚠ Napaka pri pošiljanju PIN gostom — ${guestName}`,
+              emailHtml: `
+                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+                  <h2 style="color:#bc4749">Napaka pri pošiljanju PIN gostom</h2>
+                  <table style="width:100%;border-collapse:collapse">
+                    <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+                    <tr><td style="padding:6px 0;color:#888">Email gosta</td><td style="padding:6px 0">${reservation.guest_email}</td></tr>
+                    <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
+                  </table>
+                </div>
+              `,
+              whatsappText: `⚠ Napaka pri pošiljanju PIN gostom ${guestName}\nEmail: ${reservation.guest_email}\nNapaka: ${errMsg}`,
+            }).catch(() => {})
+          })
         }
 
-        // Bentral message
         if (config.bentralApiKey) {
           const settings = getSettings()
           const bentralMsg = buildBentralPinMessage(
@@ -104,48 +114,81 @@ export default defineEventHandler(async (event) => {
             computeDisplayUntil(reservation, settings),
           )
           await sendBentralMessage(config.bentralApiKey, reservation.bentral_reservation_id, bentralMsg)
-            .catch(err => console.error('[bentral:message]', err))
+            .catch(async (err) => {
+              console.error('[bentral:message]', err)
+              const errMsg = err instanceof Error ? err.message : String(err)
+              await notifyAdmins({
+                event: 'pin_send_failed',
+                subject: `⚠ Napaka pri Bentral sporočilu — ${guestName}`,
+                emailHtml: `
+                  <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+                    <h2 style="color:#bc4749">Napaka pri pošiljanju Bentral sporočila</h2>
+                    <table style="width:100%;border-collapse:collapse">
+                      <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+                      <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
+                    </table>
+                  </div>
+                `,
+                whatsappText: `⚠ Napaka pri Bentral sporočilu za ${guestName}\nNapaka: ${errMsg}`,
+              }).catch(() => {})
+            })
         }
 
-        // Admin notification
-        if (config.resendApiKey && config.adminEmailTo) {
-          await sendAdminPinAdded({
-            guestName,
-            door: reservation.door,
-            pin: result.pin,
-            validFrom: reservation.access_valid_from ?? reservation.check_in,
-            validUntil: reservation.access_valid_until ?? reservation.check_out,
-            apiKey: config.resendApiKey,
-            from: config.adminEmailFrom,
-            to: config.adminEmailTo,
-          }).catch(err => console.error('[email:admin]', err))
-        }
+        const doorDisplay = reservation.door === 'Maple,Pine' ? 'Maple & Pine' : reservation.door
+        await notifyAdmins({
+          event: 'pin_added',
+          subject: `✓ PIN dodan — ${guestName}`,
+          emailHtml: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+              <h2 style="color:#2d6a4f">PIN koda uspešno dodana</h2>
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Vrata</td><td style="padding:6px 0">${doorDisplay}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">PIN</td><td style="padding:6px 0;font-family:monospace;font-size:18px;font-weight:700">${result.pin}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Veljavno od</td><td style="padding:6px 0">${reservation.access_valid_from ?? reservation.check_in}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Veljavno do</td><td style="padding:6px 0">${reservation.access_valid_until ?? reservation.check_out}</td></tr>
+              </table>
+            </div>
+          `,
+          whatsappText: `✓ PIN dodan — ${guestName} (${doorDisplay})\nPIN: ${result.pin}\nOd: ${reservation.access_valid_from ?? reservation.check_in}\nDo: ${reservation.access_valid_until ?? reservation.check_out}`,
+        }).catch(() => {})
+
       } else if (job.action === 'update') {
         const triggeredBy = job.triggered_by === 'bentral_sync' ? 'Bentral sync' : (job.triggered_by ?? 'unknown')
-        if (config.resendApiKey && config.adminEmailTo) {
-          await sendAdminPinUpdated({
-            guestName,
-            validFrom: reservation.access_valid_from ?? reservation.check_in,
-            validUntil: reservation.access_valid_until ?? reservation.check_out,
-            triggeredBy,
-            apiKey: config.resendApiKey,
-            from: config.adminEmailFrom,
-            to: config.adminEmailTo,
-          }).catch(err => console.error('[email:admin]', err))
-        }
+        await notifyAdmins({
+          event: 'pin_updated',
+          subject: `✎ Dostop posodobljen — ${guestName}`,
+          emailHtml: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+              <h2 style="color:#bc4749">Dostop posodobljen</h2>
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Nova veljavnost od</td><td style="padding:6px 0">${reservation.access_valid_from ?? reservation.check_in}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Nova veljavnost do</td><td style="padding:6px 0">${reservation.access_valid_until ?? reservation.check_out}</td></tr>
+                <tr><td style="padding:6px 0;color:#888">Sprožil</td><td style="padding:6px 0">${triggeredBy}</td></tr>
+              </table>
+            </div>
+          `,
+          whatsappText: `✎ Dostop posodobljen — ${guestName}\nOd: ${reservation.access_valid_from ?? reservation.check_in}\nDo: ${reservation.access_valid_until ?? reservation.check_out}\nSprožil: ${triggeredBy}`,
+        }).catch(() => {})
       }
     } else if (result.status === 'failed') {
-      if (config.resendApiKey && config.adminEmailTo) {
-        await sendAdminJobFailed({
-          guestName,
-          action: job.action,
-          reason: result.reason ?? result.message ?? 'Unknown error',
-          jobId: job.id,
-          apiKey: config.resendApiKey,
-          from: config.adminEmailFrom,
-          to: config.adminEmailTo,
-        }).catch(err => console.error('[email:admin]', err))
-      }
+      await notifyAdmins({
+        event: 'job_failed',
+        subject: `✗ Napaka pri jobu — ${guestName}`,
+        emailHtml: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+            <h2 style="color:#bc4749">Napaka pri izvedbi joba</h2>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">Akcija</td><td style="padding:6px 0">${job.action}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">Razlog</td><td style="padding:6px 0;color:#bc4749">${result.reason ?? result.message ?? 'Unknown error'}</td></tr>
+              <tr><td style="padding:6px 0;color:#888">Job ID</td><td style="padding:6px 0;font-family:monospace">${job.id}</td></tr>
+            </table>
+          </div>
+        `,
+        whatsappText: `✗ Napaka pri jobu — ${guestName}\nAkcija: ${job.action}\nRazlog: ${result.reason ?? result.message ?? 'Unknown error'}\nJob ID: ${job.id}`,
+      }).catch(() => {})
     }
   }
 

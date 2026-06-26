@@ -3,7 +3,7 @@ import type { Reservation } from '../db/index'
 import { fetchBentralReservations, parseName } from './bentral'
 import type { BentralReservation } from './bentral'
 import { buildAccessTimes, buildJobPayload, createJob, getSettings } from './jobs'
-import { sendAdminSyncError } from './email'
+import { notifyAdmins } from './notify'
 import { useRuntimeConfig } from '#imports'
 
 type Tier = 'hot' | 'warm' | 'cold'
@@ -31,12 +31,15 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
 
   const { from, to } = ranges[tier]
 
+  const dbApiKey = (db.prepare("SELECT value FROM app_settings WHERE key = 'bentral_api_key'").get() as { value: string } | undefined)?.value
+  const bentralApiKey = dbApiKey || config.bentralApiKey
+
   let bentralReservations: BentralReservation[]
   try {
     bentralReservations = await fetchBentralReservations(
       from,
       to,
-      config.bentralApiKey,
+      bentralApiKey,
       config.bentralPropertyId,
     )
   } catch (err) {
@@ -44,17 +47,21 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
     console.error(`[sync:${tier}] Bentral fetch error: ${errMsg}`)
     db.prepare(`INSERT INTO audit_log (action, user_email, detail, created_at) VALUES (?, ?, ?, ?)`)
       .run('sync_error', triggeredBy, JSON.stringify({ tier, from, to, error: errMsg }), now())
-    if (config.resendApiKey && config.adminEmailTo) {
-      await sendAdminSyncError({
-        tier,
-        dateFrom: from,
-        dateTo: to,
-        error: errMsg,
-        apiKey: config.resendApiKey,
-        from: config.adminEmailFrom,
-        to: config.adminEmailTo,
-      }).catch(() => {})
-    }
+    await notifyAdmins({
+      event: 'sync_error',
+      subject: `⚠ Bentral sync napaka — ${tier}`,
+      emailHtml: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="color:#bc4749">Napaka pri Bentral sinhronizaciji</h2>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#888">Tier</td><td style="padding:6px 0;font-weight:600">${tier}</td></tr>
+            <tr><td style="padding:6px 0;color:#888">Razpon</td><td style="padding:6px 0">${from} → ${to}</td></tr>
+            <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
+          </table>
+        </div>
+      `,
+      whatsappText: `⚠ Bentral sync napaka (${tier})\n${from} → ${to}\n${errMsg}`,
+    }).catch(() => {})
     return
   }
 

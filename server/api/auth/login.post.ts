@@ -17,6 +17,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Napačen email ali geslo' })
   }
 
+  if (!user.active) {
+    throw createError({ statusCode: 403, statusMessage: 'Račun je neaktiven' })
+  }
+
   // First login — no password set yet
   if (!user.password_hash) {
     return { firstLogin: true }

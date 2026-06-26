@@ -17,11 +17,15 @@ export default defineNuxtConfig({
     bentralHotCron: process.env.BENTRAL_HOT_CRON || '*/30 * * * *',
     bentralWarmCron: process.env.BENTRAL_WARM_CRON || '0 */5 * * *',
     bentralColdCron: process.env.BENTRAL_COLD_CRON || '0 3 * * *',
+    housekeeperCron: process.env.HOUSEKEEPER_CRON || '0 10 * * *',
+    whatsappProvider: process.env.WHATSAPP_PROVIDER || 'stub',
+    twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+    twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+    twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+    whatsappWebhookUrl: process.env.WHATSAPP_WEBHOOK_URL || '',
     public: {
       baseUrl: process.env.NUXT_PUBLIC_BASE_URL || 'http://localhost:3000',
       gaId: process.env.NUXT_PUBLIC_GA_ID || '',
-      instagramUrl: process.env.NUXT_PUBLIC_INSTAGRAM_URL || 'https://www.instagram.com/maplenpine.bled',
-      facebookUrl: process.env.NUXT_PUBLIC_FACEBOOK_URL || 'https://www.facebook.com/maplenpinebled',
     },
   },
 
