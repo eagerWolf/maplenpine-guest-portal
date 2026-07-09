@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'guest' })
+definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
 const { t, howTo } = useLocale()
 </script>
@@ -40,7 +40,7 @@ const { t, howTo } = useLocale()
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 0 48px;
-  color: #243027;
+  color: #1c2541;
 }
 
 .info-hero {
@@ -52,7 +52,7 @@ const { t, howTo } = useLocale()
 
 .info-kicker {
   margin: 0 0 12px;
-  color: #7b947e;
+  color: #7986b8;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -61,7 +61,7 @@ const { t, howTo } = useLocale()
 
 .info-hero h1 {
   margin: 0;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1.08;
   font-weight: 620;
@@ -96,14 +96,14 @@ const { t, howTo } = useLocale()
   margin: 0 0 10px;
   font-size: 1rem;
   font-weight: 700;
-  color: #202920;
+  color: #1a2036;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .howto-item__body p {
   margin: 0;
-  color: #626a63;
+  color: #5b6485;
   line-height: 1.75;
   font-size: 0.95rem;
 }
@@ -120,7 +120,7 @@ const { t, howTo } = useLocale()
   align-items: center;
   min-height: 40px;
   padding: 8px 16px;
-  background: #26372c;
+  background: #1e3a8a;
   color: #fffdf8;
   font-weight: 700;
   font-size: 0.88rem;
@@ -128,7 +128,7 @@ const { t, howTo } = useLocale()
   text-decoration: none;
   transition: background 160ms ease;
 }
-.howto-link:hover { background: #3c5543; }
+.howto-link:hover { background: #2547b3; }
 
 .info-related {
   display: grid;
@@ -151,14 +151,14 @@ const { t, howTo } = useLocale()
 .info-related__title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #26372c;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .info-related__desc {
   font-size: 0.82rem;
-  color: #7b947e;
+  color: #7986b8;
   line-height: 1.55;
 }
 

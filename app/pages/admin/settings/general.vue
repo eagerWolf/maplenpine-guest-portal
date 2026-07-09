@@ -7,6 +7,7 @@ const form = reactive({
   contact_phone: '',
   property_nav_url: '',
   housekeeper_whatsapp: '',
+  reception_whatsapp: '',
   instagram_url: '',
   facebook_url: '',
 })
@@ -16,6 +17,7 @@ watch(settings, (s) => {
   form.contact_phone = s.contact_phone ?? ''
   form.property_nav_url = s.property_nav_url ?? ''
   form.housekeeper_whatsapp = s.housekeeper_whatsapp ?? ''
+  form.reception_whatsapp = s.reception_whatsapp ?? ''
   form.instagram_url = s.instagram_url ?? ''
   form.facebook_url = s.facebook_url ?? ''
 }, { immediate: true })
@@ -60,7 +62,12 @@ async function save() {
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp čistilke</label>
           <input v-model="form.housekeeper_whatsapp" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Obvestilo 24h pred menjavo — format +386... · prazno = izklopljeno</p>
+          <p class="text-xs text-stone-400 mt-1">Obvestilo 24h pred odjavo (čiščenje) — format +386... · prazno = izklopljeno</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp sprejem</label>
+          <input v-model="form.reception_whatsapp" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+          <p class="text-xs text-stone-400 mt-1">Obvestilo 24h pred prihodom gosta (sprejem) — format +386... · prazno = izklopljeno</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Instagram URL</label>

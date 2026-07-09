@@ -66,6 +66,20 @@ const isAdmin = computed(() => user.value?.role === 'admin')
                 Prodaja
               </NuxtLink>
               <NuxtLink
+                to="/admin/news"
+                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                :class="route.path === '/admin/news' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+              >
+                Novice
+              </NuxtLink>
+              <NuxtLink
+                to="/admin/orchestrator"
+                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                :class="route.path === '/admin/orchestrator' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+              >
+                Orchestrator
+              </NuxtLink>
+              <NuxtLink
                 to="/admin/settings/general"
                 class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                 :class="route.path.startsWith('/admin/settings') ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"

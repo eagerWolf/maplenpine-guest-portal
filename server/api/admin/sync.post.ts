@@ -9,8 +9,7 @@ export default defineEventHandler(async (event) => {
   const { tier } = await readBody<{ tier?: 'hot' | 'warm' | 'cold' }>(event)
   const syncTier = tier ?? 'hot'
 
-  // Fire-and-forget — sync itself writes to audit_log on completion
-  syncBentral(syncTier, `manual:${session.user.email}`).catch(err => console.error('[admin:sync]', err))
+  await syncBentral(syncTier, `manual:${session.user.email}`)
 
   return { success: true, tier: syncTier }
 })

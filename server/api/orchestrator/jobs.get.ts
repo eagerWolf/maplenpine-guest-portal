@@ -1,6 +1,5 @@
 import { getDb } from '../../db/index'
-import type { Job, Reservation } from '../../db/index'
-import { getPendingJobs, markJobsInProgress } from '../../utils/jobs'
+import { getPendingJobs, markJobsInProgress, mergePendingJobs } from '../../utils/jobs'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -22,22 +21,22 @@ export default defineEventHandler(async (event) => {
     return { jobs: [] }
   }
 
-  const ids = pendingJobs.map(j => j.id)
-  markJobsInProgress(ids)
+  const merged = mergePendingJobs(pendingJobs)
 
-  const jobs = pendingJobs.map(j => {
-    const payload = j.payload ? JSON.parse(j.payload) : {}
-    return {
-      jobId: payload.jobId ?? j.id,
-      _internalJobId: j.id,
-      action: j.action,
-      door: payload.door,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      validFrom: payload.validFrom,
-      validTo: payload.validTo,
-    }
-  })
+  markJobsInProgress(merged.flatMap(m => m.allJobIds))
+
+  // Stash sibling job ids on the primary row so /api/orchestrator/results can resolve
+  // all of them together once the orchestrator reports back on the merged call.
+  for (const m of merged) {
+    const siblingIds = m.allJobIds.filter(id => id !== m.orchestratorJob._internalJobId)
+    if (siblingIds.length === 0) continue
+    const primaryRow = db.prepare('SELECT payload FROM jobs WHERE id = ?').get(m.orchestratorJob._internalJobId) as { payload: string | null }
+    const payload = primaryRow.payload ? JSON.parse(primaryRow.payload) : {}
+    payload._mergedJobIds = siblingIds
+    db.prepare('UPDATE jobs SET payload = ? WHERE id = ?').run(JSON.stringify(payload), m.orchestratorJob._internalJobId)
+  }
+
+  const jobs = merged.map(m => m.orchestratorJob)
 
   return { jobs }
 })

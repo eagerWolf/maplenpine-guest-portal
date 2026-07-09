@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'guest' })
+definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
 const { t, faq } = useLocale()
 const openItem = ref<string | null>(null)
@@ -58,7 +58,7 @@ function toggle(id: string) {
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 0 48px;
-  color: #243027;
+  color: #1c2541;
 }
 
 .info-hero {
@@ -70,7 +70,7 @@ function toggle(id: string) {
 
 .info-kicker {
   margin: 0 0 12px;
-  color: #7b947e;
+  color: #7986b8;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -79,7 +79,7 @@ function toggle(id: string) {
 
 .info-hero h1 {
   margin: 0;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1.08;
   font-weight: 620;
@@ -111,15 +111,15 @@ function toggle(id: string) {
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #243027;
+  color: #1c2541;
   transition: background 140ms ease;
 }
 .faq-item__trigger:hover { background: #f5f1e9; }
-.faq-item--open .faq-item__trigger { background: #f5f1e9; color: #26372c; }
+.faq-item--open .faq-item__trigger { background: #f5f1e9; color: #1e3a8a; }
 
 .faq-item__chevron {
   flex-shrink: 0;
-  color: #7b947e;
+  color: #7986b8;
   transition: transform 200ms ease;
 }
 .faq-item--open .faq-item__chevron { transform: rotate(180deg); }
@@ -131,7 +131,7 @@ function toggle(id: string) {
 
 .faq-item__body p {
   margin: 0 0 14px;
-  color: #626a63;
+  color: #5b6485;
   line-height: 1.75;
   font-size: 0.95rem;
 }
@@ -147,7 +147,7 @@ function toggle(id: string) {
   align-items: center;
   min-height: 36px;
   padding: 7px 14px;
-  background: #26372c;
+  background: #1e3a8a;
   color: #fffdf8;
   font-weight: 700;
   font-size: 0.85rem;
@@ -155,7 +155,7 @@ function toggle(id: string) {
   text-decoration: none;
   transition: background 160ms ease;
 }
-.faq-link:hover { background: #3c5543; }
+.faq-link:hover { background: #2547b3; }
 
 .info-related {
   display: grid;
@@ -178,14 +178,14 @@ function toggle(id: string) {
 .info-related__title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #26372c;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .info-related__desc {
   font-size: 0.82rem;
-  color: #7b947e;
+  color: #7986b8;
   line-height: 1.55;
 }
 

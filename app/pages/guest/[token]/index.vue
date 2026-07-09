@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'guest' })
+definePageMeta({ layout: 'guest', middleware: 'guest-access-check' })
 
 const route = useRoute()
 const token = route.params.token as string
@@ -10,6 +10,23 @@ guestToken.value = token
 const { locale, setLocale, t } = useLocale()
 
 const { data, error, pending } = await useFetch(`/api/guest/${token}`)
+
+const accessBlocked = useGuestAccessBlocked()
+accessBlocked.value = !!error.value
+const isExpired = computed(() => (error.value as any)?.statusCode === 410)
+
+interface NewsItem {
+  id: number
+  titleSl: string
+  titleEn: string
+  contentSl: string
+  contentEn: string
+  createdAt: string
+}
+const { data: newsData } = await useFetch<NewsItem[]>('/api/guest/news', { query: { token } })
+const news = computed(() => newsData.value ?? [])
+function newsTitle(item: NewsItem) { return locale.value === 'sl' ? item.titleSl : item.titleEn }
+function newsContent(item: NewsItem) { return locale.value === 'sl' ? item.contentSl : item.contentEn }
 
 // Auto-set locale from reservation's guest_lang on first load
 watchEffect(() => {
@@ -100,9 +117,9 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
     <template v-else-if="error">
       <div class="guest-hero">
         <p class="guest-kicker">{{ t.hero.kicker }}</p>
-        <h1>Access not found</h1>
+        <h1>{{ isExpired ? t.access.expiredTitle : t.access.notFoundTitle }}</h1>
         <p class="guest-hero__sub">
-          {{ (error as any).data?.statusMessage ?? 'This link is invalid or has expired.' }}
+          {{ isExpired ? t.access.expiredMessage : t.access.notFoundMessage }}
         </p>
       </div>
     </template>
@@ -173,12 +190,23 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
         <div v-else class="pin-pending">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <circle cx="10" cy="10" r="9" stroke="#7b947e" stroke-width="1.5"/>
-            <path d="M10 6v5l3 3" stroke="#7b947e" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="10" cy="10" r="9" stroke="#7986b8" stroke-width="1.5"/>
+            <path d="M10 6v5l3 3" stroke="#7986b8" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
           <p>{{ t.pin.pending }}</p>
         </div>
 
+      </div>
+
+      <!-- News -->
+      <div v-if="news.length" class="news-panel">
+        <p class="guest-kicker">{{ t.news.kicker }}</p>
+        <div class="news-list">
+          <div v-for="item in news" :key="item.id" class="news-item">
+            <h3 class="news-item__title">{{ newsTitle(item) }}</h3>
+            <p class="news-item__content">{{ newsContent(item) }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- Weather -->
@@ -208,7 +236,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
           <li v-for="(rule, i) in t.rules.items" :key="i">
             <span class="info-rules__bullet" aria-hidden="true">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 1.5C5 1.5 3.5 3 3.5 4.5c0 2 1.5 3.5 3.5 5.5 2-2 3.5-3.5 3.5-5.5C10.5 3 9 1.5 7 1.5z" fill="#7b947e"/>
+                <path d="M7 1.5C5 1.5 3.5 3 3.5 4.5c0 2 1.5 3.5 3.5 5.5 2-2 3.5-3.5 3.5-5.5C10.5 3 9 1.5 7 1.5z" fill="#7986b8"/>
                 <path d="M7 4.5v5" stroke="#fffdf8" stroke-width="0.8" stroke-linecap="round"/>
               </svg>
             </span>
@@ -218,7 +246,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
       </div>
 
       <!-- Adventure teaser -->
-      <NuxtLink to="/guest/info/suggestions" class="adventure-card">
+      <NuxtLink :to="`/guest/${token}/info/suggestions`" class="adventure-card">
         <div class="adventure-card__video">
           <iframe
             src="https://www.youtube.com/embed/ZpIO7qyk760?si=HaZpAqX8mg89Ptbl"
@@ -249,7 +277,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 0 0;
-  color: #243027;
+  color: #1c2541;
 }
 
 /* ── Loading ── */
@@ -262,7 +290,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   width: 32px;
   height: 32px;
   border: 2.5px solid #e4dccf;
-  border-top-color: #26372c;
+  border-top-color: #1e3a8a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -271,7 +299,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 /* ── Shared kicker ── */
 .guest-kicker {
   margin: 0 0 12px;
-  color: #7b947e;
+  color: #7986b8;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -292,13 +320,13 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   font-family: 'Dancing Script', cursive;
   font-size: clamp(2.2rem, 7vw, 3.2rem);
   font-weight: 600;
-  color: #7b947e;
+  color: #7986b8;
   line-height: 1.2;
 }
 
 .guest-hero__name-line {
   margin: 0;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(2.1rem, 6vw, 3.2rem);
   line-height: 1.06;
   font-weight: 620;
@@ -310,7 +338,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .guest-hero__sub {
   margin: 14px 0 0;
-  color: #626a63;
+  color: #5b6485;
   font-size: 1.02rem;
   line-height: 1.6;
 }
@@ -342,13 +370,13 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #7b947e;
+  color: #7986b8;
 }
 
 .guest-hero__date-val {
   font-size: 1rem;
   font-weight: 620;
-  color: #202920;
+  color: #1a2036;
   line-height: 1.2;
 }
 
@@ -376,16 +404,16 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 }
 
 .guest-action-btn--nav {
-  background: #26372c;
+  background: #1e3a8a;
   color: #fffdf8;
   border: none;
 }
-.guest-action-btn--nav:hover { background: #3c5543; }
+.guest-action-btn--nav:hover { background: #2547b3; }
 
 .guest-action-btn--call {
   background: transparent;
-  color: #26372c;
-  border: 1.5px solid #26372c;
+  color: #1e3a8a;
+  border: 1.5px solid #1e3a8a;
 }
 .guest-action-btn--call:hover { background: #f0ebe1; }
 
@@ -412,7 +440,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .pin-box--visible {
   background: #fffdf8;
-  border-color: #26372c;
+  border-color: #1e3a8a;
 }
 
 .pin-box__code {
@@ -420,7 +448,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   font-weight: 700;
   letter-spacing: 0.22em;
   font-variant-numeric: tabular-nums;
-  color: #202920;
+  color: #1a2036;
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
   user-select: none;
   transition: opacity 160ms ease;
@@ -438,7 +466,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: #26372c;
+  background: #1e3a8a;
   padding: 10px 20px;
   color: #fffdf8;
   font-weight: 700;
@@ -450,7 +478,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   margin: 0 auto 22px;
   width: fit-content;
 }
-.pin-reveal:hover { background: #3c5543; }
+.pin-reveal:hover { background: #2547b3; }
 
 /* PIN pending */
 .pin-pending {
@@ -458,14 +486,14 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   align-items: flex-start;
   gap: 12px;
   background: #f5f1e9;
-  border: 1.5px solid #dbe3d8;
+  border: 1.5px solid #dbe1f2;
   border-radius: 6px;
   padding: 18px 20px;
   margin: 0 0 22px;
 }
 .pin-pending p {
   margin: 0;
-  color: #465146;
+  color: #39406b;
   font-size: 0.95rem;
   line-height: 1.65;
 }
@@ -477,6 +505,19 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   padding: 24px clamp(20px, 4vw, 32px);
   margin: 18px 0 0;
 }
+
+/* ── News ── */
+.news-panel {
+  background: #fffdf8;
+  border: 1px solid #e4dccf;
+  padding: 24px clamp(20px, 4vw, 32px);
+  margin: 0 0 18px;
+}
+.news-list { display: flex; flex-direction: column; gap: 16px; }
+.news-item { padding: 14px 0 0; border-top: 1px solid #eee8de; }
+.news-item:first-child { padding-top: 0; border-top: none; }
+.news-item__title { margin: 0 0 6px; color: #1a2036; font-size: 1rem; font-weight: 700; }
+.news-item__content { margin: 0; color: #1c2541; font-size: 0.92rem; line-height: 1.65; white-space: pre-wrap; }
 
 /* ── Info panels (parking, house rules) ── */
 .info-panel {
@@ -493,14 +534,14 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 }
 
 .info-panel__icon {
-  color: #7b947e;
+  color: #7986b8;
   flex-shrink: 0;
   margin-top: 1px;
 }
 
 .info-panel__row p {
   margin: 0;
-  color: #243027;
+  color: #1c2541;
   font-size: 0.95rem;
   line-height: 1.65;
 }
@@ -518,7 +559,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  color: #243027;
+  color: #1c2541;
   font-size: 0.93rem;
   line-height: 1.6;
   padding: 10px 0;
@@ -544,13 +585,13 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   display: inline-block;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #26372c;
+  color: #1e3a8a;
   text-decoration: none;
   border-bottom: 1px solid #c4b9a8;
   padding-bottom: 1px;
   transition: border-color 140ms ease, color 140ms ease;
 }
-.info-panel__link:hover { color: #3c5543; border-color: #26372c; }
+.info-panel__link:hover { color: #2547b3; border-color: #1e3a8a; }
 
 /* ── Adventure teaser ── */
 .adventure-card {
@@ -562,7 +603,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   text-decoration: none;
   transition: border-color 180ms ease;
 }
-.adventure-card:hover { border-color: #9db39e; }
+.adventure-card:hover { border-color: #93a4d9; }
 
 .adventure-card__video {
   position: relative;
@@ -586,7 +627,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .adventure-card__title {
   margin: 0 0 10px;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(1.4rem, 4vw, 1.9rem);
   font-weight: 620;
   line-height: 1.15;
@@ -594,7 +635,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
 
 .adventure-card__desc {
   margin: 0 0 18px;
-  color: #626a63;
+  color: #5b6485;
   line-height: 1.75;
   font-size: 0.95rem;
 }
@@ -605,12 +646,12 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   gap: 6px;
   font-size: 0.88rem;
   font-weight: 700;
-  color: #26372c;
-  border-bottom: 1.5px solid #9db39e;
+  color: #1e3a8a;
+  border-bottom: 1.5px solid #93a4d9;
   padding-bottom: 1px;
   transition: color 140ms ease, border-color 140ms ease;
 }
-.adventure-card:hover .adventure-card__cta { color: #3c5543; border-color: #26372c; }
+.adventure-card:hover .adventure-card__cta { color: #2547b3; border-color: #1e3a8a; }
 
 @media (max-width: 480px) {
   .guest-page { padding: 20px 0 0; }

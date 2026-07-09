@@ -1,0 +1,3 @@
+portal.maplenpine.com {
+    reverse_proxy localhost:3001
+}

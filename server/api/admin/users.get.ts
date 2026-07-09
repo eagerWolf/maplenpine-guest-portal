@@ -8,6 +8,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = getDb()
-  const users = db.prepare('SELECT id, email, role, notification_level, whatsapp_phone, notify_housekeeper, notes, active, created_at FROM users ORDER BY created_at DESC').all() as DbUser[]
+  const users = db.prepare('SELECT id, email, role, notification_level, whatsapp_phone, notify_housekeeper, notify_checkin, notes, active, created_at FROM users ORDER BY created_at DESC').all() as DbUser[]
   return users
 })

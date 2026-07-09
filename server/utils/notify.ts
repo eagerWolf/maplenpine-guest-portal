@@ -10,10 +10,12 @@ export type NotificationEvent =
   | 'pin_added'
   | 'pin_updated'
   | 'housekeeper_reminder'
+  | 'checkin_reminder'
 
 type NotificationLevel = 'none' | 'errors' | 'all'
+type ReminderEvent = 'housekeeper_reminder' | 'checkin_reminder'
 
-const EVENT_MIN_LEVEL: Record<Exclude<NotificationEvent, 'housekeeper_reminder'>, NotificationLevel> = {
+const EVENT_MIN_LEVEL: Record<Exclude<NotificationEvent, ReminderEvent>, NotificationLevel> = {
   job_failed: 'errors',
   pin_send_failed: 'errors',
   sync_error: 'errors',
@@ -56,7 +58,7 @@ function logEntry(opts: {
 }
 
 export async function notifyAdmins(opts: {
-  event: Exclude<NotificationEvent, 'housekeeper_reminder'>
+  event: Exclude<NotificationEvent, ReminderEvent>
   subject: string
   emailHtml: string
   whatsappText: string
@@ -145,6 +147,47 @@ export async function notifyHousekeeper(reservationId: number, door: string): Pr
       const msg = err instanceof Error ? err.message : String(err)
       logEntry({ channel: 'whatsapp', event: 'housekeeper_reminder', recipient: phone, subject: null, body: message, status: 'failed', error: msg, referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
       console.error(`[notify:housekeeper] Error for reservation ${reservationId} → ${phone}:`, msg)
+    }
+  }
+}
+
+export async function notifyReception(reservationId: number, door: string): Promise<void> {
+  const db = getDb()
+  const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
+  const s = Object.fromEntries(settings.map(r => [r.key, r.value]))
+
+  // Build recipient list: global setting + users with notify_checkin=1
+  const recipients = new Set<string>()
+  if (s.reception_whatsapp) recipients.add(s.reception_whatsapp)
+
+  type ReceptionUser = { id: number; email: string; whatsapp_phone: string }
+  const receptionUsers = db.prepare(`
+    SELECT id, email, whatsapp_phone FROM users
+    WHERE notify_checkin = 1 AND whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND active != 0
+  `).all() as ReceptionUser[]
+  for (const u of receptionUsers) recipients.add(u.whatsapp_phone)
+
+  if (recipients.size === 0) return
+
+  const doorDisplay = door === 'Maple,Pine' ? 'Maple in Pine' : door
+  const message = `Jutri prihaja gost v ${doorDisplay}. Preverite Bentral za podrobnosti.`
+
+  for (const phone of recipients) {
+    const alreadySent = db.prepare(`
+      SELECT id FROM notification_log
+      WHERE event_type = 'checkin_reminder' AND reference_id = ? AND recipient = ? AND status = 'sent'
+    `).get(reservationId, phone)
+    if (alreadySent) continue
+
+    const userRow = receptionUsers.find(u => u.whatsapp_phone === phone)
+    try {
+      await getWhatsAppProvider().send(phone, message)
+      logEntry({ channel: 'whatsapp', event: 'checkin_reminder', recipient: phone, subject: null, body: message, status: 'sent', referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
+      console.log(`[notify:reception] Sent for reservation ${reservationId} (${door}) → ${phone}`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      logEntry({ channel: 'whatsapp', event: 'checkin_reminder', recipient: phone, subject: null, body: message, status: 'failed', error: msg, referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
+      console.error(`[notify:reception] Error for reservation ${reservationId} → ${phone}:`, msg)
     }
   }
 }

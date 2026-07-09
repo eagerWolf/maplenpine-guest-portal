@@ -120,7 +120,7 @@ export default defineEventHandler(async (event) => {
       'UPDATE partner_orders SET payment_id = ?, status = ?, updated_at = ? WHERE id = ?',
     ).run(payment.paymentId, 'pending_payment', now(), orderId)
 
-    return { orderId, checkoutUrl: payment.checkoutUrl }
+    return { orderId, checkoutId: payment.paymentId }
   } catch (err: any) {
     db.prepare(
       'UPDATE partner_orders SET status = ?, updated_at = ? WHERE id = ?',

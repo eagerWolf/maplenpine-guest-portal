@@ -136,6 +136,27 @@ function resvOnDay(date: string): Reservation[] {
 function isStart(r: Reservation, date: string) { return r.checkIn === date }
 function isEnd(r: Reservation, date: string) { return r.checkOut === date }
 
+const firstCalDate = computed(() => calendarDays.value[0]?.date ?? '')
+const lastCalDate = computed(() => calendarDays.value[calendarDays.value.length - 1]?.date ?? '')
+
+function isRowEnd(date: string): boolean {
+  return new Date(date + 'T00:00:00').getDay() === 0  // Sunday = last column
+}
+function isRowStart(date: string): boolean {
+  return new Date(date + 'T00:00:00').getDay() === 1  // Monday = first column
+}
+
+function barClasses(r: Reservation, date: string): string[] {
+  const start = isStart(r, date)
+  const end = isEnd(r, date)
+  const capRight = end || (!end && (isRowEnd(date) || date === lastCalDate.value))
+  const capLeft = start || (!start && (isRowStart(date) || date === firstCalDate.value))
+  if (capLeft && capRight) return [doorBarClass(r.door), 'cal-bar--single']
+  if (capLeft) return [doorBarClass(r.door), 'cal-bar--start']
+  if (capRight) return [doorBarClass(r.door), 'cal-bar--end']
+  return [doorBarClass(r.door)]
+}
+
 function doorBarClass(door: string) {
   if (door.includes(',')) return 'bar--both'
   if (door === 'Maple') return 'bar--maple'
@@ -162,13 +183,15 @@ const pinQueued = ref(false)
 const sendPinLoading = ref(false)
 const sendPinError = ref('')
 const sendPinDone = ref(false)
+const portalLinkLoading = ref(false)
+const portalLinkError = ref('')
 
 const ekeyFirstNameCopied = ref(false)
 const ekeyLastNameCopied = ref(false)
 
 async function copyEkeyFirstName() {
   if (!detail.value) return
-  await navigator.clipboard.writeText(`${detail.value.id}, ${detail.value.firstName}`)
+  await navigator.clipboard.writeText(`${detail.value.bentralId}, ${detail.value.firstName}`)
   ekeyFirstNameCopied.value = true
   setTimeout(() => { ekeyFirstNameCopied.value = false }, 2000)
 }
@@ -191,8 +214,26 @@ function openDetail(r: Reservation) {
   pinQueued.value = false
   sendPinError.value = ''
   sendPinDone.value = false
+  portalLinkError.value = ''
 }
 function closeDetail() { detail.value = null }
+
+async function openGuestPortal() {
+  if (!detail.value) return
+  const win = window.open('', '_blank')
+  portalLinkLoading.value = true
+  portalLinkError.value = ''
+  try {
+    const { url } = await $fetch<{ url: string }>(`/api/staff/guests/${detail.value.id}/portal-link`, { method: 'POST' })
+    if (win) win.location.href = url
+    else window.open(url, '_blank')
+  } catch (err: any) {
+    win?.close()
+    portalLinkError.value = err?.data?.statusMessage ?? 'Napaka'
+  } finally {
+    portalLinkLoading.value = false
+  }
+}
 
 async function submitExtend() {
   if (!detail.value) return
@@ -377,13 +418,7 @@ function statusClass(status: string) {
             v-for="r in resvOnDay(cell.date)"
             :key="r.id"
             class="cal-bar"
-            :class="[
-              doorBarClass(r.door),
-              isStart(r, cell.date) && !isEnd(r, cell.date) ? 'cal-bar--start' : '',
-              isEnd(r, cell.date) && !isStart(r, cell.date) ? 'cal-bar--end' : '',
-              isStart(r, cell.date) && isEnd(r, cell.date) ? 'cal-bar--single' : '',
-              !isStart(r, cell.date) && !isEnd(r, cell.date) ? 'cal-bar--mid' : '',
-            ]"
+            :class="barClasses(r, cell.date)"
             :title="`${r.name} · ${r.door}`"
             @click="openDetail(r)"
           >
@@ -472,7 +507,15 @@ function statusClass(status: string) {
           <div class="drawer__hero">
             <p class="drawer__name">{{ detail.name }}</p>
             <span class="drawer__badge" :class="doorBadgeClass(detail.door)">{{ detail.door }}</span>
+            <button
+              class="drawer__portal-link"
+              :disabled="portalLinkLoading"
+              @click="openGuestPortal"
+            >
+              {{ portalLinkLoading ? '…' : 'Odpri guest portal ↗' }}
+            </button>
           </div>
+          <p v-if="portalLinkError" class="drawer__extend-error">{{ portalLinkError }}</p>
 
           <div class="drawer__rows">
             <div class="drawer__row">
@@ -522,7 +565,7 @@ function statusClass(status: string) {
                   @click="copyEkeyFirstName"
                 >
                   <span class="drawer__ekey-field">First name</span>
-                  <span class="drawer__ekey-val">{{ detail.id }}, {{ detail.firstName }}</span>
+                  <span class="drawer__ekey-val">{{ detail.bentralId }}, {{ detail.firstName }}</span>
                   <span class="drawer__ekey-icon">{{ ekeyFirstNameCopied ? '✓' : '⎘' }}</span>
                 </button>
                 <button
@@ -753,7 +796,7 @@ function statusClass(status: string) {
   display: flex; align-items: center; padding: 0 5px;
   cursor: pointer; overflow: hidden; white-space: nowrap;
   transition: opacity 120ms; flex-shrink: 0;
-  border-radius: 0; margin-left: -4px; margin-right: -4px;
+  border-radius: 0; margin-left: -4px; margin-right: -5px;
 }
 .cal-bar:hover { opacity: 0.8; }
 .cal-bar--start { margin-left: 2px; border-radius: 4px 0 0 4px; }
@@ -846,6 +889,14 @@ function statusClass(status: string) {
 
 .drawer__hero { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-right: 36px; }
 .drawer__name { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1e293b; }
+
+.drawer__portal-link {
+  font-size: 0.78rem; font-weight: 600; color: #26372c; font-family: inherit;
+  padding: 3px 10px; border-radius: 99px; cursor: pointer;
+  background: #f1f5f9; border: 1px solid #e2e8f0; transition: background 120ms;
+}
+.drawer__portal-link:hover:not(:disabled) { background: #e2e8f0; }
+.drawer__portal-link:disabled { opacity: 0.6; cursor: default; }
 
 .drawer__badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
 .badge--maple { background: #fef3c7; color: #92400e; }

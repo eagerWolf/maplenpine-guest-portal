@@ -9,6 +9,7 @@ if (route.path === '/admin/settings') {
 const platformLinks = [
   { label: 'Bentral', to: '/admin/settings/integrations/bentral' },
   { label: 'SumUp', to: '/admin/settings/integrations/sumup' },
+  { label: 'WhatsApp', to: '/admin/settings/integrations/whatsapp' },
 ]
 const propertyLinks = [
   { label: 'Splošno', to: '/admin/settings/general' },

@@ -1,6 +1,6 @@
 import cron from 'node-cron'
 import { syncBentral } from '../utils/sync'
-import { notifyHousekeeper } from '../utils/notify'
+import { notifyHousekeeper, notifyReception } from '../utils/notify'
 import { getDb } from '../db/index'
 import { useRuntimeConfig } from '#imports'
 
@@ -26,6 +26,25 @@ async function runHousekeeperReminders(): Promise<void> {
 
   if (checkouts.length) {
     console.log(`[cron:housekeeper] Processed ${checkouts.length} checkout(s) for ${tomorrow}`)
+  }
+}
+
+async function runReceptionReminders(): Promise<void> {
+  const db = getDb()
+  const tomorrow = addDays(new Date(), 1)
+  const arrivals = db.prepare(`
+    SELECT id, door FROM reservations
+    WHERE check_in = ? AND status = 'active'
+  `).all(tomorrow) as Array<{ id: number; door: string }>
+
+  for (const res of arrivals) {
+    await notifyReception(res.id, res.door).catch(err =>
+      console.error('[cron:reception]', err),
+    )
+  }
+
+  if (arrivals.length) {
+    console.log(`[cron:reception] Processed ${arrivals.length} arrival(s) for ${tomorrow}`)
   }
 }
 
@@ -60,6 +79,7 @@ export default defineNitroPlugin(() => {
 
   cron.schedule(hkExpr, () => {
     runHousekeeperReminders().catch(err => console.error('[cron:housekeeper]', err))
+    runReceptionReminders().catch(err => console.error('[cron:reception]', err))
   })
 
   // Run hot sync once on startup

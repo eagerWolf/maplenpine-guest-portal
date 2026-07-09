@@ -55,6 +55,85 @@ export function getPendingJobs(): Array<Job & { bentral_reservation_id: string }
   `).all() as Array<Job & { bentral_reservation_id: string }>
 }
 
+export function toOrchestratorJob(job: Job): {
+  jobId: string | number
+  _internalJobId: number
+  action: string
+  door?: string
+  firstName?: string
+  lastName?: string
+  validFrom?: string
+  validTo?: string
+} {
+  const payload = job.payload ? JSON.parse(job.payload) : {}
+  return {
+    jobId: payload.jobId ?? job.id,
+    _internalJobId: job.id,
+    action: job.action,
+    door: payload.door,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    validFrom: payload.validFrom,
+    validTo: payload.validTo,
+  }
+}
+
+export interface MergedOrchestratorJob {
+  jobId: string | number
+  _internalJobId: number
+  action: string
+  door?: string
+  firstName?: string
+  lastName?: string
+  validFrom?: string
+  validTo?: string
+}
+
+/**
+ * Multiple jobs can pile up pending for the same reservation (e.g. an "insert" queued by
+ * sync, then an "update" queued by a staff-triggered access extension before the orchestrator
+ * has picked either up). Sending both to the orchestrator would mean two separate hardware
+ * calls for what is really one desired end-state, so they're collapsed into a single call:
+ * action favours cancel > insert > update (you can't update a PIN that hasn't been inserted
+ * yet, and a queued cancel always wins), field values come from the most recently queued job.
+ */
+export function mergePendingJobs(jobs: Job[]): Array<{ orchestratorJob: MergedOrchestratorJob; allJobIds: number[] }> {
+  const byReservation = new Map<number, Job[]>()
+  for (const job of jobs) {
+    const list = byReservation.get(job.reservation_id) ?? []
+    list.push(job)
+    byReservation.set(job.reservation_id, list)
+  }
+
+  const merged: Array<{ orchestratorJob: MergedOrchestratorJob; allJobIds: number[] }> = []
+  for (const group of byReservation.values()) {
+    const sorted = [...group].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    const primary = sorted[0]
+    const latest = sorted[sorted.length - 1]
+    const latestPayload = latest.payload ? JSON.parse(latest.payload) : {}
+    const hasCancel = sorted.some(j => j.action === 'cancel')
+    const hasInsert = sorted.some(j => j.action === 'insert')
+    const action = hasCancel ? 'cancel' : hasInsert ? 'insert' : 'update'
+
+    merged.push({
+      allJobIds: sorted.map(j => j.id),
+      orchestratorJob: {
+        jobId: latestPayload.jobId ?? primary.id,
+        _internalJobId: primary.id,
+        action,
+        firstName: latestPayload.firstName,
+        lastName: latestPayload.lastName,
+        ...(action === 'cancel' ? {} : {
+          door: latestPayload.door,
+          validFrom: latestPayload.validFrom,
+          validTo: latestPayload.validTo,
+        }),
+      },
+    })
+  }
+  return merged
+}
+
 export function markJobsInProgress(ids: number[]): void {
   if (ids.length === 0) return
   const db = getDb()

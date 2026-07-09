@@ -1,10 +1,59 @@
 import { randomUUID } from 'crypto'
-import { getDb, now } from '../../db/index'
+import { getDb, now, guestTokenExpiry } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
 import { updateJobResult, getSettings, computeDisplayFrom, computeDisplayUntil } from '../../utils/jobs'
 import { sendGuestPin } from '../../utils/email'
-import { sendBentralMessage, buildBentralPinMessage } from '../../utils/bentral'
+import { patchBentralEntranceCode } from '../../utils/bentral'
 import { notifyAdmins } from '../../utils/notify'
+
+function parseAccessTime(dt: string | null, fallbackDate: string, fallbackTime: string): { date: string; time: string } {
+  if (dt) {
+    const [date = '', time = ''] = dt.split(' ')
+    if (date && time) return { date, time }
+  }
+  return { date: fallbackDate, time: fallbackTime }
+}
+
+async function patchBentralEKey(apiKey: string, reservation: Reservation, pin: string): Promise<void> {
+  const settings = getSettings()
+  const checkin = parseAccessTime(computeDisplayFrom(reservation, settings), reservation.check_in, '15:00')
+  const checkout = parseAccessTime(computeDisplayUntil(reservation, settings), reservation.check_out, '11:00')
+
+  const buildUnits = (unitId: string | null, unitName: string | null) => {
+    if (!unitId || !unitName) return []
+    return unitId.split(',').map((id, i) => ({ id, name: unitName.split(',')[i] ?? '' })).filter(u => u.id && u.name)
+  }
+
+  const primaryUnits = buildUnits(reservation.bentral_unit_id, reservation.bentral_unit_name)
+  if (primaryUnits.length > 0) {
+    await patchBentralEntranceCode(
+      apiKey,
+      reservation.bentral_reservation_id,
+      primaryUnits,
+      pin,
+      checkin.date,
+      checkin.time,
+      checkout.date,
+      checkout.time,
+    )
+  }
+
+  if (reservation.bentral_paired_reservation_id) {
+    const pairedUnits = buildUnits(reservation.bentral_paired_unit_id, reservation.bentral_paired_unit_name)
+    if (pairedUnits.length > 0) {
+      await patchBentralEntranceCode(
+        apiKey,
+        reservation.bentral_paired_reservation_id,
+        pairedUnits,
+        pin,
+        checkin.date,
+        checkin.time,
+        checkout.date,
+        checkout.time,
+      )
+    }
+  }
+}
 
 interface OrchestratorResult {
   _internalJobId?: number
@@ -41,7 +90,7 @@ export default defineEventHandler(async (event) => {
         SELECT j.* FROM jobs j
         JOIN reservations r ON r.id = j.reservation_id
         WHERE r.bentral_reservation_id = ? AND j.status = 'in_progress'
-        ORDER BY j.created_at DESC LIMIT 1
+        ORDER BY j.created_at ASC LIMIT 1
       `).get(result.jobId) as Job | undefined
     }
 
@@ -51,6 +100,14 @@ export default defineEventHandler(async (event) => {
     }
 
     updateJobResult(job.id, result.status, { ...result }, result.reason)
+
+    // Jobs queued for the same reservation while this one was still pending get merged into
+    // one orchestrator call (see mergePendingJobs) — resolve them together with the same result.
+    const jobPayload = job.payload ? JSON.parse(job.payload) : {}
+    const mergedJobIds: number[] = jobPayload._mergedJobIds ?? []
+    for (const siblingId of mergedJobIds) {
+      updateJobResult(siblingId, result.status, { ...result }, result.reason)
+    }
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(job.reservation_id) as Reservation | undefined
     if (!reservation) continue
@@ -63,9 +120,7 @@ export default defineEventHandler(async (event) => {
           .run(result.pin, now(), reservation.id)
 
         const token = randomUUID()
-        const expiresAt = new Date(
-          new Date(reservation.check_out + 'T00:00:00').getTime() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString()
+        const expiresAt = guestTokenExpiry(reservation.check_out)
         db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
           .run(reservation.id, token, expiresAt, now())
 
@@ -104,34 +159,24 @@ export default defineEventHandler(async (event) => {
         }
 
         if (config.bentralApiKey) {
-          const settings = getSettings()
-          const bentralMsg = buildBentralPinMessage(
-            guestName,
-            reservation.door,
-            result.pin,
-            portalLink,
-            computeDisplayFrom(reservation, settings),
-            computeDisplayUntil(reservation, settings),
-          )
-          await sendBentralMessage(config.bentralApiKey, reservation.bentral_reservation_id, bentralMsg)
-            .catch(async (err) => {
-              console.error('[bentral:message]', err)
-              const errMsg = err instanceof Error ? err.message : String(err)
-              await notifyAdmins({
-                event: 'pin_send_failed',
-                subject: `⚠ Napaka pri Bentral sporočilu — ${guestName}`,
-                emailHtml: `
-                  <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-                    <h2 style="color:#bc4749">Napaka pri pošiljanju Bentral sporočila</h2>
-                    <table style="width:100%;border-collapse:collapse">
-                      <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
-                      <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
-                    </table>
-                  </div>
-                `,
-                whatsappText: `⚠ Napaka pri Bentral sporočilu za ${guestName}\nNapaka: ${errMsg}`,
-              }).catch(() => {})
-            })
+          await patchBentralEKey(config.bentralApiKey, reservation, result.pin).catch(async (err) => {
+            console.error('[bentral:ekey]', err)
+            const errMsg = err instanceof Error ? err.message : String(err)
+            await notifyAdmins({
+              event: 'pin_send_failed',
+              subject: `⚠ Napaka pri Bentral eKey — ${guestName}`,
+              emailHtml: `
+                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+                  <h2 style="color:#bc4749">Napaka pri nastavitvi Bentral eKey</h2>
+                  <table style="width:100%;border-collapse:collapse">
+                    <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
+                    <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
+                  </table>
+                </div>
+              `,
+              whatsappText: `⚠ Napaka pri Bentral eKey za ${guestName}\nNapaka: ${errMsg}`,
+            }).catch(() => {})
+          })
         }
 
         const doorDisplay = reservation.door === 'Maple,Pine' ? 'Maple & Pine' : reservation.door
@@ -154,6 +199,12 @@ export default defineEventHandler(async (event) => {
         }).catch(() => {})
 
       } else if (job.action === 'update') {
+        if (config.bentralApiKey && reservation.pin) {
+          await patchBentralEKey(config.bentralApiKey, reservation, reservation.pin).catch((err) => {
+            console.error('[bentral:ekey:update]', err)
+          })
+        }
+
         const triggeredBy = job.triggered_by === 'bentral_sync' ? 'Bentral sync' : (job.triggered_by ?? 'unknown')
         await notifyAdmins({
           event: 'pin_updated',

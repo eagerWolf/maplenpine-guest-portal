@@ -1,6 +1,6 @@
 import { getDb, now } from '../../../../db/index'
-import type { Reservation, GuestToken } from '../../../../db/index'
-import { sendBentralMessage, buildBentralPinMessage } from '../../../../utils/bentral'
+import type { Reservation } from '../../../../db/index'
+import { patchBentralEntranceCode } from '../../../../utils/bentral'
 import { getSettings, computeDisplayFrom, computeDisplayUntil } from '../../../../utils/jobs'
 
 export default defineEventHandler(async (event) => {
@@ -25,25 +25,45 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'PIN ni dodeljen' })
   }
 
-  const tokenRow = db.prepare(
-    'SELECT * FROM guest_tokens WHERE reservation_id = ? ORDER BY created_at DESC LIMIT 1',
-  ).get(reservation.id) as GuestToken | undefined
-
-  const portalLink = tokenRow
-    ? `${config.public.baseUrl}/guest/${tokenRow.token}`
-    : config.public.baseUrl
-
   const settings = getSettings()
-  const message = buildBentralPinMessage(
-    `${reservation.first_name} ${reservation.last_name}`,
-    reservation.door,
-    reservation.pin,
-    portalLink,
-    computeDisplayFrom(reservation, settings),
-    computeDisplayUntil(reservation, settings),
-  )
 
-  await sendBentralMessage(config.bentralApiKey, reservation.bentral_reservation_id, message)
+  const parseTime = (dt: string | null, fallbackDate: string, fallbackTime: string) => {
+    if (dt) { const [d = '', t = ''] = dt.split(' '); if (d && t) return { date: d, time: t } }
+    return { date: fallbackDate, time: fallbackTime }
+  }
+  const checkin = parseTime(computeDisplayFrom(reservation, settings), reservation.check_in, '15:00')
+  const checkout = parseTime(computeDisplayUntil(reservation, settings), reservation.check_out, '11:00')
+
+  const buildUnits = (unitId: string | null, unitName: string | null) => {
+    if (!unitId || !unitName) return []
+    return unitId.split(',').map((id, i) => ({ id, name: unitName.split(',')[i] ?? '' })).filter(u => u.id && u.name)
+  }
+
+  const primaryUnits = buildUnits(reservation.bentral_unit_id, reservation.bentral_unit_name)
+  if (primaryUnits.length > 0) {
+    await patchBentralEntranceCode(
+      config.bentralApiKey,
+      reservation.bentral_reservation_id,
+      primaryUnits,
+      reservation.pin,
+      checkin.date, checkin.time,
+      checkout.date, checkout.time,
+    )
+  }
+
+  if (reservation.bentral_paired_reservation_id) {
+    const pairedUnits = buildUnits(reservation.bentral_paired_unit_id, reservation.bentral_paired_unit_name)
+    if (pairedUnits.length > 0) {
+      await patchBentralEntranceCode(
+        config.bentralApiKey,
+        reservation.bentral_paired_reservation_id,
+        pairedUnits,
+        reservation.pin,
+        checkin.date, checkin.time,
+        checkout.date, checkout.time,
+      )
+    }
+  }
 
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)

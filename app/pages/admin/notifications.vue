@@ -48,13 +48,14 @@ function eventLabel(e: string) {
     pin_added: 'PIN dodan',
     pin_updated: 'PIN posodobljen',
     housekeeper_reminder: 'Opomnik čistilki',
+    checkin_reminder: 'Opomnik za sprejem',
   } as Record<string, string>)[e] ?? e
 }
 
 function eventClass(e: string) {
   const critical = ['job_failed', 'pin_send_failed', 'sync_error']
   if (critical.includes(e)) return 'bg-red-50 text-red-700'
-  if (e === 'housekeeper_reminder') return 'bg-purple-50 text-purple-700'
+  if (e === 'housekeeper_reminder' || e === 'checkin_reminder') return 'bg-purple-50 text-purple-700'
   return 'bg-stone-100 text-stone-600'
 }
 
@@ -93,6 +94,7 @@ function fmtDate(iso: string) {
         <option value="pin_added">PIN dodan</option>
         <option value="pin_updated">PIN posodobljen</option>
         <option value="housekeeper_reminder">Opomnik čistilki</option>
+        <option value="checkin_reminder">Opomnik za sprejem</option>
       </select>
       <select
         v-model="filterChannel"

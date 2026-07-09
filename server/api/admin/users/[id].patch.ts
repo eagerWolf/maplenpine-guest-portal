@@ -10,10 +10,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = getRouterParam(event, 'id')
-  const { notification_level, whatsapp_phone, notify_housekeeper, notes, active } = await readBody<{
+  const { notification_level, whatsapp_phone, notify_housekeeper, notify_checkin, notes, active } = await readBody<{
     notification_level?: string
     whatsapp_phone?: string
     notify_housekeeper?: boolean
+    notify_checkin?: boolean
     notes?: string
     active?: boolean
   }>(event)
@@ -43,6 +44,10 @@ export default defineEventHandler(async (event) => {
   if (notify_housekeeper !== undefined) {
     fields.push('notify_housekeeper = ?')
     values.push(notify_housekeeper ? 1 : 0)
+  }
+  if (notify_checkin !== undefined) {
+    fields.push('notify_checkin = ?')
+    values.push(notify_checkin ? 1 : 0)
   }
   if (notes !== undefined) {
     fields.push('notes = ?')

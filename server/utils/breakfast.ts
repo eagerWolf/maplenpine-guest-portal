@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { getDb, now } from '../db/index'
+import { getDb, now, today } from '../db/index'
 import { getWhatsAppProvider } from './whatsapp'
 import { getPaymentProvider } from './payment/index'
 import { useRuntimeConfig } from '#imports'
@@ -226,6 +226,7 @@ export function validateGuestToken(token: string): { reservationId: number; rese
 
   const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(gt.reservation_id) as import('../db/index').Reservation | undefined
   if (!reservation) throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
+  if (reservation.check_out < today()) throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
 
   return { reservationId: gt.reservation_id, reservation }
 }

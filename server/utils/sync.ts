@@ -6,6 +6,16 @@ import { buildAccessTimes, buildJobPayload, createJob, getSettings } from './job
 import { notifyAdmins } from './notify'
 import { useRuntimeConfig } from '#imports'
 
+function extractPhone(phone: BentralReservation['guest']['phone']): string | null {
+  if (!phone) return null
+  if (typeof phone === 'string') return phone
+  return phone.number ?? null
+}
+
+function unitNames(units: Array<{ id: string; name?: string }>): string {
+  return units.map(u => u.name ?? '').filter(Boolean).join(',')
+}
+
 type Tier = 'hot' | 'warm' | 'cold'
 
 function addDays(date: Date, days: number): string {
@@ -23,10 +33,12 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
   const db = getDb()
   const today = new Date()
 
+  // `from` = earliest arrival to check (tier-specific)
+  // `to`   = Bentral filters by departure date, so always set far enough to not exclude long stays
   const ranges: Record<Tier, { from: string; to: string }> = {
-    hot: { from: addDays(today, 0), to: addDays(today, 1) },
-    warm: { from: addDays(today, 1), to: addDays(today, 7) },
-    cold: { from: addDays(today, 7), to: addDays(today, 365) },
+    hot:  { from: addDays(today, -1), to: addDays(today, 30)  },
+    warm: { from: addDays(today, -1), to: addDays(today, 60)  },
+    cold: { from: addDays(today, -1), to: addDays(today, 400) },
   }
 
   const { from, to } = ranges[tier]
@@ -36,12 +48,7 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
 
   let bentralReservations: BentralReservation[]
   try {
-    bentralReservations = await fetchBentralReservations(
-      from,
-      to,
-      bentralApiKey,
-      config.bentralPropertyId,
-    )
+    bentralReservations = await fetchBentralReservations(from, to, bentralApiKey)
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error(`[sync:${tier}] Bentral fetch error: ${errMsg}`)
@@ -163,6 +170,11 @@ async function processReservation(
     ? (pairedRes.departure > br.departure ? pairedRes.departure : br.departure)
     : br.departure
   const bentralUnitId = br.units.map(u => u.id).join(',')
+  const bentralUnitName = unitNames(br.units)
+  const bentralCreatedAt = br.created ?? null
+  const pairedUnitId = pairedRes ? pairedRes.units.map(u => u.id).join(',') : null
+  const pairedUnitName = pairedRes ? unitNames(pairedRes.units) : null
+  const pairedReservationId = pairedRes?.id ?? null
   const { validFrom, validUntil } = buildAccessTimes(bentralArrival, bentralDeparture, settings)
 
   if (!existing) {
@@ -176,14 +188,18 @@ async function processReservation(
         bentral_reservation_id, door, first_name, last_name, check_in, check_out,
         status, access_valid_from, access_valid_until,
         guest_count, guest_email, guest_phone, guest_lang,
-        bentral_arrival, bentral_departure, bentral_status, bentral_unit_id, bentral_updated_at,
+        bentral_arrival, bentral_departure, bentral_status,
+        bentral_unit_id, bentral_unit_name, bentral_updated_at, bentral_created_at,
+        bentral_paired_reservation_id, bentral_paired_unit_id, bentral_paired_unit_name,
         created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       br.id, door, firstName, lastName, bentralArrival, bentralDeparture,
       'active', validFrom, validUntil,
-      guestCount, br.guest.email ?? null, br.guest.phone ?? null, guestLang,
-      bentralArrival, bentralDeparture, bentralStatus, bentralUnitId, effectiveUpdated,
+      guestCount, br.guest.email ?? null, extractPhone(br.guest.phone), guestLang,
+      bentralArrival, bentralDeparture, bentralStatus,
+      bentralUnitId, bentralUnitName, effectiveUpdated, bentralCreatedAt,
+      pairedReservationId, pairedUnitId, pairedUnitName,
       ts, ts,
     )
 
@@ -203,9 +219,18 @@ async function processReservation(
   db.prepare(`
     UPDATE reservations SET
       bentral_arrival = ?, bentral_departure = ?, bentral_status = ?,
-      bentral_unit_id = ?, bentral_updated_at = ?, updated_at = ?
+      bentral_unit_id = ?, bentral_unit_name = ?,
+      bentral_updated_at = ?, bentral_created_at = ?,
+      bentral_paired_reservation_id = ?, bentral_paired_unit_id = ?, bentral_paired_unit_name = ?,
+      updated_at = ?
     WHERE id = ?
-  `).run(bentralArrival, bentralDeparture, bentralStatus, bentralUnitId, effectiveUpdated, now(), existing.id)
+  `).run(
+    bentralArrival, bentralDeparture, bentralStatus,
+    bentralUnitId, bentralUnitName,
+    effectiveUpdated, bentralCreatedAt,
+    pairedReservationId, pairedUnitId, pairedUnitName,
+    now(), existing.id,
+  )
 
   if (statusChanged && isCancelled && existing.status !== 'cancelled') {
     db.prepare(`UPDATE reservations SET status = 'cancelled', updated_at = ? WHERE id = ?`)
@@ -229,4 +254,19 @@ async function processReservation(
   }
 
   return 'skip'
+}
+
+export async function processBentralWebhookReservation(br: BentralReservation): Promise<SyncAction> {
+  const config = useRuntimeConfig()
+  const mapleUnitId = config.bentralUnitIdMaple
+  const pineUnitId = config.bentralUnitIdPine
+  const unitIds = br.units.map(u => u.id)
+
+  let door = 'Unknown'
+  if (unitIds.includes(mapleUnitId) && unitIds.includes(pineUnitId)) door = 'Maple,Pine'
+  else if (unitIds.includes(mapleUnitId)) door = 'Maple'
+  else if (unitIds.includes(pineUnitId)) door = 'Pine'
+
+  const settings = getSettings()
+  return processReservation(br, door, settings)
 }

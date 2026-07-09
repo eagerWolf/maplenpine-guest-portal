@@ -4,6 +4,7 @@ import { LOCALES } from '~/i18n/translations'
 const { data: publicSettings } = await useFetch<Record<string, string>>('/api/public/settings')
 const instagramUrl = computed(() => publicSettings.value?.instagram_url ?? '')
 const facebookUrl = computed(() => publicSettings.value?.facebook_url ?? '')
+const breakfastEnabled = computed(() => publicSettings.value?.breakfast_enabled === '1')
 
 useHead({
   link: [
@@ -14,7 +15,11 @@ useHead({
 })
 
 const guestToken = useGuestToken()
-const homeLink = computed(() => guestToken.value ? `/guest/${guestToken.value}` : '/')
+const accessBlocked = useGuestAccessBlocked()
+const homeLink = computed(() => (guestToken.value && !accessBlocked.value) ? `/guest/${guestToken.value}` : '/')
+function infoLink(page: string) {
+  return guestToken.value ? `/guest/${guestToken.value}/info/${page}` : '/'
+}
 const { t, locale, setLocale } = useLocale()
 
 const drawerOpen = ref(false)
@@ -35,12 +40,12 @@ watch(() => route.path, closeDrawer)
         <!-- Desktop nav + lang -->
         <div class="guest-header__right">
           <nav class="guest-nav" aria-label="Guest guide">
-            <NuxtLink :to="homeLink" class="guest-nav__link">{{ t.nav.home }}</NuxtLink>
-            <NuxtLink to="/guest/info/how-to" class="guest-nav__link">{{ t.nav.howToUse }}</NuxtLink>
-            <NuxtLink to="/guest/info/faq" class="guest-nav__link">{{ t.nav.faq }}</NuxtLink>
-            <NuxtLink to="/guest/info/restaurants" class="guest-nav__link">{{ t.nav.restaurants }}</NuxtLink>
-            <NuxtLink to="/guest/info/suggestions" class="guest-nav__link">{{ t.nav.suggestions }}</NuxtLink>
-            <NuxtLink v-if="guestToken" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link guest-nav__link--breakfast">🍳 Zajtrk</NuxtLink>
+            <NuxtLink :to="homeLink" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.home }}</NuxtLink>
+            <NuxtLink :to="infoLink('how-to')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.howToUse }}</NuxtLink>
+            <NuxtLink :to="infoLink('faq')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.faq }}</NuxtLink>
+            <NuxtLink :to="infoLink('restaurants')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
+            <NuxtLink :to="infoLink('suggestions')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked && breakfastEnabled" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link guest-nav__link--breakfast">🍳 {{ t.nav.breakfast }}</NuxtLink>
           </nav>
           <div class="lang-switcher" role="group" aria-label="Language">
             <button
@@ -76,12 +81,12 @@ watch(() => route.path, closeDrawer)
             </button>
           </div>
           <nav class="drawer__nav" aria-label="Guest guide">
-            <NuxtLink :to="homeLink" class="drawer__link">{{ t.nav.home }}</NuxtLink>
-            <NuxtLink to="/guest/info/how-to" class="drawer__link">{{ t.nav.howToUse }}</NuxtLink>
-            <NuxtLink to="/guest/info/faq" class="drawer__link">{{ t.nav.faq }}</NuxtLink>
-            <NuxtLink to="/guest/info/restaurants" class="drawer__link">{{ t.nav.restaurants }}</NuxtLink>
-            <NuxtLink to="/guest/info/suggestions" class="drawer__link">{{ t.nav.suggestions }}</NuxtLink>
-            <NuxtLink v-if="guestToken" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">🍳 Zajtrk</NuxtLink>
+            <NuxtLink :to="homeLink" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.home }}</NuxtLink>
+            <NuxtLink :to="infoLink('how-to')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.howToUse }}</NuxtLink>
+            <NuxtLink :to="infoLink('faq')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.faq }}</NuxtLink>
+            <NuxtLink :to="infoLink('restaurants')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
+            <NuxtLink :to="infoLink('suggestions')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked && breakfastEnabled" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">🍳 {{ t.nav.breakfast }}</NuxtLink>
           </nav>
           <div class="drawer__lang" role="group" aria-label="Language">
             <button
@@ -154,7 +159,7 @@ body {
 }
 
 .guest-header {
-  background: #26372c;
+  background: #1e3a8a;
 }
 
 .guest-header__inner {
@@ -211,6 +216,12 @@ body {
   border-radius: 5px;
 }
 
+.guest-nav__link--disabled {
+  pointer-events: none;
+  opacity: 0.35;
+}
+.guest-nav__link--disabled:hover { background: none; }
+
 .lang-switcher {
   display: flex;
   align-items: center;
@@ -247,7 +258,7 @@ body {
 }
 
 .guest-footer {
-  background: #26372c;
+  background: #1e3a8a;
   color: rgba(255, 255, 255, 0.35);
   font-size: 0.82rem;
   text-align: center;
@@ -347,12 +358,12 @@ body {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(18, 28, 20, 0.6);
+  background: rgba(15, 20, 45, 0.6);
   backdrop-filter: blur(3px);
 }
 
 .drawer__panel {
-  background: #26372c;
+  background: #1e3a8a;
   display: flex;
   flex-direction: column;
 }
@@ -411,6 +422,12 @@ body {
   color: #fffdf8;
   background: rgba(255, 253, 248, 0.07);
 }
+
+.drawer__link--disabled {
+  pointer-events: none;
+  opacity: 0.35;
+}
+.drawer__link--disabled:hover { background: none; }
 
 .drawer__lang {
   display: flex;

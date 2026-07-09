@@ -1,4 +1,4 @@
-import { getDb } from '../../db/index'
+import { getDb, today } from '../../db/index'
 import type { Reservation, GuestToken } from '../../db/index'
 import { getSettings } from '../../utils/jobs'
 
@@ -29,6 +29,9 @@ export default defineEventHandler(async (event) => {
 
   if (!reservation) {
     throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
+  }
+  if (reservation.check_out < today()) {
+    throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
   }
 
   const settings = getSettings()

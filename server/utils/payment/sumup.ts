@@ -27,18 +27,18 @@ export class SumUpProvider implements PaymentProvider {
 
     const res = await $fetch<{ id: string }>(`${SUMUP_BASE}/v0.1/checkouts`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      body: {
         checkout_reference: `breakfast-${opts.orderId}`,
         amount: opts.amount,
         currency: opts.currency,
         merchant_code: cfg.merchantCode,
         description: opts.description,
         return_url: opts.returnUrl,
-      }),
+      },
+    }).catch((err) => {
+      console.error('[sumup] Checkout error:', JSON.stringify(err?.data ?? err?.message ?? err))
+      throw err
     })
 
     return {

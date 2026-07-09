@@ -141,6 +141,19 @@ export default defineNitroPlugin(() => {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS news (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title_sl TEXT NOT NULL,
+      title_en TEXT NOT NULL,
+      content_sl TEXT NOT NULL,
+      content_en TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      valid_from TEXT,
+      valid_to TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS partner_orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       reservation_id INTEGER NOT NULL,
@@ -206,6 +219,10 @@ export default defineNitroPlugin(() => {
     ['sumup_api_key', ''],
     ['sumup_merchant_code', ''],
     ['sumup_webhook_secret', ''],
+    ['twilio_account_sid', ''],
+    ['twilio_auth_token', ''],
+    ['twilio_whatsapp_from', ''],
+    ['reception_whatsapp', ''],
   ]
   const ins = db.prepare(
     'INSERT OR IGNORE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)',
@@ -227,6 +244,9 @@ export default defineNitroPlugin(() => {
   }
   if (!userCols.some(c => c.name === 'notify_housekeeper')) {
     db.exec("ALTER TABLE users ADD COLUMN notify_housekeeper INTEGER NOT NULL DEFAULT 0")
+  }
+  if (!userCols.some(c => c.name === 'notify_checkin')) {
+    db.exec("ALTER TABLE users ADD COLUMN notify_checkin INTEGER NOT NULL DEFAULT 0")
   }
   if (!userCols.some(c => c.name === 'notes')) {
     db.exec("ALTER TABLE users ADD COLUMN notes TEXT")
@@ -278,12 +298,40 @@ export default defineNitroPlugin(() => {
     }
   }
 
+  const guestTokenCols = db.prepare("PRAGMA table_info(guest_tokens)").all() as Array<{ name: string }>
+  if (guestTokenCols.some(c => c.name === 'is_preview')) {
+    db.exec("ALTER TABLE guest_tokens DROP COLUMN is_preview")
+  }
+
+  const newsCols = db.prepare("PRAGMA table_info(news)").all() as Array<{ name: string }>
+  if (!newsCols.some(c => c.name === 'valid_from')) {
+    db.exec("ALTER TABLE news ADD COLUMN valid_from TEXT")
+  }
+  if (!newsCols.some(c => c.name === 'valid_to')) {
+    db.exec("ALTER TABLE news ADD COLUMN valid_to TEXT")
+  }
+
   const resCols = db.prepare("PRAGMA table_info(reservations)").all() as Array<{ name: string }>
   if (!resCols.some(c => c.name === 'guest_count')) {
     db.exec("ALTER TABLE reservations ADD COLUMN guest_count INTEGER")
   }
   if (!resCols.some(c => c.name === 'guest_lang')) {
     db.exec("ALTER TABLE reservations ADD COLUMN guest_lang TEXT")
+  }
+  if (!resCols.some(c => c.name === 'bentral_unit_name')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN bentral_unit_name TEXT")
+  }
+  if (!resCols.some(c => c.name === 'bentral_created_at')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN bentral_created_at TEXT")
+  }
+  if (!resCols.some(c => c.name === 'bentral_paired_reservation_id')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN bentral_paired_reservation_id TEXT")
+  }
+  if (!resCols.some(c => c.name === 'bentral_paired_unit_id')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN bentral_paired_unit_id TEXT")
+  }
+  if (!resCols.some(c => c.name === 'bentral_paired_unit_name')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN bentral_paired_unit_name TEXT")
   }
 
   // Seed default location and host (first run only)

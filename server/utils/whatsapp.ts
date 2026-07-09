@@ -1,4 +1,5 @@
 import { useRuntimeConfig } from '#imports'
+import { getDb } from '../db/index'
 
 interface WhatsAppProvider {
   send(to: string, message: string): Promise<void>
@@ -61,15 +62,22 @@ class WebhookProvider implements WhatsAppProvider {
 
 export function getWhatsAppProvider(): WhatsAppProvider {
   const config = useRuntimeConfig()
-  const provider = (config.whatsappProvider as string) || 'stub'
 
-  if (provider === 'twilio' && config.twilioAccountSid && config.twilioAuthToken) {
-    return new TwilioProvider(
-      config.twilioAccountSid as string,
-      config.twilioAuthToken as string,
-      config.twilioWhatsappFrom as string,
-    )
+  const db = getDb()
+  const rows = db.prepare(
+    `SELECT key, value FROM app_settings WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from')`,
+  ).all() as Array<{ key: string; value: string }>
+  const dbSettings = Object.fromEntries(rows.map(r => [r.key, r.value]))
+
+  const accountSid = dbSettings.twilio_account_sid || (config.twilioAccountSid as string)
+  const authToken = dbSettings.twilio_auth_token || (config.twilioAuthToken as string)
+  const whatsappFrom = dbSettings.twilio_whatsapp_from || (config.twilioWhatsappFrom as string)
+
+  if (accountSid && authToken && whatsappFrom) {
+    return new TwilioProvider(accountSid, authToken, whatsappFrom)
   }
+
+  const provider = (config.whatsappProvider as string) || 'stub'
   if (provider === 'webhook' && config.whatsappWebhookUrl) {
     return new WebhookProvider(config.whatsappWebhookUrl as string)
   }

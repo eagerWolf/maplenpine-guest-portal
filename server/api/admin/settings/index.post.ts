@@ -28,6 +28,10 @@ const ALLOWED_KEYS = [
   'sumup_api_key',
   'sumup_merchant_code',
   'sumup_webhook_secret',
+  'twilio_account_sid',
+  'twilio_auth_token',
+  'twilio_whatsapp_from',
+  'reception_whatsapp',
 ]
 
 export default defineEventHandler(async (event) => {

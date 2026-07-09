@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'guest' })
+definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
 const { t, suggestions } = useLocale()
 
@@ -49,7 +49,7 @@ const visibleSuggestions = computed(() =>
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 0 48px;
-  color: #243027;
+  color: #1c2541;
 }
 
 .info-hero {
@@ -61,7 +61,7 @@ const visibleSuggestions = computed(() =>
 
 .info-kicker {
   margin: 0 0 12px;
-  color: #7b947e;
+  color: #7986b8;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -70,7 +70,7 @@ const visibleSuggestions = computed(() =>
 
 .info-hero h1 {
   margin: 0;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1.08;
   font-weight: 620;
@@ -104,13 +104,13 @@ const visibleSuggestions = computed(() =>
   margin: 0 0 10px;
   font-size: 1rem;
   font-weight: 700;
-  color: #202920;
+  color: #1a2036;
   line-height: 1.3;
 }
 
 .sug-card__desc {
   margin: 0 0 16px;
-  color: #626a63;
+  color: #5b6485;
   line-height: 1.75;
   font-size: 0.93rem;
 }
@@ -126,7 +126,7 @@ const visibleSuggestions = computed(() =>
   align-items: center;
   min-height: 36px;
   padding: 7px 14px;
-  background: #26372c;
+  background: #1e3a8a;
   color: #fffdf8;
   font-weight: 700;
   font-size: 0.82rem;
@@ -135,7 +135,7 @@ const visibleSuggestions = computed(() =>
   transition: background 160ms ease;
   white-space: nowrap;
 }
-.sug-btn:hover { background: #3c5543; }
+.sug-btn:hover { background: #2547b3; }
 
 @media (max-width: 480px) {
   .info-page { padding: 20px 0 40px; }

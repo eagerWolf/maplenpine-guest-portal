@@ -3,12 +3,13 @@ export interface BentralReservation {
   arrival: string       // YYYY-MM-DD
   departure: string     // YYYY-MM-DD
   status: string        // confirmed, canceled, pending, ...
+  created?: string      // YYYY-MM-DD HH:MM:SS
   updated: string       // YYYY-MM-DD HH:MM:SS
-  units: Array<{ id: string }>
+  units: Array<{ id: string; name?: string }>
   guest: {
     name: string
     email?: string
-    phone?: string
+    phone?: string | { type: string; number: string }
     lang?: string
   }
   persons?: number      // number of guests
@@ -54,7 +55,6 @@ export async function fetchBentralReservations(
   from: string,
   to: string,
   apiKey: string,
-  propertyId: string,
 ): Promise<BentralReservation[]> {
   const all: BentralReservation[] = []
   let offset = 0
@@ -66,8 +66,7 @@ export async function fetchBentralReservations(
       to,
       limit: '100',
       offset: String(offset),
-      fields: 'id,arrival,departure,status,updated,units,guest,persons',
-      property_id: propertyId,
+      fields: 'id,arrival,departure,status,created,updated,units,guest,persons',
     })
     const url = `https://api.bentral.com/v1/reservations?${params}`
 
@@ -125,57 +124,42 @@ function formatDoor(door: string): string {
   return `apartma ${door}`
 }
 
-export function buildBentralPinMessage(
-  guestName: string,
-  door: string,
-  pin: string,
-  portalLink: string,
-  validFrom: string | null,
-  validUntil: string | null,
-): string {
-  const arrival = parseDt(validFrom)
-  const departure = parseDt(validUntil)
-  const items = formatDoor(door)
-
-  return [
-    `Pozdravljeni / Pozdravljena ${guestName},`,
-    '',
-    `vaša dostopna koda za ${items} je:`,
-    '',
-    pin,
-    '',
-    `Koda velja od ${arrival.date} ${arrival.time} do ${departure.date} ${departure.time}, razen če je dogovorjeno drugače.`,
-    '',
-    `Vse informacije o vašem bivanju najdete na portalu za naše goste: ${portalLink}`,
-    '',
-    'Veselimo se vašega prihoda.',
-    '',
-    'Lep pozdrav,',
-    '',
-    'Maple & Pine Apartments · Bled',
-  ].join('\n')
-}
-
-export async function sendBentralMessage(
+export async function patchBentralEntranceCode(
   apiKey: string,
-  bentralReservationId: string,
-  message: string,
+  reservationId: string,
+  units: Array<{ id: string; name: string }>,
+  pin: string,
+  checkinDate: string,
+  checkinTime: string,
+  checkoutDate: string,
+  checkoutTime: string,
 ): Promise<void> {
-  const res = await fetch('https://api.bentral.com/v1/messages', {
-    method: 'POST',
+  const body = JSON.stringify({
+    entrance: {
+      locks: {
+        list: units.map(unit => ({
+          unit: { id: unit.id, name: unit.name },
+          entranceCode: pin,
+          checkinDate,
+          checkinTime,
+          checkoutDate,
+          checkoutTime,
+        })),
+      },
+    },
+  })
+
+  const res = await fetch(`https://api.bentral.com/v1/reservations/${reservationId}`, {
+    method: 'PATCH',
     headers: {
       'X-API-KEY': apiKey,
-      'Content-Type': 'application/json',
+      'Content-Type': 'text/plain',
     },
-    body: JSON.stringify({
-      type: 'email',
-      reservationId: bentralReservationId,
-      message,
-    }),
+    body,
     signal: AbortSignal.timeout(15_000),
   })
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Bentral messages API ${res.status}: ${body}`)
+    const text = await res.text().catch(() => '')
+    throw new Error(`Bentral eKey PATCH ${res.status}: ${text}`)
   }
 }

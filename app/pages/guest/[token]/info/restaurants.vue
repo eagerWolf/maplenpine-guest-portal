@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'guest' })
+definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
 const { t, restaurants } = useLocale()
 </script>
@@ -42,7 +42,7 @@ const { t, restaurants } = useLocale()
   max-width: 640px;
   margin: 0 auto;
   padding: 32px 0 48px;
-  color: #243027;
+  color: #1c2541;
 }
 
 .info-hero {
@@ -54,7 +54,7 @@ const { t, restaurants } = useLocale()
 
 .info-kicker {
   margin: 0 0 12px;
-  color: #7b947e;
+  color: #7986b8;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -63,7 +63,7 @@ const { t, restaurants } = useLocale()
 
 .info-hero h1 {
   margin: 0;
-  color: #202920;
+  color: #1a2036;
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1.08;
   font-weight: 620;
@@ -106,7 +106,7 @@ const { t, restaurants } = useLocale()
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #202920;
+  color: #1a2036;
 }
 
 .rest-card__type {
@@ -114,7 +114,7 @@ const { t, restaurants } = useLocale()
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #7b947e;
+  color: #7986b8;
   background: #f5f1e9;
   border: 1px solid #e4dccf;
   padding: 2px 8px;
@@ -124,7 +124,7 @@ const { t, restaurants } = useLocale()
 
 .rest-card__desc {
   margin: 0 0 14px;
-  color: #626a63;
+  color: #5b6485;
   line-height: 1.75;
   font-size: 0.93rem;
 }
@@ -135,13 +135,13 @@ const { t, restaurants } = useLocale()
   gap: 5px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #26372c;
+  color: #1e3a8a;
   text-decoration: none;
   border-bottom: 1px solid #c4b9a8;
   padding-bottom: 1px;
   transition: color 140ms ease, border-color 140ms ease;
 }
-.rest-card__link:hover { color: #3c5543; border-color: #26372c; }
+.rest-card__link:hover { color: #2547b3; border-color: #1e3a8a; }
 
 .info-related {
   display: grid;
@@ -164,14 +164,14 @@ const { t, restaurants } = useLocale()
 .info-related__title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #26372c;
+  color: #1e3a8a;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .info-related__desc {
   font-size: 0.82rem;
-  color: #7b947e;
+  color: #7986b8;
   line-height: 1.55;
 }
 

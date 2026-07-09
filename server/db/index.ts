@@ -23,7 +23,12 @@ export interface Reservation {
   bentral_departure: string | null
   bentral_status: string | null
   bentral_unit_id: string | null
+  bentral_unit_name: string | null
   bentral_updated_at: string | null
+  bentral_created_at: string | null
+  bentral_paired_reservation_id: string | null
+  bentral_paired_unit_id: string | null
+  bentral_paired_unit_name: string | null
   created_at: string
   updated_at: string
 }
@@ -49,6 +54,7 @@ export interface DbUser {
   notification_level: string
   whatsapp_phone: string | null
   notify_housekeeper: number
+  notify_checkin: number
   notes: string | null
   active: number
   created_at: string
@@ -77,6 +83,19 @@ export interface AppSetting {
   updated_at: string
 }
 
+export interface News {
+  id: number
+  title_sl: string
+  title_en: string
+  content_sl: string
+  content_en: string
+  active: number
+  valid_from: string | null
+  valid_to: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface AuditLog {
   id: number
   user_id: number | null
@@ -100,4 +119,13 @@ export function getDb(): Database.Database {
 
 export function now(): string {
   return new Date().toISOString()
+}
+
+export function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+// Guest portal access ends the day after checkout (date-only cutoff, ignores checkout hour)
+export function guestTokenExpiry(checkOut: string): string {
+  return new Date(new Date(checkOut + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000).toISOString()
 }

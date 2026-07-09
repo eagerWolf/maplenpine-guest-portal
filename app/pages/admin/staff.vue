@@ -8,6 +8,7 @@ interface StaffUser {
   notification_level: string
   whatsapp_phone: string | null
   notify_housekeeper: number
+  notify_checkin: number
   notes: string | null
   active: number
   created_at: string
@@ -53,6 +54,7 @@ const editUser = ref<StaffUser | null>(null)
 const editLevel = ref<'none' | 'errors' | 'all'>('none')
 const editPhone = ref('')
 const editNotifyHousekeeper = ref(false)
+const editNotifyCheckin = ref(false)
 const editNotes = ref('')
 const editActive = ref(true)
 const editLoading = ref(false)
@@ -64,6 +66,7 @@ function openEdit(u: StaffUser) {
   editLevel.value = (u.notification_level as 'none' | 'errors' | 'all') || 'none'
   editPhone.value = u.whatsapp_phone ?? ''
   editNotifyHousekeeper.value = !!u.notify_housekeeper
+  editNotifyCheckin.value = !!u.notify_checkin
   editNotes.value = u.notes ?? ''
   editActive.value = !!u.active
   editError.value = ''
@@ -86,6 +89,7 @@ async function saveEdit() {
         notification_level: editLevel.value,
         whatsapp_phone: editPhone.value,
         notify_housekeeper: editNotifyHousekeeper.value,
+        notify_checkin: editNotifyCheckin.value,
         notes: editNotes.value,
         active: editActive.value,
       },
@@ -300,9 +304,22 @@ function levelClass(level: string) {
                 >
                   <div class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all" :class="editNotifyHousekeeper ? 'left-5' : 'left-1'" />
                 </div>
-                <span class="text-sm font-medium text-stone-700">Opomnik za menjavo</span>
+                <span class="text-sm font-medium text-stone-700">Opomnik za čiščenje</span>
               </label>
-              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp 24h pred odjavo gosta (čiščenje, sprejemi…). Zahteva WhatsApp številko.</p>
+              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp 24h pred odjavo gosta. Zahteva WhatsApp številko.</p>
+            </div>
+            <div>
+              <label class="flex items-center gap-3 cursor-pointer select-none">
+                <div
+                  class="relative w-10 h-6 rounded-full transition-colors flex-shrink-0"
+                  :class="editNotifyCheckin ? 'bg-purple-500' : 'bg-stone-300'"
+                  @click="editNotifyCheckin = !editNotifyCheckin"
+                >
+                  <div class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all" :class="editNotifyCheckin ? 'left-5' : 'left-1'" />
+                </div>
+                <span class="text-sm font-medium text-stone-700">Opomnik za sprejem</span>
+              </label>
+              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp 24h pred prihodom gosta. Zahteva WhatsApp številko.</p>
             </div>
           </div>
 
