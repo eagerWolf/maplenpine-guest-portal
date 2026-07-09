@@ -32,6 +32,18 @@ export default {
           800: '#822d30',
           900: '#6e2a2c',
         },
+        royal: {
+          50: '#eef2fc',
+          100: '#dbe4f8',
+          200: '#b7c9f1',
+          300: '#8ea9e6',
+          400: '#5f7dd4',
+          500: '#3d5abf',
+          600: '#2c47a3',
+          700: '#1e3a8a',
+          800: '#182e6d',
+          900: '#141f52',
+        },
       },
       fontFamily: {
         sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],

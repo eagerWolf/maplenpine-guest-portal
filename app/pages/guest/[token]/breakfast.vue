@@ -222,7 +222,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending_payment: 'text-amber-700 bg-amber-50',
   paid: 'text-blue-700 bg-blue-50',
   sent_to_partner: 'text-indigo-700 bg-indigo-50',
-  confirmed_by_partner: 'text-pine-700 bg-pine-50',
+  confirmed_by_partner: 'text-royal-700 bg-royal-50',
   rejected_by_partner: 'text-red-700 bg-red-50',
   cancelled: 'text-stone-500 bg-stone-100',
   payment_failed: 'text-red-700 bg-red-50',
