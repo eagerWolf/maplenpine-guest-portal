@@ -1,5 +1,5 @@
 <script setup lang="ts">
-definePageMeta({ middleware: ['auth', 'admin'] })
+definePageMeta({ middleware: ['auth'] })
 
 interface Reservation {
   id: number
@@ -16,8 +16,21 @@ interface Reservation {
   guestCount: number | null
   guestEmail: string | null
   guestPhone: string | null
+  guestLang: string | null
+  guestLangOverride: string | null
   status: string
 }
+
+const LANG_OPTIONS = [
+  { code: 'en', label: 'English' },
+  { code: 'sl', label: 'Slovenščina' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'hr', label: 'Hrvatski' },
+  { code: 'sr', label: 'Srpski' },
+]
+
+const { user } = useUserSession()
+const isAdmin = computed(() => user.value?.role === 'admin')
 
 const today = new Date().toISOString().slice(0, 10)
 const now = new Date()
@@ -32,8 +45,11 @@ const { data: calData, refresh, pending } = await useFetch<{ reservations: Reser
 // All active future reservations (for stats by sync tier)
 const { data: guestsData, refresh: refreshGuests } = await useFetch<Array<{ checkIn: string; checkOut: string; pin: string | null; status: string }>>('/api/staff/guests')
 
-// Recent logs
-const { data: logsData, refresh: refreshLogs } = await useFetch('/api/admin/logs', { query: { limit: 8, offset: 0 } })
+// Recent logs (admin only)
+const { data: logsData, refresh: refreshLogs } = await useFetch('/api/admin/logs', {
+  query: { limit: 8, offset: 0 },
+  immediate: isAdmin.value,
+})
 
 const reservations = computed(() => calData.value?.reservations ?? [])
 const allReservations = computed(() => calData.value?.allReservations ?? [])
@@ -185,6 +201,10 @@ const sendPinError = ref('')
 const sendPinDone = ref(false)
 const portalLinkLoading = ref(false)
 const portalLinkError = ref('')
+const langOverride = ref('')
+const langLoading = ref(false)
+const langError = ref('')
+const langSaved = ref(false)
 
 const ekeyFirstNameCopied = ref(false)
 const ekeyLastNameCopied = ref(false)
@@ -215,6 +235,9 @@ function openDetail(r: Reservation) {
   sendPinError.value = ''
   sendPinDone.value = false
   portalLinkError.value = ''
+  langOverride.value = r.guestLangOverride ?? ''
+  langError.value = ''
+  langSaved.value = false
 }
 function closeDetail() { detail.value = null }
 
@@ -292,6 +315,27 @@ async function createPin() {
   }
 }
 
+async function submitLang() {
+  if (!detail.value) return
+  langLoading.value = true
+  langError.value = ''
+  langSaved.value = false
+  try {
+    await $fetch(`/api/staff/guests/${detail.value.id}/lang`, {
+      method: 'PATCH',
+      body: { lang: langOverride.value || null },
+    })
+    langSaved.value = true
+    await Promise.all([refresh(), refreshGuests()])
+    const fresh = allReservations.value.find(r => r.id === detail.value!.id)
+    if (fresh) detail.value = fresh
+  } catch (err: any) {
+    langError.value = err?.data?.statusMessage ?? 'Napaka'
+  } finally {
+    langLoading.value = false
+  }
+}
+
 // ─── Log helpers ────────────────────────────────────────────────────────────
 
 function actionLabel(action: string) {
@@ -322,6 +366,7 @@ function statusClass(status: string) {
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold text-stone-800">Nadzorna plošča</h1>
       <button
+        v-if="isAdmin"
         class="inline-flex items-center gap-2 text-sm bg-pine-600 hover:bg-pine-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
         :disabled="syncLoading"
         @click="triggerSync"
@@ -350,7 +395,7 @@ function statusClass(status: string) {
     </div>
 
     <!-- ── Sync tier stats ── -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div v-if="isAdmin" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div class="tier-card">
         <div class="tier-card__header">
           <span class="tier-dot tier-dot--hot" />
@@ -480,7 +525,7 @@ function statusClass(status: string) {
     </div>
 
     <!-- ── Recent activity ── -->
-    <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
+    <div v-if="isAdmin" class="bg-white rounded-xl border border-stone-200 overflow-hidden">
       <div class="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
         <h2 class="font-medium text-stone-700">Zadnje aktivnosti</h2>
         <NuxtLink to="/admin/logs" class="text-xs text-pine-600 hover:underline">Vsi logi →</NuxtLink>
@@ -635,6 +680,26 @@ function statusClass(status: string) {
             </button>
             <p v-if="extendError" class="drawer__extend-error">{{ extendError }}</p>
             <p v-if="extendSaved" class="drawer__extend-ok">✓ Shranjeno</p>
+          </div>
+
+          <!-- Language override -->
+          <div class="drawer__extend">
+            <p class="drawer__extend-title">Jezik gosta</p>
+            <p class="drawer__lang-detected">
+              Iz rezervacije: <strong>{{ detail.guestLang ?? '—' }}</strong>
+            </p>
+            <div class="drawer__extend-field">
+              <label class="drawer__extend-label">Ročno izbran jezik</label>
+              <select v-model="langOverride" class="drawer__extend-input">
+                <option value="">Uporabi jezik iz rezervacije</option>
+                <option v-for="opt in LANG_OPTIONS" :key="opt.code" :value="opt.code">{{ opt.label }}</option>
+              </select>
+            </div>
+            <button class="drawer__extend-btn" :disabled="langLoading" @click="submitLang">
+              {{ langLoading ? '…' : 'Shrani' }}
+            </button>
+            <p v-if="langError" class="drawer__extend-error">{{ langError }}</p>
+            <p v-if="langSaved" class="drawer__extend-ok">✓ Shranjeno</p>
           </div>
         </div>
       </div>
@@ -995,6 +1060,20 @@ function statusClass(status: string) {
   color: #1e293b; outline: none;
 }
 .drawer__extend-input:focus { border-color: #26372c; }
+
+.drawer__lang-detected {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+.drawer__lang-detected strong { color: #1e293b; }
+
+select.drawer__extend-input {
+  appearance: auto;
+  background: white;
+  cursor: pointer;
+}
+
 .drawer__extend-btn {
   padding: 8px 16px; background: #26372c; color: white;
   border: none; border-radius: 8px; font-size: 0.85rem;

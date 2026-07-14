@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     checkIn: `${reservation.check_in} ${checkinTime}`,
     checkOut: `${reservation.check_out} ${checkoutTime}`,
     guestCount: reservation.guest_count,
-    lang: reservation.guest_lang || null,
+    lang: reservation.guest_lang_override || reservation.guest_lang || null,
     contactPhone: settings.contact_phone || null,
     propertyNavUrl: settings.property_nav_url || null,
   }

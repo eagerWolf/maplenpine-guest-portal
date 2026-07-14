@@ -27,7 +27,7 @@ async function submitLogin() {
       password.value = ''
       step.value = 'set-password'
     } else if (res.success) {
-      await navigateTo(res.role === 'admin' ? '/admin' : '/staff')
+      await navigateTo('/admin')
     }
   } catch (err: any) {
     error.value = err?.data?.statusMessage ?? 'Napaka pri prijavi.'
@@ -52,7 +52,7 @@ async function submitSetPassword() {
       method: 'POST',
       body: { email: email.value, password: password.value },
     })
-    await navigateTo(res.role === 'admin' ? '/admin' : '/staff')
+    await navigateTo('/admin')
   } catch (err: any) {
     error.value = err?.data?.statusMessage ?? 'Napaka pri nastavljanju gesla.'
   } finally {

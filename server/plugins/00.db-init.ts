@@ -318,6 +318,9 @@ export default defineNitroPlugin(() => {
   if (!resCols.some(c => c.name === 'guest_lang')) {
     db.exec("ALTER TABLE reservations ADD COLUMN guest_lang TEXT")
   }
+  if (!resCols.some(c => c.name === 'guest_lang_override')) {
+    db.exec("ALTER TABLE reservations ADD COLUMN guest_lang_override TEXT")
+  }
   if (!resCols.some(c => c.name === 'bentral_unit_name')) {
     db.exec("ALTER TABLE reservations ADD COLUMN bentral_unit_name TEXT")
   }

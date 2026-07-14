@@ -17,26 +17,18 @@ const isAdmin = computed(() => user.value?.role === 'admin')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-14">
         <div class="flex items-center gap-6">
-          <NuxtLink to="/staff" class="text-pine-700 font-semibold text-lg tracking-tight">
+          <NuxtLink to="/admin" class="text-pine-700 font-semibold text-lg tracking-tight">
             Maple & Pine
           </NuxtLink>
           <div v-if="loggedIn" class="hidden sm:flex items-center gap-1">
             <NuxtLink
-              v-if="!isAdmin"
-              to="/staff"
+              to="/admin"
               class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              :class="route.path.startsWith('/staff') ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
+              :class="route.path === '/admin' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
             >
-              Gostje
+              Nadzorna plošča
             </NuxtLink>
             <template v-if="isAdmin">
-              <NuxtLink
-                to="/admin"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Nadzorna plošča
-              </NuxtLink>
               <NuxtLink
                 to="/admin/staff"
                 class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"

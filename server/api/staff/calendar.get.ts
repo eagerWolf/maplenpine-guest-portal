@@ -42,6 +42,8 @@ export default defineEventHandler(async (event) => {
     guestCount: r.guest_count,
     guestEmail: r.guest_email,
     guestPhone: r.guest_phone,
+    guestLang: r.guest_lang,
+    guestLangOverride: r.guest_lang_override,
     status: r.status,
   })
 

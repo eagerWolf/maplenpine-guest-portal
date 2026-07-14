@@ -1,8 +1,8 @@
 <script setup lang="ts">
-const { loggedIn, user, fetch } = useUserSession()
+const { loggedIn, fetch } = useUserSession()
 await fetch()
 if (loggedIn.value) {
-  navigateTo(user.value?.role === 'admin' ? '/admin' : '/staff')
+  navigateTo('/admin')
 } else {
   navigateTo('/login')
 }
