@@ -21,6 +21,19 @@ interface Reservation {
   status: string
 }
 
+interface AdminLogJob {
+  id: number
+  action: string
+  status: string
+  guest_name: string
+  created_at: string
+}
+
+interface AdminLogsResponse {
+  jobs: AdminLogJob[]
+  total: number
+}
+
 const LANG_OPTIONS = [
   { code: 'en', label: 'English' },
   { code: 'sl', label: 'Slovenščina' },
@@ -46,7 +59,7 @@ const { data: calData, refresh, pending } = await useFetch<{ reservations: Reser
 const { data: guestsData, refresh: refreshGuests } = await useFetch<Array<{ checkIn: string; checkOut: string; pin: string | null; status: string }>>('/api/staff/guests')
 
 // Recent logs (admin only)
-const { data: logsData, refresh: refreshLogs } = await useFetch('/api/admin/logs', {
+const { data: logsData, refresh: refreshLogs } = await useFetch<AdminLogsResponse>('/api/admin/logs', {
   query: { limit: 8, offset: 0 },
   immediate: isAdmin.value,
 })
@@ -162,26 +175,15 @@ function isRowStart(date: string): boolean {
   return new Date(date + 'T00:00:00').getDay() === 1  // Monday = first column
 }
 
-function barClasses(r: Reservation, date: string): string[] {
+function barPosition(r: Reservation, date: string): 'single' | 'start' | 'end' | 'middle' {
   const start = isStart(r, date)
   const end = isEnd(r, date)
   const capRight = end || (!end && (isRowEnd(date) || date === lastCalDate.value))
   const capLeft = start || (!start && (isRowStart(date) || date === firstCalDate.value))
-  if (capLeft && capRight) return [doorBarClass(r.door), 'cal-bar--single']
-  if (capLeft) return [doorBarClass(r.door), 'cal-bar--start']
-  if (capRight) return [doorBarClass(r.door), 'cal-bar--end']
-  return [doorBarClass(r.door)]
-}
-
-function doorBarClass(door: string) {
-  if (door.includes(',')) return 'bar--both'
-  if (door === 'Maple') return 'bar--maple'
-  return 'bar--pine'
-}
-function doorBadgeClass(door: string) {
-  if (door.includes(',')) return 'badge--both'
-  if (door === 'Maple') return 'badge--maple'
-  return 'badge--pine'
+  if (capLeft && capRight) return 'single'
+  if (capLeft) return 'start'
+  if (capRight) return 'end'
+  return 'middle'
 }
 
 // ─── Detail drawer ──────────────────────────────────────────────────────────
@@ -463,7 +465,14 @@ function statusClass(status: string) {
             v-for="r in resvOnDay(cell.date)"
             :key="r.id"
             class="cal-bar"
-            :class="barClasses(r, cell.date)"
+            :class="{
+              'cal-bar--single': barPosition(r, cell.date) === 'single',
+              'cal-bar--start': barPosition(r, cell.date) === 'start',
+              'cal-bar--end': barPosition(r, cell.date) === 'end',
+              'bar--both': r.door.includes(','),
+              'bar--maple': r.door === 'Maple',
+              'bar--pine': r.door === 'Pine',
+            }"
             :title="`${r.name} · ${r.door}`"
             @click="openDetail(r)"
           >
@@ -517,7 +526,14 @@ function statusClass(status: string) {
               </span>
             </td>
             <td>
-              <span class="resv-status-badge" :class="`resv-status-badge--${r.status}`">{{ r.status }}</span>
+              <span
+                class="resv-status-badge"
+                :class="{
+                  'resv-status-badge--active': r.status === 'active',
+                  'resv-status-badge--cancelled': r.status === 'cancelled',
+                  'resv-status-badge--pending': r.status === 'pending',
+                }"
+              >{{ r.status }}</span>
             </td>
           </tr>
         </tbody>
@@ -551,7 +567,14 @@ function statusClass(status: string) {
 
           <div class="drawer__hero">
             <p class="drawer__name">{{ detail.name }}</p>
-            <span class="drawer__badge" :class="doorBadgeClass(detail.door)">{{ detail.door }}</span>
+            <span
+              class="drawer__badge"
+              :class="{
+                'badge--both': detail.door.includes(','),
+                'badge--maple': detail.door === 'Maple',
+                'badge--pine': detail.door === 'Pine',
+              }"
+            >{{ detail.door }}</span>
             <button
               class="drawer__portal-link"
               :disabled="portalLinkLoading"
@@ -1053,7 +1076,6 @@ function statusClass(status: string) {
   font-size: 0.7rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8;
 }
-.drawer__extend-row { display: flex; gap: 8px; }
 .drawer__extend-input {
   flex: 1; padding: 8px 10px; border: 1px solid #e2e8f0;
   border-radius: 8px; font-size: 0.85rem; font-family: inherit;

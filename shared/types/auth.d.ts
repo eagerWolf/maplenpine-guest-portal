@@ -5,4 +5,5 @@ declare module '#auth-utils' {
     role: 'admin' | 'staff'
   }
 }
+
 export {}
