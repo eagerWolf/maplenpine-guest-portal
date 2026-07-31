@@ -16,6 +16,7 @@ useHead({
 
 const guestToken = useGuestToken()
 const accessBlocked = useGuestAccessBlocked()
+const adminPreview = useAdminGuestPreview()
 const homeLink = computed(() => (guestToken.value && !accessBlocked.value) ? `/guest/${guestToken.value}` : '/')
 function infoLink(page: string) {
   return guestToken.value ? `/guest/${guestToken.value}/info/${page}` : '/'
@@ -64,6 +65,9 @@ watch(() => route.path, closeDrawer)
         </button>
       </div>
     </header>
+    <div v-if="adminPreview" class="admin-preview-warning">
+      Administratorski predogled: dostop gosta je že potekel. Omejitev veljavnosti je začasno prezrta.
+    </div>
 
     <!-- Mobile drawer -->
     <Transition name="drawer">
@@ -160,6 +164,16 @@ body {
 
 .guest-header {
   background: #1e3a8a;
+}
+
+.admin-preview-warning {
+  background: #fff7d6;
+  border-bottom: 1px solid #e6cc72;
+  color: #755b08;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 650;
 }
 
 .guest-header__inner {

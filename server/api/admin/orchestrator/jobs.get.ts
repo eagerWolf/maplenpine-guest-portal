@@ -42,10 +42,15 @@ export default defineEventHandler(async (event) => {
 
   const publishSetting = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('auto_publish_ekey') as { value: string } | undefined
   const autoPublishEnabled = !publishSetting || publishSetting.value !== '0'
+  const orchestratorApiKey = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value ?? ''
+  const portalOrigin = getRequestURL(event).origin
 
   return {
     jobs,
     autoPublishEnabled,
+    orchestratorApiKey,
+    jobsUrl: `${portalOrigin}/api/orchestrator/jobs`,
+    resultsUrl: `${portalOrigin}/api/orchestrator/results`,
     batchPayload: { jobs: merged.map(m => m.orchestratorJob) },
   }
 })

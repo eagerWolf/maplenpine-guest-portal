@@ -10,6 +10,9 @@ async function logout() {
 }
 
 const isAdmin = computed(() => user.value?.role === 'admin')
+const overviewActive = computed(() => ['/admin/logs', '/admin/notifications', '/admin/sales'].includes(route.path))
+const contentActive = computed(() => route.path.startsWith('/admin/content') || route.path === '/admin/news')
+const settingsActive = computed(() => route.path.startsWith('/admin/settings') || ['/admin/staff', '/admin/orchestrator'].includes(route.path))
 </script>
 
 <template>
@@ -21,64 +24,13 @@ const isAdmin = computed(() => user.value?.role === 'admin')
             Maple & Pine
           </NuxtLink>
           <div v-if="loggedIn" class="hidden sm:flex items-center gap-1">
-            <NuxtLink
-              to="/admin"
-              class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              :class="route.path === '/admin' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-            >
-              Nadzorna plošča
-            </NuxtLink>
             <template v-if="isAdmin">
-              <NuxtLink
-                to="/admin/staff"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/staff' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Osebje
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/logs"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/logs' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Log
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/notifications"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/notifications' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Obvestila
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/sales"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/sales' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Prodaja
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/news"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/news' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Novice
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/orchestrator"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path === '/admin/orchestrator' ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Orchestrator
-              </NuxtLink>
-              <NuxtLink
-                to="/admin/settings/general"
-                class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-                :class="route.path.startsWith('/admin/settings') ? 'bg-pine-50 text-pine-700' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'"
-              >
-                Nastavitve
-              </NuxtLink>
+              <NuxtLink to="/admin" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="route.path==='/admin'?'bg-pine-50 text-pine-700':'text-stone-600 hover:bg-stone-100'">Koledar</NuxtLink>
+              <NuxtLink to="/admin/logs" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="overviewActive?'bg-pine-50 text-pine-700':'text-stone-600 hover:bg-stone-100'">Pregled</NuxtLink>
+              <NuxtLink to="/admin/content" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="contentActive?'bg-pine-50 text-pine-700':'text-stone-600 hover:bg-stone-100'">Vsebina</NuxtLink>
+              <NuxtLink to="/admin/settings/general" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors" :class="settingsActive?'bg-pine-50 text-pine-700':'text-stone-600 hover:bg-stone-100'">Nastavitve</NuxtLink>
             </template>
+            <NuxtLink v-else to="/admin" class="px-3 py-1.5 rounded-md text-sm font-medium text-stone-600">Koledar</NuxtLink>
           </div>
         </div>
         <div v-if="loggedIn" class="flex items-center gap-3">

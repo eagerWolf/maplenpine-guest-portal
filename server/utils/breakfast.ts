@@ -218,15 +218,20 @@ export async function processRefund(orderId: number, reason: string): Promise<vo
   }
 }
 
-export function validateGuestToken(token: string): { reservationId: number; reservation: import('../db/index').Reservation } {
+export async function isAdminGuestPreview(event: Parameters<typeof getUserSession>[0]): Promise<boolean> {
+  const session = await getUserSession(event)
+  return session.user?.role === 'admin'
+}
+
+export function validateGuestToken(token: string, allowExpired = false): { reservationId: number; reservation: import('../db/index').Reservation } {
   const db = getDb()
   const gt = db.prepare('SELECT * FROM guest_tokens WHERE token = ?').get(token) as { token: string; reservation_id: number; expires_at: string } | undefined
   if (!gt) throw createError({ statusCode: 404, statusMessage: 'Token ni veljaven' })
-  if (new Date(gt.expires_at) < new Date()) throw createError({ statusCode: 410, statusMessage: 'Token je potekel' })
+  if (!allowExpired && new Date(gt.expires_at) < new Date()) throw createError({ statusCode: 410, statusMessage: 'Token je potekel' })
 
   const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(gt.reservation_id) as import('../db/index').Reservation | undefined
   if (!reservation) throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
-  if (reservation.check_out < today()) throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
+  if (!allowExpired && reservation.check_out < today()) throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
 
   return { reservationId: gt.reservation_id, reservation }
 }

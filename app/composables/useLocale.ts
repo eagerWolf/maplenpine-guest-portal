@@ -1,4 +1,4 @@
-import { LOCALES, ui, faqContent, howToContent, restaurantContent, suggestionContent } from '~/i18n/translations'
+import { LOCALES, ui } from '~/i18n/translations'
 import type { Locale } from '~/i18n/translations'
 
 export { LOCALES }
@@ -26,10 +26,5 @@ export const useLocale = () => {
   }
 
   const t = computed(() => ui[locale.value])
-  const faq = computed(() => faqContent[locale.value])
-  const howTo = computed(() => howToContent[locale.value])
-  const restaurants = computed(() => restaurantContent[locale.value])
-  const suggestions = computed(() => suggestionContent[locale.value])
-
-  return { locale, setLocale, t, faq, howTo, restaurants, suggestions }
+  return { locale, setLocale, t }
 }

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
-const { t, faq } = useLocale()
-const openItem = ref<string | null>(null)
-function toggle(id: string) {
+const { t, locale } = useLocale()
+const token=String(useRoute().params.token)
+const {data}=await useFetch<any[]>('/api/guest/faq',{query:{token}})
+const faq=computed(()=>(data.value||[]).map(item=>({...item,title:item.title[locale.value]||item.title.en,description:item.description[locale.value]||item.description.en})))
+const openItem = ref<number | null>(null)
+function toggle(id: number) {
   openItem.value = openItem.value === id ? null : id
 }
 </script>
@@ -43,7 +46,7 @@ function toggle(id: string) {
               target="_blank"
               rel="noopener noreferrer"
               class="faq-link"
-            >{{ link.label }}</a>
+            >{{ link.label?.[locale] || link.label?.en || link.label }}</a>
           </div>
         </div>
       </div>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
-const { t, howTo } = useLocale()
+const { t, locale } = useLocale()
+const token=String(useRoute().params.token)
+const {data}=await useFetch<any[]>('/api/guest/howto',{query:{token}})
+const howTo=computed(()=>(data.value||[]).map(item=>({...item,title:item.title[locale.value]||item.title.en,description:item.description[locale.value]||item.description.en,image:item.imagePath})))
 </script>
 
 <template>
@@ -26,7 +29,7 @@ const { t, howTo } = useLocale()
               target="_blank"
               rel="noopener noreferrer"
               class="howto-link"
-            >{{ link.label }}</a>
+            >{{ link.label?.[locale] || link.label?.en || link.label }}</a>
           </div>
         </div>
       </div>

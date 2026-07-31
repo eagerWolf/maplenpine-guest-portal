@@ -5,7 +5,6 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    orchestratorApiKey: process.env.ORCHESTRATOR_API_KEY || '',
     bentralApiKey: process.env.BENTRAL_API_KEY || '',
     bentralPropertyId: process.env.BENTRAL_PROPERTY_ID || '5f7a55304e675f4d',
     bentralUnitIdMaple: process.env.BENTRAL_UNIT_ID_MAPLE || '',

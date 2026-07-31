@@ -15,14 +15,28 @@ interface OrchestratorJob {
 const { data, refresh, pending } = await useFetch<{
   jobs: OrchestratorJob[]
   autoPublishEnabled: boolean
+  orchestratorApiKey: string
+  jobsUrl: string
+  resultsUrl: string
   batchPayload: { jobs: Record<string, unknown>[] }
 }>('/api/admin/orchestrator/jobs')
 
 const copiedId = ref<number | null>(null)
 const copiedAll = ref(false)
+const settingsForm = reactive({ auto_publish_ekey: '1', orchestrator_api_key: '' })
+const savingSettings = ref(false)
+const settingsSaved = ref(false)
+const settingsError = ref('')
+watch(data, value => { if (!value) return; settingsForm.auto_publish_ekey=value.autoPublishEnabled?'1':'0'; settingsForm.orchestrator_api_key=value.orchestratorApiKey }, {immediate:true})
 
 function fmtJson(value: unknown) {
   return JSON.stringify(value, null, 2)
+}
+async function saveSettings() {
+  savingSettings.value=true;settingsSaved.value=false;settingsError.value=''
+  if(settingsForm.auto_publish_ekey==='1'&&!settingsForm.orchestrator_api_key.trim()){settingsError.value='Token je obvezen, ko je avtomatska obdelava vključena.';savingSettings.value=false;return}
+  try { await $fetch('/api/admin/settings',{method:'POST',body:{...settingsForm}}); settingsSaved.value=true;await refresh();setTimeout(()=>settingsSaved.value=false,3000) }
+  catch(err:any){settingsError.value=err?.data?.statusMessage??'Napaka pri shranjevanju'} finally{savingSettings.value=false}
 }
 
 async function copyJob(job: OrchestratorJob) {
@@ -68,16 +82,27 @@ function fmtTs(ts: string) {
     </div>
 
     <p class="text-sm text-stone-500 -mt-2">
-      Pregled čakajočih jobov, ki jih bo pobral orchestrator ob naslednjem pollu (GET /api/orchestrator/jobs).
-      Ta stran je samo za pregled — ne spremeni stanja jobov. Jobi za isto rezervacijo se v dejanskem klicu
-      združijo v enega (spodaj vsak prikazan posebej, "Kopiraj celoten JSON" pa vsebuje že združeno različico).
+      Pregled opravil za zunanji Orchestrator. Windows Orchestrator vsakih 5 minut prevzame čakajoča opravila,
+      jih izvede in rezultate vrne portalu. Opravila iste rezervacije se pred prevzemom združijo.
     </p>
+
+    <div class="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
+      <div><h2 class="font-medium text-stone-700">Povezava z Orchestratorjem</h2><p class="mt-1 text-sm text-stone-500">Orchestrator uporablja spodnja naslova za prevzem opravil in vračanje rezultatov.</p></div>
+      <label class="block text-sm font-medium text-stone-600">Token
+        <input v-model="settingsForm.orchestrator_api_key" type="password" placeholder="Vnesi varen skupni token" autocomplete="new-password" class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+        <span class="mt-1 block text-xs font-normal text-stone-400">Uporabi se kot <code>Authorization: Bearer …</code> pri obeh smereh komunikacije.</span>
+      </label>
+      <div><p class="text-sm font-medium text-stone-600">Naslov za prevzem opravil (GET)</p><code class="mt-1 block break-all rounded-lg bg-stone-50 p-3 text-sm text-stone-700">{{ data?.jobsUrl }}</code></div>
+      <div><p class="text-sm font-medium text-stone-600">Naslov za vračanje rezultatov (POST)</p><code class="mt-1 block break-all rounded-lg bg-stone-50 p-3 text-sm text-stone-700">{{ data?.resultsUrl }}</code></div>
+      <label class="flex items-center justify-between gap-4 cursor-pointer"><div><p class="text-sm font-medium text-stone-700">Avtomatska obdelava eKey</p><p class="text-xs text-stone-400">Dovoli Orchestratorju prevzem čakajočih opravil.</p></div><button type="button" role="switch" :aria-checked="settingsForm.auto_publish_ekey==='1'" class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors" :class="settingsForm.auto_publish_ekey==='1'?'bg-pine-600':'bg-stone-200'" @click="settingsForm.auto_publish_ekey=settingsForm.auto_publish_ekey==='1'?'0':'1'"><span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition" :class="settingsForm.auto_publish_ekey==='1'?'translate-x-5':'translate-x-0'" /></button></label>
+      <p v-if="settingsError" class="text-sm text-red-600">{{settingsError}}</p><p v-if="settingsSaved" class="text-sm text-pine-700">✓ Nastavitve shranjene</p><button :disabled="savingSettings" class="rounded-lg bg-pine-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50" @click="saveSettings">{{savingSettings?'Shranjujem…':'Shrani nastavitve'}}</button>
+    </div>
 
     <div
       v-if="data && !data.autoPublishEnabled"
       class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800"
     >
-      ⚠ "Samodejno izdaj eKey" je izklopljen v nastavitvah — orchestrator bo ob naslednjem pollu prejel prazen seznam, ne glede na spodnjo čakalno vrsto.
+      ⚠ Avtomatska obdelava eKey je izklopljena — Orchestrator bo ob naslednjem preverjanju prejel prazen seznam.
     </div>
 
     <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">

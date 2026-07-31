@@ -1,6 +1,7 @@
 import { getDb, today } from '../../db/index'
 import type { Reservation, GuestToken } from '../../db/index'
 import { getSettings } from '../../utils/jobs'
+import { isAdminGuestPreview } from '../../utils/breakfast'
 
 export default defineEventHandler(async (event) => {
   const token = getRouterParam(event, 'token')
@@ -10,6 +11,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = getDb()
+  const adminPreview = await isAdminGuestPreview(event)
 
   const guestToken = db.prepare(
     'SELECT * FROM guest_tokens WHERE token = ?',
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Dostop ni najden' })
   }
 
-  if (new Date(guestToken.expires_at) < new Date()) {
+  if (!adminPreview && new Date(guestToken.expires_at) < new Date()) {
     throw createError({ statusCode: 410, statusMessage: 'Vaš dostop je potekel' })
   }
 
@@ -30,7 +32,7 @@ export default defineEventHandler(async (event) => {
   if (!reservation) {
     throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
   }
-  if (reservation.check_out < today()) {
+  if (!adminPreview && reservation.check_out < today()) {
     throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
   }
 
@@ -39,6 +41,7 @@ export default defineEventHandler(async (event) => {
   const checkoutTime = settings.bentral_checkout_time || '11:00'
 
   return {
+    adminPreview: adminPreview && (new Date(guestToken.expires_at) < new Date() || reservation.check_out < today()),
     name: `${reservation.first_name} ${reservation.last_name}`,
     door: reservation.door,
     pin: reservation.pin,

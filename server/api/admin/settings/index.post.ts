@@ -15,6 +15,7 @@ const ALLOWED_KEYS = [
   'facebook_url',
   'auto_sync_bentral',
   'auto_publish_ekey',
+  'orchestrator_api_key',
   'bentral_api_key',
   'breakfast_partner_id',
   'breakfast_enabled',
@@ -62,7 +63,7 @@ export default defineEventHandler(async (event) => {
   `).run(
     session.user.id,
     session.user.email,
-    JSON.stringify({ updated, values: Object.fromEntries(updated.map(k => [k, body[k]])) }),
+    JSON.stringify({ updated, values: Object.fromEntries(updated.map(k => [k, /(key|token|secret)/i.test(k) ? '[REDACTED]' : body[k]])) }),
     ts,
   )
 

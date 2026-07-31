@@ -66,9 +66,10 @@ interface OrchestratorResult {
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  const configuredKey = (getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value?.trim()
   const authHeader = getHeader(event, 'authorization')
 
-  if (!authHeader || authHeader !== `Bearer ${config.orchestratorApiKey}`) {
+  if (!configuredKey || !authHeader || authHeader !== `Bearer ${configuredKey}`) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 

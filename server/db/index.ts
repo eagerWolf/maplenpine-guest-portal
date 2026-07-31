@@ -90,7 +90,85 @@ export interface News {
   title_en: string
   content_sl: string
   content_en: string
+  title: string
+  content: string
+  recurring: number
   active: number
+  valid_from: string | null
+  valid_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type Locale = 'en' | 'sl' | 'de' | 'hr' | 'sr'
+export type LocalizedText = Record<Locale, string>
+
+export interface RestaurantRow {
+  id: number
+  name: string
+  type: string
+  website: string | null
+  description: string // JSON LocalizedText
+  image_path: string | null
+  active: number
+  sort_order: number
+  recurring: number
+  valid_from: string | null
+  valid_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SuggestionRow {
+  id: number
+  title: string // JSON LocalizedText
+  description: string // JSON LocalizedText
+  buttons: string | null // JSON Array<{label, href, target?}>
+  image_path: string | null
+  recurring: number
+  valid_from: string | null
+  valid_to: string | null
+  active: number
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FaqItemRow {
+  id: number
+  title: string // JSON LocalizedText
+  description: string // JSON LocalizedText
+  links: string | null // JSON Array<{label, href}>
+  active: number
+  sort_order: number
+  recurring: number
+  valid_from: string | null
+  valid_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface HowtoItemRow {
+  id: number
+  title: string // JSON LocalizedText
+  description: string // JSON LocalizedText
+  image_path: string | null
+  links: string | null // JSON Array<{label, href}>
+  active: number
+  sort_order: number
+  recurring: number
+  valid_from: string | null
+  valid_to: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface HouseRuleRow {
+  id: number
+  text: string // JSON LocalizedText
+  active: number
+  sort_order: number
+  recurring: number
   valid_from: string | null
   valid_to: string | null
   created_at: string

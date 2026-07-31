@@ -1,15 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
-const { t, suggestions } = useLocale()
-
-// 0=Jan … 11=Dec. Winter: Nov–Mar (10,11,0,1,2). Summer: Apr–Oct (3–9).
-const month = new Date().getMonth()
-const isWinter = month >= 10 || month <= 2
-
-const visibleSuggestions = computed(() =>
-  suggestions.value.filter(s => !s.season || (s.season === 'winter' ? isWinter : !isWinter)),
-)
+const { t, locale } = useLocale()
+const token=String(useRoute().params.token)
+const {data}=await useFetch<any[]>('/api/guest/suggestions',{query:{token}})
+const visibleSuggestions=computed(()=>(data.value||[]).map(item=>({...item,title:item.title[locale.value]||item.title.en,description:item.description[locale.value]||item.description.en,image:item.imagePath})))
 </script>
 
 <template>
@@ -34,7 +29,7 @@ const visibleSuggestions = computed(() =>
               :target="btn.target ?? '_blank'"
               rel="noopener noreferrer"
               class="sug-btn"
-            >{{ btn.label }}</a>
+            >{{ btn.label?.[locale] || btn.label?.en || btn.label }}</a>
           </div>
         </div>
       </div>

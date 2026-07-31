@@ -1,7 +1,10 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'guest', middleware: 'guest-token' })
 
-const { t, restaurants } = useLocale()
+const { t, locale } = useLocale()
+const token=String(useRoute().params.token)
+const {data}=await useFetch<any[]>('/api/guest/restaurants',{query:{token}})
+const restaurants=computed(()=>(data.value||[]).map(item=>({...item,description:item.description[locale.value]||item.description.en,image:item.imagePath})))
 </script>
 
 <template>

@@ -10,6 +10,7 @@ guestToken.value = token
 const { locale, setLocale, t } = useLocale()
 
 const { data, error, pending } = await useFetch(`/api/guest/${token}`)
+useAdminGuestPreview().value = !!(data.value as any)?.adminPreview
 
 const accessBlocked = useGuestAccessBlocked()
 accessBlocked.value = !!error.value
@@ -17,16 +18,16 @@ const isExpired = computed(() => (error.value as any)?.statusCode === 410)
 
 interface NewsItem {
   id: number
-  titleSl: string
-  titleEn: string
-  contentSl: string
-  contentEn: string
+  title: Record<string, string>
+  content: Record<string, string>
   createdAt: string
 }
 const { data: newsData } = await useFetch<NewsItem[]>('/api/guest/news', { query: { token } })
 const news = computed(() => newsData.value ?? [])
-function newsTitle(item: NewsItem) { return locale.value === 'sl' ? item.titleSl : item.titleEn }
-function newsContent(item: NewsItem) { return locale.value === 'sl' ? item.contentSl : item.contentEn }
+const { data: houseRuleData } = await useFetch<any[]>('/api/guest/house-rules', { query: { token } })
+const houseRules = computed(() => (houseRuleData.value ?? []).map(r => r.text[locale.value] || r.text.en))
+function newsTitle(item: NewsItem) { return item.title[locale.value] || item.title.en }
+function newsContent(item: NewsItem) { return item.content[locale.value] || item.content.en }
 
 // Auto-set locale from reservation's guest_lang on first load
 watchEffect(() => {
@@ -233,7 +234,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
       <div class="info-panel">
         <p class="guest-kicker">{{ t.rules.kicker }}</p>
         <ul class="info-rules">
-          <li v-for="(rule, i) in t.rules.items" :key="i">
+          <li v-for="(rule, i) in houseRules" :key="i">
             <span class="info-rules__bullet" aria-hidden="true">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M7 1.5C5 1.5 3.5 3 3.5 4.5c0 2 1.5 3.5 3.5 5.5 2-2 3.5-3.5 3.5-5.5C10.5 3 9 1.5 7 1.5z" fill="#7986b8"/>

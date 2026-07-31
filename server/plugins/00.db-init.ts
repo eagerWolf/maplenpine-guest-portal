@@ -1,6 +1,17 @@
 import { getDb } from '../db/index'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { SEED_RESTAURANTS, SEED_SUGGESTIONS, SEED_FAQ, SEED_HOWTO, SEED_HOUSE_RULES } from '../db/seed-content'
+
+function copySeedImage(category: string, sourcePath: string): string {
+  const filename = sourcePath.split('/').pop()!
+  const dest = join(process.cwd(), 'data', 'uploads', category, filename)
+  if (!existsSync(dest)) {
+    const src = join(process.cwd(), 'public', sourcePath.replace(/^\//, ''))
+    if (existsSync(src)) copyFileSync(src, dest)
+  }
+  return filename
+}
 
 export default defineNitroPlugin(() => {
   const db = getDb()
@@ -147,7 +158,82 @@ export default defineNitroPlugin(() => {
       title_en TEXT NOT NULL,
       content_sl TEXT NOT NULL,
       content_en TEXT NOT NULL,
+      title TEXT,
+      content TEXT,
+      recurring INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
+      valid_from TEXT,
+      valid_to TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS restaurants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'casual',
+      website TEXT,
+      description TEXT NOT NULL,
+      image_path TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      recurring INTEGER NOT NULL DEFAULT 0,
+      valid_from TEXT,
+      valid_to TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS suggestions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      buttons TEXT,
+      image_path TEXT,
+      recurring INTEGER NOT NULL DEFAULT 0,
+      valid_from TEXT,
+      valid_to TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS faq_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      links TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      recurring INTEGER NOT NULL DEFAULT 0,
+      valid_from TEXT,
+      valid_to TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS howto_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      image_path TEXT,
+      links TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      recurring INTEGER NOT NULL DEFAULT 0,
+      valid_from TEXT,
+      valid_to TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS house_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      recurring INTEGER NOT NULL DEFAULT 0,
       valid_from TEXT,
       valid_to TEXT,
       created_at TEXT NOT NULL,
@@ -206,6 +292,7 @@ export default defineNitroPlugin(() => {
     ['facebook_url', 'https://www.facebook.com/mapleandpinebled'],
     ['auto_sync_bentral', '1'],
     ['auto_publish_ekey', '1'],
+    ['orchestrator_api_key', ''],
     ['bentral_api_key', ''],
     ['breakfast_partner_id', ''],
     ['breakfast_enabled', '0'],
@@ -229,6 +316,67 @@ export default defineNitroPlugin(() => {
   )
   for (const [key, value] of defaults) {
     ins.run(key, value, ts)
+  }
+
+  // Seed guest content (restaurants, suggestions, faq, how-to, house rules) — first run only
+  for (const dir of ['restaurants', 'suggestions', 'howto']) {
+    mkdirSync(join(process.cwd(), 'data', 'uploads', dir), { recursive: true })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM restaurants').get() as { c: number }).c === 0) {
+    const insertRestaurant = db.prepare(`
+      INSERT INTO restaurants (name, type, website, description, image_path, active, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `)
+    SEED_RESTAURANTS.forEach((r, i) => {
+      const imagePath = copySeedImage('restaurants', r.image)
+      insertRestaurant.run(r.name, r.type, r.website, JSON.stringify(r.description), imagePath, i, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM suggestions').get() as { c: number }).c === 0) {
+    const insertSuggestion = db.prepare(`
+      INSERT INTO suggestions (title, description, buttons, image_path, recurring, valid_from, valid_to, active, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `)
+    SEED_SUGGESTIONS.forEach((s, i) => {
+      const imagePath = copySeedImage('suggestions', s.image)
+      insertSuggestion.run(
+        JSON.stringify(s.title), JSON.stringify(s.description), s.buttons ? JSON.stringify(s.buttons) : null,
+        imagePath, s.recurring ? 1 : 0, s.validFrom, s.validTo, i, ts, ts,
+      )
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM faq_items').get() as { c: number }).c === 0) {
+    const insertFaq = db.prepare(`
+      INSERT INTO faq_items (title, description, links, active, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?)
+    `)
+    SEED_FAQ.forEach((f, i) => {
+      insertFaq.run(JSON.stringify(f.title), JSON.stringify(f.description), f.links ? JSON.stringify(f.links) : null, i, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM howto_items').get() as { c: number }).c === 0) {
+    const insertHowto = db.prepare(`
+      INSERT INTO howto_items (title, description, image_path, links, active, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+    `)
+    SEED_HOWTO.forEach((h, i) => {
+      const imagePath = h.image ? copySeedImage('howto', h.image) : null
+      insertHowto.run(JSON.stringify(h.title), JSON.stringify(h.description), imagePath, h.links ? JSON.stringify(h.links) : null, i, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM house_rules').get() as { c: number }).c === 0) {
+    const insertRule = db.prepare(`
+      INSERT INTO house_rules (text, active, sort_order, created_at, updated_at)
+      VALUES (?, 1, ?, ?, ?)
+    `)
+    SEED_HOUSE_RULES.forEach((text, i) => {
+      insertRule.run(JSON.stringify(text), i, ts, ts)
+    })
   }
 
   // Migrations
@@ -309,6 +457,20 @@ export default defineNitroPlugin(() => {
   }
   if (!newsCols.some(c => c.name === 'valid_to')) {
     db.exec("ALTER TABLE news ADD COLUMN valid_to TEXT")
+  }
+  if (!newsCols.some(c => c.name === 'title')) db.exec("ALTER TABLE news ADD COLUMN title TEXT")
+  if (!newsCols.some(c => c.name === 'content')) db.exec("ALTER TABLE news ADD COLUMN content TEXT")
+  if (!newsCols.some(c => c.name === 'recurring')) db.exec("ALTER TABLE news ADD COLUMN recurring INTEGER NOT NULL DEFAULT 0")
+  const emptyTranslations = JSON.stringify({ de: '', hr: '', sr: '' })
+  db.prepare(`UPDATE news SET title = json_patch(?, json_object('sl', title_sl, 'en', title_en)) WHERE title IS NULL`).run(emptyTranslations)
+  db.prepare(`UPDATE news SET content = json_patch(?, json_object('sl', content_sl, 'en', content_en)) WHERE content IS NULL`).run(emptyTranslations)
+
+  for (const table of ['restaurants', 'faq_items', 'howto_items', 'house_rules']) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+    const names = new Set(columns.map(c => c.name))
+    if (!names.has('recurring')) db.exec(`ALTER TABLE ${table} ADD COLUMN recurring INTEGER NOT NULL DEFAULT 0`)
+    if (!names.has('valid_from')) db.exec(`ALTER TABLE ${table} ADD COLUMN valid_from TEXT`)
+    if (!names.has('valid_to')) db.exec(`ALTER TABLE ${table} ADD COLUMN valid_to TEXT`)
   }
 
   const resCols = db.prepare("PRAGMA table_info(reservations)").all() as Array<{ name: string }>

@@ -13,7 +13,6 @@ const form = reactive({
   warm_interval_hours: '',
   cold_interval_hours: '',
   auto_sync_bentral: '1',
-  auto_publish_ekey: '1',
 })
 
 watch(settings, (s) => {
@@ -27,7 +26,6 @@ watch(settings, (s) => {
   form.warm_interval_hours = s.warm_interval_hours ?? '5'
   form.cold_interval_hours = s.cold_interval_hours ?? '24'
   form.auto_sync_bentral = s.auto_sync_bentral ?? '1'
-  form.auto_publish_ekey = s.auto_publish_ekey ?? '1'
 }, { immediate: true })
 
 const saving = ref(false)
@@ -186,22 +184,6 @@ function accessPreview(time: string, offset: number): string {
             @click="form.auto_sync_bentral = form.auto_sync_bentral === '1' ? '0' : '1'"
           >
             <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200" :class="form.auto_sync_bentral === '1' ? 'translate-x-5' : 'translate-x-0'" />
-          </button>
-        </label>
-        <label class="flex items-center justify-between gap-4 cursor-pointer">
-          <div>
-            <div class="text-sm font-medium text-stone-700">Avtomatska objava na eKey</div>
-            <div class="text-xs text-stone-400 mt-0.5">Orchestrator prejema job-e in jih posreduje eKey sistemu</div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="form.auto_publish_ekey === '1'"
-            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-pine-500 focus:ring-offset-2"
-            :class="form.auto_publish_ekey === '1' ? 'bg-pine-600' : 'bg-stone-200'"
-            @click="form.auto_publish_ekey = form.auto_publish_ekey === '1' ? '0' : '1'"
-          >
-            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200" :class="form.auto_publish_ekey === '1' ? 'translate-x-5' : 'translate-x-0'" />
           </button>
         </label>
       </div>
