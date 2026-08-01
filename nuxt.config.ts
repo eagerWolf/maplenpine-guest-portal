@@ -9,7 +9,7 @@ export default defineNuxtConfig({
     bentralPropertyId: process.env.BENTRAL_PROPERTY_ID || '5f7a55304e675f4d',
     bentralUnitIdMaple: process.env.BENTRAL_UNIT_ID_MAPLE || '',
     bentralUnitIdPine: process.env.BENTRAL_UNIT_ID_PINE || '',
-    resendApiKey: process.env.RESEND_API_KEY || '',
+    sendgridApiKey: process.env.SENDGRID_API_KEY || '',
     adminEmailFrom: process.env.ADMIN_EMAIL_FROM || 'portal@maplenpine.com',
     adminEmailTo: process.env.ADMIN_EMAIL_TO || '',
     guestEmailFrom: process.env.GUEST_EMAIL_FROM || 'dostop@maplenpine.com',

@@ -45,6 +45,8 @@ export interface Job {
   reason: string | null
   created_at: string
   updated_at: string | null
+  attempt_count: number
+  lease_expires_at: string | null
 }
 
 export interface DbUser {
@@ -117,6 +119,7 @@ export interface RestaurantRow {
   valid_to: string | null
   created_at: string
   updated_at: string
+  website_slug: string | null
 }
 
 export interface SuggestionRow {
@@ -132,6 +135,8 @@ export interface SuggestionRow {
   sort_order: number
   created_at: string
   updated_at: string
+  website_slug: string | null
+  youtube_url: string | null
 }
 
 export interface FaqItemRow {

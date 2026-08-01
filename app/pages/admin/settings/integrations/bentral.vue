@@ -67,7 +67,8 @@ async function refreshBentralTimes() {
 
 function accessPreview(time: string, offset: number): string {
   if (!time || isNaN(offset)) return '—'
-  const [h, m] = time.split(':').map(Number)
+  const [h = NaN, m = NaN] = time.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '—'
   let total = h * 60 + m + offset
   total = ((total % 1440) + 1440) % 1440
   const hh = String(Math.floor(total / 60)).padStart(2, '0')
@@ -91,6 +92,7 @@ function accessPreview(time: string, offset: number): string {
         class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500 font-mono"
       />
     </div>
+
 
     <!-- Check-in/out times -->
     <div class="bg-white rounded-xl border border-stone-200 p-6">

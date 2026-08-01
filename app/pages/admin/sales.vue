@@ -166,11 +166,11 @@ function fmtTs(ts: string | null) {
     </div>
 
     <!-- Breakdown by service type -->
-    <div v-if="breakdown.length > 0" class="bg-white rounded-xl border border-stone-200 overflow-hidden mb-6">
+    <div v-if="breakdown.length > 0" class="bg-white rounded-xl border border-stone-200 overflow-x-auto mb-6">
       <div class="px-4 py-3 border-b border-stone-100 bg-stone-50">
         <h2 class="text-sm font-semibold text-stone-700">Po tipu storitve</h2>
       </div>
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[560px] text-sm">
         <thead>
           <tr class="border-b border-stone-100">
             <th class="text-left py-2 px-4 font-medium text-stone-500">Storitev</th>
@@ -204,7 +204,7 @@ function fmtTs(ts: string | null) {
     <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
       <div v-if="orders.length === 0" class="p-8 text-center text-stone-400">Ni naročil.</div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[820px] text-sm">
           <thead>
             <tr class="bg-stone-50 border-b border-stone-200">
               <th class="text-left py-3 px-4 font-semibold text-stone-600">#</th>

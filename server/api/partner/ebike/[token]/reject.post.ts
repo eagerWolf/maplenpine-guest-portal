@@ -1,0 +1,2 @@
+import { getDb, now } from '../../../../db/index'
+export default defineEventHandler(event=>{const token=String(getRouterParam(event,'token'));const x=getDb().prepare("UPDATE bike_requests SET status='rejected',rejected_at=?,updated_at=? WHERE confirmation_token=? AND status='requested'").run(now(),now(),token);if(!x.changes)throw createError({statusCode:409,statusMessage:'Povpraševanja ni mogoče zavrniti'});return{success:true}})

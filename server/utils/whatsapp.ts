@@ -61,6 +61,27 @@ class WebhookProvider implements WhatsAppProvider {
 }
 
 export function getWhatsAppProvider(): WhatsAppProvider {
+  const twilio = getTwilioConfig()
+
+  if (twilio.configured) {
+    return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom)
+  }
+
+  const config = useRuntimeConfig()
+
+  const provider = (config.whatsappProvider as string) || 'stub'
+  if (provider === 'webhook' && config.whatsappWebhookUrl) {
+    return new WebhookProvider(config.whatsappWebhookUrl as string)
+  }
+  return new StubProvider()
+}
+
+export function getTwilioConfig(): {
+  accountSid: string
+  authToken: string
+  whatsappFrom: string
+  configured: boolean
+} {
   const config = useRuntimeConfig()
 
   const db = getDb()
@@ -73,13 +94,10 @@ export function getWhatsAppProvider(): WhatsAppProvider {
   const authToken = dbSettings.twilio_auth_token || (config.twilioAuthToken as string)
   const whatsappFrom = dbSettings.twilio_whatsapp_from || (config.twilioWhatsappFrom as string)
 
-  if (accountSid && authToken && whatsappFrom) {
-    return new TwilioProvider(accountSid, authToken, whatsappFrom)
+  return {
+    accountSid,
+    authToken,
+    whatsappFrom,
+    configured: Boolean(accountSid && authToken && whatsappFrom),
   }
-
-  const provider = (config.whatsappProvider as string) || 'stub'
-  if (provider === 'webhook' && config.whatsappWebhookUrl) {
-    return new WebhookProvider(config.whatsappWebhookUrl as string)
-  }
-  return new StubProvider()
 }

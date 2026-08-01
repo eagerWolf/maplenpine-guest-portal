@@ -1,0 +1,2 @@
+import { getDb } from '../../../db/index'
+export default defineEventHandler(event=>{const token=String(getRouterParam(event,'token'));const r=getDb().prepare('SELECT * FROM bike_requests WHERE confirmation_token=?').get(token) as any;if(!r)throw createError({statusCode:404,statusMessage:'Povpraševanje ne obstaja'});return{id:r.id,guestName:r.guest_name,guestPhone:r.guest_phone,startDate:r.start_date,endDate:r.end_date,bikeCount:r.bike_count,notes:r.guest_notes,totalPrice:r.total_price,status:r.status,actionable:r.status==='requested'}})

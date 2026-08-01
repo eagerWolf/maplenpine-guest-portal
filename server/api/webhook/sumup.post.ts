@@ -37,11 +37,20 @@ export default defineEventHandler(async (event) => {
   // Find order by checkout reference (format: "breakfast-{orderId}")
   const match = payload.checkout_reference?.match(/^breakfast-(\d+)$/)
   if (!match) {
-    // Not a breakfast order — ignore silently
+    const ebikeMatch = payload.checkout_reference?.match(/^ebike-(\d+)$/)
+    if (ebikeMatch) {
+      const requestId = Number(ebikeMatch[1] ?? 0)
+      const txCode = payload.transactions?.find(t => t.status === 'SUCCESSFUL')?.transaction_code ?? null
+      if (payload.status === 'PAID') {
+        getDb().prepare("UPDATE bike_requests SET status='paid',payment_transaction_id=?,paid_at=?,updated_at=? WHERE id=?").run(txCode, now(), now(), requestId)
+      } else if (payload.status === 'FAILED') {
+        getDb().prepare("UPDATE bike_requests SET status='payment_failed',updated_at=? WHERE id=?").run(now(), requestId)
+      }
+    }
     return { ok: true }
   }
 
-  const orderId = parseInt(match[1])
+  const orderId = parseInt(match[1] ?? '0')
   const db = getDb()
   const order = db.prepare('SELECT * FROM partner_orders WHERE id = ?').get(orderId) as PartnerOrder | undefined
 

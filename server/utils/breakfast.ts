@@ -1,7 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { getDb, now, today } from '../db/index'
-import { getWhatsAppProvider } from './whatsapp'
+import { getTwilioConfig, getWhatsAppProvider } from './whatsapp'
 import { getPaymentProvider } from './payment/index'
+import { notifyAdmins } from './notify'
+import { getEmailConfig, sendEmail } from './email'
 import { useRuntimeConfig } from '#imports'
 
 export interface PartnerOrder {
@@ -38,39 +40,81 @@ export interface PartnerOrder {
   updated_at: string
 }
 
-export function getBreakfastSettings() {
+export interface BreakfastProvider {
+  id: number
+  name: string
+  contact_email: string | null
+  whatsapp: string | null
+  breakfast_enabled: number
+  breakfast_cost: number
+  breakfast_margin: number
+  breakfast_cutoff_hour: number
+  breakfast_jan1_note: string | null
+  breakfast_min_count: number
+  breakfast_max_count: number
+  breakfast_exceptions: string
+}
+
+export interface BreakfastException { date: string; recurring: boolean }
+
+export function getBreakfastProviders(activeOnly = true): BreakfastProvider[] {
   const db = getDb()
-  const keys = [
-    'breakfast_enabled',
-    'breakfast_partner_cost',
-    'breakfast_margin',
-    'breakfast_partner_whatsapp',
-    'breakfast_order_cutoff_hour',
-    'breakfast_jan1_note',
-    'breakfast_min_count',
-    'breakfast_max_count_fallback',
-  ]
-  const rows = db.prepare(
-    `SELECT key, value FROM app_settings WHERE key IN (${keys.map(() => '?').join(',')})`,
-  ).all(...keys) as Array<{ key: string; value: string }>
+  return db.prepare(`
+    SELECT id, name, contact_email, whatsapp, breakfast_enabled, breakfast_cost,
+           breakfast_margin, breakfast_cutoff_hour, breakfast_jan1_note,
+           breakfast_min_count, breakfast_max_count, breakfast_exceptions
+    FROM partners
+    WHERE category = 'breakfast' ${activeOnly ? 'AND active = 1 AND breakfast_enabled = 1' : ''}
+    ORDER BY name
+  `).all() as BreakfastProvider[]
+}
 
-  const m: Record<string, string> = {}
-  rows.forEach(r => { m[r.key] = r.value })
-
-  const partnerCost = parseFloat(m.breakfast_partner_cost ?? '12')
-  const margin = parseFloat(m.breakfast_margin ?? '2')
+export function getBreakfastSettings(partnerId?: number) {
+  const db = getDb()
+  const globallyEnabled = (db.prepare("SELECT value FROM app_settings WHERE key = 'breakfast_enabled'").get() as { value: string } | undefined)?.value === '1'
+  const providers = getBreakfastProviders(true)
+  const provider = partnerId ? providers.find(item => item.id === partnerId) : providers[0]
+  const partnerCost = provider?.breakfast_cost ?? 0
+  const margin = provider?.breakfast_margin ?? 0
 
   return {
-    enabled: m.breakfast_enabled === '1',
+    enabled: globallyEnabled && getTwilioConfig().configured && Boolean(provider),
+    providerId: provider?.id ?? null,
+    providerName: provider?.name ?? '',
     partnerCost,
     margin,
     pricePerPerson: partnerCost + margin,
-    partnerWhatsapp: m.breakfast_partner_whatsapp ?? '',
-    orderCutoffHour: parseInt(m.breakfast_order_cutoff_hour ?? '18'),
-    jan1Note: m.breakfast_jan1_note || 'Naročilo za 1. januar ni možno, ker partner ta dan ne obratuje.',
-    minCount: parseInt(m.breakfast_min_count ?? '2'),
-    maxCountFallback: parseInt(m.breakfast_max_count_fallback ?? '8'),
+    partnerWhatsapp: provider?.whatsapp ?? '',
+    partnerEmail: provider?.contact_email ?? '',
+    orderCutoffHour: provider?.breakfast_cutoff_hour ?? 18,
+    jan1Note: provider?.breakfast_jan1_note || 'Naročilo za 1. januar ni možno, ker partner ta dan ne obratuje.',
+    minCount: provider?.breakfast_min_count ?? 2,
+    maxCountFallback: provider?.breakfast_max_count ?? 8,
+    exceptions: provider ? parseBreakfastExceptions(provider.breakfast_exceptions) : [],
   }
+}
+
+export function parseBreakfastExceptions(value: string | null | undefined): BreakfastException[] {
+  try {
+    const parsed = JSON.parse(value || '[]')
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.date === 'string') : []
+  } catch { return [] }
+}
+
+export function generateExceptionNotes(dates: string[]): Record<'en' | 'sl' | 'de' | 'hr' | 'sr', string> {
+  const unique = [...new Set(dates)].sort()
+  const locales = { en: 'en-GB', sl: 'sl-SI', de: 'de-DE', hr: 'hr-HR', sr: 'sr-Latn-RS' } as const
+  const prefix = {
+    en: 'Breakfast delivery is not available on:',
+    sl: 'Dostava zajtrka ni mogoča na:',
+    de: 'An folgenden Tagen ist keine Frühstückslieferung möglich:',
+    hr: 'Dostava doručka nije moguća na:',
+    sr: 'Dostava doručka nije moguća na:',
+  }
+  return Object.fromEntries(Object.entries(locales).map(([lang, locale]) => {
+    const formatted = unique.map(date => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${date}T12:00:00Z`)))
+    return [lang, `${prefix[lang as keyof typeof prefix]} ${formatted.join(', ')}.`]
+  })) as Record<'en' | 'sl' | 'de' | 'hr' | 'sr', string>
 }
 
 export function generateBreakfastToken(): string {
@@ -81,6 +125,7 @@ export function computeAvailableDates(opts: {
   checkIn: string
   checkOut: string
   orderCutoffHour: number
+  exceptions?: BreakfastException[]
 }): { date: string; disabled: boolean; reason?: string }[] {
   const results: { date: string; disabled: boolean; reason?: string }[] = []
   const now = new Date()
@@ -106,8 +151,9 @@ export function computeAvailableDates(opts: {
       continue
     }
 
-    if (cur.slice(5) === '01-01') {
-      results.push({ date: cur, disabled: true, reason: 'jan1' })
+    const isException = (opts.exceptions ?? []).some(exception => exception.recurring ? cur.slice(5) === exception.date.slice(-5) : cur === exception.date)
+    if (isException) {
+      results.push({ date: cur, disabled: true, reason: 'exception' })
       cur = nextDay(cur)
       continue
     }
@@ -132,7 +178,8 @@ export function computeAvailableDates(opts: {
 }
 
 function nextDay(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number)
+  const [y = NaN, m = NaN, d = NaN] = dateStr.split('-').map(Number)
+  if (![y, m, d].every(Number.isFinite)) throw new Error(`Neveljaven datum: ${dateStr}`)
   const next = new Date(Date.UTC(y, m - 1, d + 1))
   return next.toISOString().slice(0, 10)
 }
@@ -171,8 +218,9 @@ export async function sendBreakfastToPartner(orderId: number): Promise<void> {
   const order = db.prepare('SELECT * FROM partner_orders WHERE id = ?').get(orderId) as PartnerOrder | undefined
   if (!order) throw new Error(`Breakfast order ${orderId} not found`)
 
-  const settings = getBreakfastSettings()
+  const settings = getBreakfastSettings(order.partner_id ?? undefined)
   const config = useRuntimeConfig()
+  const emailConfig = getEmailConfig()
   const baseUrl = (config.public.baseUrl as string) || 'http://localhost:3000'
   const confirmationUrl = `${baseUrl}/partner/breakfast/${order.partner_confirmation_token}`
   const message = buildPartnerMessage(order, confirmationUrl)
@@ -181,12 +229,31 @@ export async function sendBreakfastToPartner(orderId: number): Promise<void> {
 
   const recipientWhatsapp = settings.partnerWhatsapp
 
-  if (recipientWhatsapp) {
-    const provider = getWhatsAppProvider()
-    await provider.send(recipientWhatsapp, message)
-  } else {
-    console.warn('[breakfast] Partner WhatsApp not configured — message not sent')
+  if (!recipientWhatsapp) throw new Error('Partner WhatsApp ni nastavljen')
+
+  const deliveries: Promise<unknown>[] = [getWhatsAppProvider().send(recipientWhatsapp, message)]
+  if (settings.partnerEmail && emailConfig.configured) {
+    deliveries.push(sendEmail({
+      apiKey: emailConfig.apiKey,
+      from: emailConfig.from,
+      to: settings.partnerEmail,
+      subject: `Novo naročilo zajtrka – ${order.apartment}`,
+      html: `<h2>Novo naročilo zajtrka</h2><p>${message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br>')}</p><p><a href="${confirmationUrl}">Potrdi ali zavrni naročilo</a></p>`,
+    }))
   }
+
+  const results = await Promise.allSettled(deliveries)
+  const failures = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[]
+  if (failures.length) {
+    throw new Error(failures.map(result => result.reason instanceof Error ? result.reason.message : String(result.reason)).join('; '))
+  }
+
+  await notifyAdmins({
+    event: 'breakfast_order',
+    subject: `Novo naročilo zajtrka – ${order.apartment}`,
+    emailHtml: `<h2>Novo plačano naročilo zajtrka</h2><p>${message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br>')}</p>`,
+    whatsappText: `Novo plačano naročilo zajtrka:\n\n${message}`,
+  })
 
   db.prepare(
     'UPDATE partner_orders SET status = ?, partner_message = ?, sent_to_partner_at = ?, updated_at = ? WHERE id = ?',

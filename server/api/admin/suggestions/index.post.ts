@@ -17,6 +17,8 @@ export default defineEventHandler(async (event) => {
     valid_to?: string | null
     active?: boolean
     sort_order?: number
+    website_slug?: string
+    youtube_url?: string
   }>(event)
 
   const title = parseLocalizedText(body.title, 'Naslov')
@@ -28,11 +30,11 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
   const ts = now()
   const result = db.prepare(`
-    INSERT INTO suggestions (title, description, buttons, recurring, valid_from, valid_to, active, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO suggestions (title, description, buttons, recurring, valid_from, valid_to, active, sort_order, website_slug, youtube_url, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     JSON.stringify(title), JSON.stringify(description), buttons.length ? JSON.stringify(buttons) : null,
-    recurring ? 1 : 0, validFrom, validTo, body.active === false ? 0 : 1, body.sort_order ?? 0, ts, ts,
+    recurring ? 1 : 0, validFrom, validTo, body.active === false ? 0 : 1, body.sort_order ?? 0, body.website_slug?.trim() || null, body.youtube_url?.trim() || null, ts, ts,
   )
 
   db.prepare(`

@@ -25,6 +25,8 @@ export default defineEventHandler(async (event) => {
     valid_to?: string | null
     active?: boolean
     sort_order?: number
+    website_slug?: string
+    youtube_url?: string
   }>(event)
 
   const title = body.title !== undefined ? parseLocalizedText(body.title, 'Naslov') : JSON.parse(item.title)
@@ -39,11 +41,14 @@ export default defineEventHandler(async (event) => {
 
   db.prepare(`
     UPDATE suggestions
-    SET title = ?, description = ?, buttons = ?, recurring = ?, valid_from = ?, valid_to = ?, active = ?, sort_order = ?, updated_at = ?
+    SET title = ?, description = ?, buttons = ?, recurring = ?, valid_from = ?, valid_to = ?, active = ?, sort_order = ?, website_slug = ?, youtube_url = ?, updated_at = ?
     WHERE id = ?
   `).run(
     JSON.stringify(title), JSON.stringify(description), buttons?.length ? JSON.stringify(buttons) : null,
-    recurring ? 1 : 0, validFrom, validTo, active ? 1 : 0, sort_order, now(), id,
+    recurring ? 1 : 0, validFrom, validTo, active ? 1 : 0, sort_order,
+    body.website_slug !== undefined ? body.website_slug.trim() || null : item.website_slug,
+    body.youtube_url !== undefined ? body.youtube_url.trim() || null : item.youtube_url,
+    now(), id,
   )
 
   return { success: true }

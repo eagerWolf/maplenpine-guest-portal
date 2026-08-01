@@ -5,12 +5,17 @@ definePageMeta({ middleware: ['auth', 'admin'] })
 const jobPage = ref(0)
 const perPage = 50
 
-const { data: jobData, pending: jobPending } = await useFetch('/api/admin/logs', {
+interface JobLog { id:number; action:string; status:string; triggered_by:string|null; reason:string|null; created_at:string; guest_name:string; door:string }
+interface JobLogResponse { jobs: JobLog[]; total: number }
+interface SyncRun { id:number; isError:boolean; tier:string; from:string|null; to:string|null; fetched:number|null; inserted:number|null; updated:number|null; cancelled:number|null; error:string|null; triggeredBy:string; createdAt:string }
+interface SyncRunResponse { runs: SyncRun[]; total: number }
+
+const { data: jobData, pending: jobPending } = await useFetch<JobLogResponse>('/api/admin/logs', {
   query: computed(() => ({ limit: perPage, offset: jobPage.value * perPage })),
 })
 
 // --- Sync runs ---
-const { data: syncData, pending: syncPending } = await useFetch('/api/admin/sync-runs', {
+const { data: syncData, pending: syncPending } = await useFetch<SyncRunResponse>('/api/admin/sync-runs', {
   query: { limit: 30 },
 })
 

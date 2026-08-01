@@ -29,7 +29,7 @@ export class SumUpProvider implements PaymentProvider {
       method: 'POST',
       headers: { Authorization: `Bearer ${cfg.apiKey}` },
       body: {
-        checkout_reference: `breakfast-${opts.orderId}`,
+        checkout_reference: `${opts.referencePrefix || 'breakfast'}-${opts.orderId}`,
         amount: opts.amount,
         currency: opts.currency,
         merchant_code: cfg.merchantCode,

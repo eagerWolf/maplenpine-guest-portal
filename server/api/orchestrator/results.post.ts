@@ -1,86 +1,37 @@
 import { randomUUID } from 'crypto'
 import { getDb, now, guestTokenExpiry } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
-import { updateJobResult, getSettings, computeDisplayFrom, computeDisplayUntil } from '../../utils/jobs'
-import { sendGuestPin } from '../../utils/email'
-import { patchBentralEntranceCode } from '../../utils/bentral'
+import { updateJobResult } from '../../utils/jobs'
 import { notifyAdmins } from '../../utils/notify'
-
-function parseAccessTime(dt: string | null, fallbackDate: string, fallbackTime: string): { date: string; time: string } {
-  if (dt) {
-    const [date = '', time = ''] = dt.split(' ')
-    if (date && time) return { date, time }
-  }
-  return { date: fallbackDate, time: fallbackTime }
-}
-
-async function patchBentralEKey(apiKey: string, reservation: Reservation, pin: string): Promise<void> {
-  const settings = getSettings()
-  const checkin = parseAccessTime(computeDisplayFrom(reservation, settings), reservation.check_in, '15:00')
-  const checkout = parseAccessTime(computeDisplayUntil(reservation, settings), reservation.check_out, '11:00')
-
-  const buildUnits = (unitId: string | null, unitName: string | null) => {
-    if (!unitId || !unitName) return []
-    return unitId.split(',').map((id, i) => ({ id, name: unitName.split(',')[i] ?? '' })).filter(u => u.id && u.name)
-  }
-
-  const primaryUnits = buildUnits(reservation.bentral_unit_id, reservation.bentral_unit_name)
-  if (primaryUnits.length > 0) {
-    await patchBentralEntranceCode(
-      apiKey,
-      reservation.bentral_reservation_id,
-      primaryUnits,
-      pin,
-      checkin.date,
-      checkin.time,
-      checkout.date,
-      checkout.time,
-    )
-  }
-
-  if (reservation.bentral_paired_reservation_id) {
-    const pairedUnits = buildUnits(reservation.bentral_paired_unit_id, reservation.bentral_paired_unit_name)
-    if (pairedUnits.length > 0) {
-      await patchBentralEntranceCode(
-        apiKey,
-        reservation.bentral_paired_reservation_id,
-        pairedUnits,
-        pin,
-        checkin.date,
-        checkin.time,
-        checkout.date,
-        checkout.time,
-      )
-    }
-  }
-}
-
-interface OrchestratorResult {
-  _internalJobId?: number
-  jobId?: string
-  status: 'success' | 'failed'
-  pin?: string
-  message?: string
-  reason?: string
-}
+import { hasValidOrchestratorToken, parseOrchestratorResults } from '../../utils/orchestrator'
+import { enqueueIntegration } from '../../utils/integrationOutbox'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const configuredKey = (getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value?.trim()
   const authHeader = getHeader(event, 'authorization')
 
-  if (!configuredKey || !authHeader || authHeader !== `Bearer ${configuredKey}`) {
+  if (!hasValidOrchestratorToken(configuredKey, authHeader)) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const { results } = await readBody<{ results: OrchestratorResult[] }>(event)
-
-  if (!Array.isArray(results)) {
+  let results
+  try {
+    results = parseOrchestratorResults(await readBody<unknown>(event))
+  } catch {
     throw createError({ statusCode: 400, statusMessage: 'Invalid payload' })
   }
 
   const db = getDb()
+  const heartbeat = now()
+  db.prepare(`
+    INSERT INTO app_settings (key, value, updated_at) VALUES ('orchestrator_last_seen', ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(heartbeat, heartbeat)
 
+  let processed = 0
+  let duplicates = 0
+  let unknown = 0
   for (const result of results) {
     let job = result._internalJobId
       ? (db.prepare("SELECT * FROM jobs WHERE id = ?").get(result._internalJobId) as Job | undefined)
@@ -97,89 +48,49 @@ export default defineEventHandler(async (event) => {
 
     if (!job) {
       console.warn('[orchestrator:results] Unknown jobId:', result.jobId)
+      unknown++
       continue
     }
 
-    updateJobResult(job.id, result.status, { ...result }, result.reason)
-
-    // Jobs queued for the same reservation while this one was still pending get merged into
-    // one orchestrator call (see mergePendingJobs) — resolve them together with the same result.
-    const jobPayload = job.payload ? JSON.parse(job.payload) : {}
-    const mergedJobIds: number[] = jobPayload._mergedJobIds ?? []
-    for (const siblingId of mergedJobIds) {
-      updateJobResult(siblingId, result.status, { ...result }, result.reason)
+    if (result.status === 'success' && job.action === 'insert' && !/^\d{4}$/.test(result.pin ?? '')) {
+      throw createError({ statusCode: 400, statusMessage: 'Successful insert requires a four-digit PIN' })
     }
 
+    // Result reporting is at-least-once. A repeated result must acknowledge successfully
+    // without sending a second PIN message or repeating external side effects.
+    if (job.status === 'success' || job.status === 'failed' || job.status === 'superseded') {
+      duplicates++
+      continue
+    }
+
+    const jobPayload = job.payload ? JSON.parse(job.payload) : {}
+    const mergedJobIds: number[] = jobPayload._mergedJobIds ?? []
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(job.reservation_id) as Reservation | undefined
+    db.transaction(() => {
+      updateJobResult(job.id, result.status, { ...result }, result.reason)
+      for (const siblingId of mergedJobIds) updateJobResult(siblingId, result.status, { ...result }, result.reason)
+      if (!reservation || result.status !== 'success') return
+      if (job.action === 'insert' && result.pin) {
+        db.prepare('UPDATE reservations SET pin = ?, updated_at = ? WHERE id = ?').run(result.pin, now(), reservation.id)
+        const token = randomUUID()
+        db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
+          .run(reservation.id, token, guestTokenExpiry(reservation.check_out), now())
+        const portalLink = `${config.public.baseUrl}/guest/${token}`
+        enqueueIntegration(`ekey-job:${job.id}:guest-pin`, 'guest_pin_email', { reservationId: reservation.id, pin: result.pin, portalLink })
+        enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: result.pin })
+      } else if (job.action === 'update' && reservation.pin) {
+        enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: reservation.pin })
+      } else if (job.action === 'cancel') {
+        db.prepare('UPDATE reservations SET pin = NULL, updated_at = ? WHERE id = ?').run(now(), reservation.id)
+      }
+    })()
+    processed++
     if (!reservation) continue
 
     const guestName = `${reservation.first_name} ${reservation.last_name}`
 
     if (result.status === 'success') {
       if (job.action === 'insert' && result.pin) {
-        db.prepare('UPDATE reservations SET pin = ?, updated_at = ? WHERE id = ?')
-          .run(result.pin, now(), reservation.id)
-
-        const token = randomUUID()
-        const expiresAt = guestTokenExpiry(reservation.check_out)
-        db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
-          .run(reservation.id, token, expiresAt, now())
-
-        const portalLink = `${config.public.baseUrl}/guest/${token}`
-
-        if (reservation.guest_email && config.resendApiKey) {
-          await sendGuestPin({
-            to: reservation.guest_email,
-            guestName,
-            pin: result.pin,
-            door: reservation.door,
-            validFrom: reservation.access_valid_from ?? reservation.check_in,
-            validUntil: reservation.access_valid_until ?? reservation.check_out,
-            portalLink,
-            apiKey: config.resendApiKey,
-            from: config.guestEmailFrom,
-          }).catch(async (err) => {
-            console.error('[email:guest]', err)
-            const errMsg = err instanceof Error ? err.message : String(err)
-            await notifyAdmins({
-              event: 'pin_send_failed',
-              subject: `⚠ Napaka pri pošiljanju PIN gostom — ${guestName}`,
-              emailHtml: `
-                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-                  <h2 style="color:#bc4749">Napaka pri pošiljanju PIN gostom</h2>
-                  <table style="width:100%;border-collapse:collapse">
-                    <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
-                    <tr><td style="padding:6px 0;color:#888">Email gosta</td><td style="padding:6px 0">${reservation.guest_email}</td></tr>
-                    <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
-                  </table>
-                </div>
-              `,
-              whatsappText: `⚠ Napaka pri pošiljanju PIN gostom ${guestName}\nEmail: ${reservation.guest_email}\nNapaka: ${errMsg}`,
-            }).catch(() => {})
-          })
-        }
-
-        if (config.bentralApiKey) {
-          await patchBentralEKey(config.bentralApiKey, reservation, result.pin).catch(async (err) => {
-            console.error('[bentral:ekey]', err)
-            const errMsg = err instanceof Error ? err.message : String(err)
-            await notifyAdmins({
-              event: 'pin_send_failed',
-              subject: `⚠ Napaka pri Bentral eKey — ${guestName}`,
-              emailHtml: `
-                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-                  <h2 style="color:#bc4749">Napaka pri nastavitvi Bentral eKey</h2>
-                  <table style="width:100%;border-collapse:collapse">
-                    <tr><td style="padding:6px 0;color:#888">Gost</td><td style="padding:6px 0;font-weight:600">${guestName}</td></tr>
-                    <tr><td style="padding:6px 0;color:#888">Napaka</td><td style="padding:6px 0;color:#bc4749;font-family:monospace">${errMsg}</td></tr>
-                  </table>
-                </div>
-              `,
-              whatsappText: `⚠ Napaka pri Bentral eKey za ${guestName}\nNapaka: ${errMsg}`,
-            }).catch(() => {})
-          })
-        }
-
         const doorDisplay = reservation.door === 'Maple,Pine' ? 'Maple & Pine' : reservation.door
         await notifyAdmins({
           event: 'pin_added',
@@ -200,12 +111,6 @@ export default defineEventHandler(async (event) => {
         }).catch(() => {})
 
       } else if (job.action === 'update') {
-        if (config.bentralApiKey && reservation.pin) {
-          await patchBentralEKey(config.bentralApiKey, reservation, reservation.pin).catch((err) => {
-            console.error('[bentral:ekey:update]', err)
-          })
-        }
-
         const triggeredBy = job.triggered_by === 'bentral_sync' ? 'Bentral sync' : (job.triggered_by ?? 'unknown')
         await notifyAdmins({
           event: 'pin_updated',
@@ -244,5 +149,5 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  return { success: true }
+  return { success: true, processed, duplicates, unknown }
 })

@@ -210,10 +210,25 @@ const langSaved = ref(false)
 
 const ekeyFirstNameCopied = ref(false)
 const ekeyLastNameCopied = ref(false)
+const adoptPin = ref('')
+const adoptLoading = ref(false)
+const adoptError = ref('')
+const adoptSaved = ref(false)
+const drawerEl = ref<HTMLElement | null>(null)
+const drawerHasMore = ref(false)
+
+function updateDrawerScrollState() {
+  const el = drawerEl.value
+  if (!el) {
+    drawerHasMore.value = false
+    return
+  }
+  drawerHasMore.value = el.scrollHeight - el.scrollTop - el.clientHeight > 12
+}
 
 async function copyEkeyFirstName() {
   if (!detail.value) return
-  await navigator.clipboard.writeText(`${detail.value.bentralId}, ${detail.value.firstName}`)
+  await navigator.clipboard.writeText(`MPAUTO:${detail.value.bentralId}, ${detail.value.firstName}`)
   ekeyFirstNameCopied.value = true
   setTimeout(() => { ekeyFirstNameCopied.value = false }, 2000)
 }
@@ -223,6 +238,27 @@ async function copyEkeyLastName() {
   await navigator.clipboard.writeText(detail.value.lastName)
   ekeyLastNameCopied.value = true
   setTimeout(() => { ekeyLastNameCopied.value = false }, 2000)
+}
+
+async function adoptExistingPin() {
+  if (!detail.value) return
+  adoptLoading.value = true
+  adoptError.value = ''
+  adoptSaved.value = false
+  try {
+    await $fetch(`/api/admin/reservations/${detail.value.id}/adopt-pin`, {
+      method: 'POST',
+      body: { pin: adoptPin.value },
+    })
+    await Promise.all([refresh(), refreshGuests(), refreshLogs()])
+    const fresh = allReservations.value.find(r => r.id === detail.value!.id)
+    if (fresh) detail.value = fresh
+    adoptSaved.value = true
+  } catch (err: any) {
+    adoptError.value = err?.data?.statusMessage ?? 'Napaka pri prevzemu kode'
+  } finally {
+    adoptLoading.value = false
+  }
 }
 
 function openDetail(r: Reservation) {
@@ -240,6 +276,10 @@ function openDetail(r: Reservation) {
   langOverride.value = r.guestLangOverride ?? ''
   langError.value = ''
   langSaved.value = false
+  adoptPin.value = r.pin ?? ''
+  adoptError.value = ''
+  adoptSaved.value = false
+  nextTick(updateDrawerScrollState)
 }
 function closeDetail() { detail.value = null }
 
@@ -560,7 +600,7 @@ function statusClass(status: string) {
     <!-- ── Detail drawer ── -->
     <Teleport to="body">
       <div v-if="detail" class="drawer-overlay" @click.self="closeDetail">
-        <div class="drawer">
+        <div ref="drawerEl" class="drawer" @scroll="updateDrawerScrollState">
           <button class="drawer__close" @click="closeDetail" aria-label="Zapri">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -633,7 +673,7 @@ function statusClass(status: string) {
                   @click="copyEkeyFirstName"
                 >
                   <span class="drawer__ekey-field">First name</span>
-                  <span class="drawer__ekey-val">{{ detail.bentralId }}, {{ detail.firstName }}</span>
+                  <span class="drawer__ekey-val">MPAUTO:{{ detail.bentralId }}, {{ detail.firstName }}</span>
                   <span class="drawer__ekey-icon">{{ ekeyFirstNameCopied ? '✓' : '⎘' }}</span>
                 </button>
                 <button
@@ -647,6 +687,32 @@ function statusClass(status: string) {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div v-if="isAdmin" class="drawer__adopt">
+            <p class="drawer__extend-title">Prevzemi obstoječo eKey kodo</p>
+            <p class="drawer__adopt-help">
+              Najprej v eKey preimenuj gosta z zgornjima gumboma First name in Last name,
+              nato tukaj vnesi njegov obstoječi PIN. Čakajoča izdelava nove kode bo preklicana.
+            </p>
+            <div class="drawer__extend-field">
+              <label class="drawer__extend-label">Obstoječi 4-mestni PIN</label>
+              <input
+                v-model="adoptPin"
+                type="text"
+                inputmode="numeric"
+                maxlength="4"
+                autocomplete="off"
+                class="drawer__extend-input drawer__extend-input--pin"
+                placeholder="1234"
+                @input="adoptPin = adoptPin.replace(/\D/g, '').slice(0, 4)"
+              />
+            </div>
+            <button class="drawer__extend-btn" :disabled="adoptLoading || adoptPin.length !== 4" @click="adoptExistingPin">
+              {{ adoptLoading ? 'Prevzemam…' : 'Prevzemi obstoječo kodo' }}
+            </button>
+            <p v-if="adoptError" class="drawer__extend-error">{{ adoptError }}</p>
+            <p v-if="adoptSaved" class="drawer__extend-ok">✓ Koda je prevzeta in se ne bo poslala Orchestratorju</p>
           </div>
 
           <!-- PIN display -->
@@ -723,6 +789,10 @@ function statusClass(status: string) {
             </button>
             <p v-if="langError" class="drawer__extend-error">{{ langError }}</p>
             <p v-if="langSaved" class="drawer__extend-ok">✓ Shranjeno</p>
+          </div>
+
+          <div v-if="drawerHasMore" class="drawer__scroll-hint" aria-hidden="true">
+            <span>↓</span> Pomakni za več
           </div>
         </div>
       </div>
@@ -919,14 +989,14 @@ function statusClass(status: string) {
 .cal-legend__dot--both  { background: #7c3aed; }
 
 /* ── Reservations list ── */
-.resv-list { margin-top: 8px; }
+.resv-list { margin-top: 8px; overflow-x: auto; scrollbar-gutter: stable; }
 .resv-list__title {
   font-size: 0.92rem; font-weight: 700; color: #475569;
   text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px;
 }
 .resv-list__empty { font-size: 0.88rem; color: #94a3b8; padding: 12px 0; }
 
-.resv-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.resv-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.85rem; }
 .resv-table thead tr { border-bottom: 2px solid #e2e8f0; }
 .resv-table th {
   text-align: left; padding: 8px 10px;
@@ -962,9 +1032,25 @@ function statusClass(status: string) {
 
 .drawer {
   background: white; width: 100%; max-width: 380px;
-  height: 100%; overflow-y: auto; padding: 28px 24px 40px;
+  height: 100%; overflow-y: scroll; padding: 28px 24px 40px;
   position: relative; box-shadow: -4px 0 24px rgba(0,0,0,0.12);
   display: flex; flex-direction: column; gap: 24px;
+  scrollbar-width: thin; scrollbar-color: #64748b #e2e8f0;
+  scrollbar-gutter: stable;
+}
+.drawer::-webkit-scrollbar { width: 10px; }
+.drawer::-webkit-scrollbar-track { background: #e2e8f0; }
+.drawer::-webkit-scrollbar-thumb { background: #64748b; border-radius: 99px; border: 2px solid #e2e8f0; }
+.drawer::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+.drawer__scroll-hint {
+  position: fixed; right: 22px; bottom: 18px; z-index: 60;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid #cbd5e1; border-radius: 999px;
+  background: rgba(255,255,255,0.96); color: #475569;
+  box-shadow: 0 4px 16px rgba(15,23,42,0.16);
+  padding: 6px 10px; font-size: 0.72rem; font-weight: 700;
+  pointer-events: none;
 }
 
 .drawer__close {
@@ -975,7 +1061,7 @@ function statusClass(status: string) {
 }
 .drawer__close:hover { background: #e2e8f0; }
 
-.drawer__hero { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-right: 36px; }
+.drawer__hero { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-right: 36px; flex-shrink: 0; }
 .drawer__name { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1e293b; }
 
 .drawer__portal-link {
@@ -994,6 +1080,7 @@ function statusClass(status: string) {
 .drawer__rows {
   display: flex; flex-direction: column; gap: 0;
   border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+  flex-shrink: 0;
 }
 .drawer__row {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -1008,18 +1095,19 @@ function statusClass(status: string) {
 .drawer__val { font-size: 0.88rem; font-weight: 500; color: #1e293b; text-align: right; }
 .drawer__val--mono { font-family: ui-monospace, monospace; font-size: 0.78rem; color: #64748b; }
 
-.drawer__row--ekey { align-items: flex-start; }
-.drawer__ekey-names { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.drawer__row--ekey { align-items: stretch; flex-direction: column; }
+.drawer__ekey-names { display: flex; flex-direction: column; gap: 6px; align-items: stretch; width: 100%; min-width: 0; }
 .drawer__ekey-chip {
   display: inline-flex; align-items: center; gap: 6px;
   background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px;
   padding: 4px 8px; cursor: pointer; transition: background 0.15s;
   font-size: 0.78rem; font-family: ui-monospace, monospace;
+  width: 100%; min-width: 0; text-align: left;
 }
 .drawer__ekey-chip:hover { background: #e2e8f0; }
-.drawer__ekey-field { color: #94a3b8; font-size: 0.72rem; }
-.drawer__ekey-val { color: #1e293b; font-weight: 500; }
-.drawer__ekey-icon { color: #64748b; font-size: 0.85rem; }
+.drawer__ekey-field { color: #94a3b8; font-size: 0.72rem; flex-shrink: 0; }
+.drawer__ekey-val { color: #1e293b; font-weight: 500; overflow-wrap: anywhere; min-width: 0; flex: 1; }
+.drawer__ekey-icon { color: #64748b; font-size: 0.85rem; flex-shrink: 0; }
 
 .drawer__link { color: #26372c; text-decoration: none; font-weight: 500; }
 .drawer__link:hover { text-decoration: underline; }
@@ -1028,7 +1116,17 @@ function statusClass(status: string) {
   display: flex; align-items: center; gap: 12px;
   background: #f8fafc; border: 1px solid #e2e8f0;
   border-radius: 8px; padding: 12px 16px;
+  flex-shrink: 0;
 }
+
+.drawer__adopt {
+  border: 1px solid #ddd6fe; background: #faf5ff;
+  border-radius: 8px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
+}
+.drawer__adopt-help { margin: 0; color: #6b7280; font-size: 0.8rem; line-height: 1.45; }
+.drawer__extend-input--pin { font-family: ui-monospace, monospace; letter-spacing: 0.18em; font-weight: 700; }
 .drawer__pin {
   font-family: ui-monospace, monospace; font-size: 1.1rem; font-weight: 700;
   letter-spacing: 0.2em; color: #94a3b8; flex: 1; transition: color 160ms;
@@ -1041,7 +1139,7 @@ function statusClass(status: string) {
 .drawer__pin-toggle:hover { text-decoration: underline; }
 .drawer__pin-pending { font-size: 0.82rem; color: #d97706; font-style: italic; }
 
-.drawer__pin-actions { display: flex; flex-direction: column; gap: 6px; }
+.drawer__pin-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
 .drawer__pin-action-btn {
   width: 100%; padding: 9px 16px; border: none; border-radius: 8px;
@@ -1066,6 +1164,7 @@ function statusClass(status: string) {
 .drawer__extend {
   border-top: 1px solid #f1f5f9; padding-top: 20px;
   display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
 }
 .drawer__extend-title {
   margin: 0; font-size: 0.82rem; font-weight: 700;

@@ -14,10 +14,12 @@ export default defineEventHandler(async (event) => {
     name?: string
     type?: string
     website?: string
+    location_id?: number | null
     description?: unknown
     active?: boolean
     sort_order?: number
     recurring?: boolean; valid_from?: string | null; valid_to?: string | null
+    website_slug?: string
   }>(event)
 
   if (!body.name?.trim()) {
@@ -31,9 +33,9 @@ export default defineEventHandler(async (event) => {
   const db = getDb()
   const ts = now()
   const result = db.prepare(`
-    INSERT INTO restaurants (name, type, website, description, active, sort_order, recurring, valid_from, valid_to, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(body.name.trim(), type, body.website?.trim() || null, JSON.stringify(description), body.active === false ? 0 : 1, body.sort_order ?? 0, recurring?1:0, dates.validFrom, dates.validTo, ts, ts)
+    INSERT INTO restaurants (name, type, website, location_id, description, active, sort_order, recurring, valid_from, valid_to, website_slug, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(body.name.trim(), type, body.website?.trim() || null, body.location_id || null, JSON.stringify(description), body.active === false ? 0 : 1, body.sort_order ?? 0, recurring?1:0, dates.validFrom, dates.validTo, body.website_slug?.trim() || null, ts, ts)
 
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)

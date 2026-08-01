@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
     // Notify partner if message was sent
     if (order.sent_to_partner_at) {
-      const settings = getBreakfastSettings()
+      const settings = getBreakfastSettings(order.partner_id ?? undefined)
       if (settings.partnerWhatsapp) {
         const msg = `⚠️ Naročilo zajtrka #${order.id} (${order.guest_name}, ${order.apartment}) je bilo preklicano.`
         try {

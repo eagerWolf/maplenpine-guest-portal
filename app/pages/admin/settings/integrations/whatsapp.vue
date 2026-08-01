@@ -7,6 +7,8 @@ const form = reactive({
   twilio_account_sid: '',
   twilio_auth_token: '',
   twilio_whatsapp_from: '',
+  sendgrid_api_key: '',
+  email_from: '',
 })
 
 watch(settings, (s) => {
@@ -14,9 +16,12 @@ watch(settings, (s) => {
   form.twilio_account_sid = s.twilio_account_sid ?? ''
   form.twilio_auth_token = s.twilio_auth_token ?? ''
   form.twilio_whatsapp_from = s.twilio_whatsapp_from ?? ''
+  form.sendgrid_api_key = s.sendgrid_api_key ?? ''
+  form.email_from = s.email_from ?? ''
 }, { immediate: true })
 
 const configured = computed(() => !!(form.twilio_account_sid && form.twilio_auth_token && form.twilio_whatsapp_from))
+const emailConfigured = computed(() => !!(form.sendgrid_api_key && form.email_from))
 
 const saving = ref(false)
 const saved = ref(false)
@@ -69,6 +74,27 @@ async function save() {
           <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp številka (Twilio sender)</label>
           <input v-model="form.twilio_whatsapp_from" type="tel" placeholder="+14155238886" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500 font-mono" />
           <p class="text-xs text-stone-400 mt-1">Twilio WhatsApp-enabled številka, brez predpone "whatsapp:"</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-stone-200 p-6">
+      <div class="flex items-center justify-between mb-1">
+        <h2 id="email" class="scroll-mt-6 font-medium text-stone-700">E-pošta (Twilio SendGrid)</h2>
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="emailConfigured ? 'bg-pine-100 text-pine-700' : 'bg-stone-100 text-stone-500'">
+          {{ emailConfigured ? 'Aktivno' : 'Ni nastavljeno' }}
+        </span>
+      </div>
+      <p class="text-xs text-stone-400 mb-4">Uporablja se za e-pošto gostom, administratorjem in ponudnikom zajtrka.</p>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-600 mb-1">SendGrid API ključ</label>
+          <input v-model="form.sendgrid_api_key" type="password" placeholder="SG.…" autocomplete="new-password" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pine-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-600 mb-1">E-pošta pošiljatelja</label>
+          <input v-model="form.email_from" type="email" placeholder="portal@maplenpine.com" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+          <p class="text-xs text-stone-400 mt-1">Naslov ali domena morata biti potrjena v SendGridu.</p>
         </div>
       </div>
     </div>

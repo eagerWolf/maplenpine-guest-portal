@@ -17,6 +17,7 @@ interface OrderBody {
   glutenFreeCount: number
   guestPhone?: string
   guestNotes?: string
+  partnerId?: number
 }
 
 const VALID_SLOTS = ['08:00-09:00', '09:00-10:00', '10:00-11:00']
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
   if (!token) throw createError({ statusCode: 400, statusMessage: 'Manjka token' })
 
   const { reservation, reservationId } = validateGuestToken(token)
-  const settings = getBreakfastSettings()
+  const settings = getBreakfastSettings(Number(body.partnerId || 0) || undefined)
 
   if (!settings.enabled) {
     throw createError({ statusCode: 403, statusMessage: 'Naročanje zajtrkov trenutno ni na voljo' })
@@ -61,6 +62,7 @@ export default defineEventHandler(async (event) => {
     checkIn: reservation.check_in,
     checkOut: reservation.check_out,
     orderCutoffHour: settings.orderCutoffHour,
+    exceptions: settings.exceptions,
   })
   const availableSet = new Set(availableDates.filter(d => !d.disabled).map(d => d.date))
 
@@ -87,13 +89,13 @@ export default defineEventHandler(async (event) => {
   // ── Create order ─────────────────────────────────────────────────────────────
   const result = db.prepare(`
     INSERT INTO partner_orders (
-      reservation_id, guest_token, guest_name, guest_phone, apartment,
+      reservation_id, guest_token, partner_id, guest_name, guest_phone, apartment,
       selected_dates, delivery_slot, breakfast_count, vegetarian_count, gluten_free_count,
       guest_notes, partner_provision_per_unit, margin_per_unit, total_price,
       status, payment_provider, partner_confirmation_token, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    reservationId, token, guestName, body.guestPhone ?? null, apartment,
+    reservationId, token, settings.providerId, guestName, body.guestPhone ?? null, apartment,
     JSON.stringify(selectedDates), deliverySlot, breakfastCount, vegetarianCount, glutenFreeCount,
     body.guestNotes ?? null, partnerCost, margin, totalPrice,
     'pending_payment', 'sumup', confirmationToken, ts, ts,

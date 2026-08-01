@@ -5,6 +5,7 @@ const { data: publicSettings } = await useFetch<Record<string, string>>('/api/pu
 const instagramUrl = computed(() => publicSettings.value?.instagram_url ?? '')
 const facebookUrl = computed(() => publicSettings.value?.facebook_url ?? '')
 const breakfastEnabled = computed(() => publicSettings.value?.breakfast_enabled === '1')
+const ebikeEnabled = computed(() => publicSettings.value?.ebike_enabled === '1')
 
 useHead({
   link: [
@@ -47,6 +48,7 @@ watch(() => route.path, closeDrawer)
             <NuxtLink :to="infoLink('restaurants')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink :to="infoLink('suggestions')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
             <NuxtLink v-if="guestToken && !accessBlocked && breakfastEnabled" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link guest-nav__link--breakfast">🍳 {{ t.nav.breakfast }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked && ebikeEnabled" :to="`/guest/${guestToken}/ebikes`" class="guest-nav__link">🚲 E-bikes</NuxtLink>
           </nav>
           <div class="lang-switcher" role="group" aria-label="Language">
             <button
@@ -91,6 +93,7 @@ watch(() => route.path, closeDrawer)
             <NuxtLink :to="infoLink('restaurants')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink :to="infoLink('suggestions')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
             <NuxtLink v-if="guestToken && !accessBlocked && breakfastEnabled" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">🍳 {{ t.nav.breakfast }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked && ebikeEnabled" :to="`/guest/${guestToken}/ebikes`" class="drawer__link">🚲 E-bikes</NuxtLink>
           </nav>
           <div class="drawer__lang" role="group" aria-label="Language">
             <button

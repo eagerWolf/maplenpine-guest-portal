@@ -4,6 +4,7 @@ export interface CreatePaymentOpts {
   currency: string
   description: string
   returnUrl: string
+  referencePrefix?: string
 }
 
 export interface PaymentCreateResult {

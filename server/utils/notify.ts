@@ -1,7 +1,6 @@
-import { Resend } from 'resend'
 import { getDb, now } from '../db/index'
 import { getWhatsAppProvider } from './whatsapp'
-import { useRuntimeConfig } from '#imports'
+import { getEmailConfig, sendEmail } from './email'
 
 export type NotificationEvent =
   | 'job_failed'
@@ -9,8 +8,11 @@ export type NotificationEvent =
   | 'sync_error'
   | 'pin_added'
   | 'pin_updated'
+  | 'breakfast_order'
   | 'housekeeper_reminder'
   | 'checkin_reminder'
+  | 'orchestrator_offline'
+  | 'orchestrator_recovered'
 
 type NotificationLevel = 'none' | 'errors' | 'all'
 type ReminderEvent = 'housekeeper_reminder' | 'checkin_reminder'
@@ -21,6 +23,9 @@ const EVENT_MIN_LEVEL: Record<Exclude<NotificationEvent, ReminderEvent>, Notific
   sync_error: 'errors',
   pin_added: 'all',
   pin_updated: 'all',
+  breakfast_order: 'all',
+  orchestrator_offline: 'errors',
+  orchestrator_recovered: 'errors',
 }
 
 const LEVEL_RANK: Record<NotificationLevel, number> = { none: 0, errors: 1, all: 2 }
@@ -62,8 +67,9 @@ export async function notifyAdmins(opts: {
   subject: string
   emailHtml: string
   whatsappText: string
+  requireDelivery?: boolean
 }): Promise<void> {
-  const config = useRuntimeConfig()
+  const emailConfig = getEmailConfig()
   const db = getDb()
 
   type UserRow = { id: number; email: string; notification_level: string; whatsapp_phone: string | null }
@@ -78,18 +84,22 @@ export async function notifyAdmins(opts: {
     const level = u.notification_level as NotificationLevel
     return LEVEL_RANK[level] >= LEVEL_RANK[minLevel]
   })
+  let attempted = 0
+  let succeeded = 0
 
   await Promise.allSettled(eligible.map(async (user) => {
-    if (config.resendApiKey && config.adminEmailFrom) {
+    if (emailConfig.configured) {
+      attempted++
       try {
-        const resend = new Resend(config.resendApiKey as string)
-        await resend.emails.send({
-          from: config.adminEmailFrom as string,
+        await sendEmail({
+          apiKey: emailConfig.apiKey,
+          from: emailConfig.from,
           to: user.email,
           subject: opts.subject,
           html: opts.emailHtml,
         })
         logEntry({ channel: 'email', event: opts.event, recipient: user.email, subject: opts.subject, body: opts.emailHtml, status: 'sent', userId: user.id, userEmail: user.email })
+        succeeded++
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         logEntry({ channel: 'email', event: opts.event, recipient: user.email, subject: opts.subject, body: opts.emailHtml, status: 'failed', error: msg, userId: user.id, userEmail: user.email })
@@ -98,9 +108,11 @@ export async function notifyAdmins(opts: {
     }
 
     if (user.whatsapp_phone) {
+      attempted++
       try {
         await getWhatsAppProvider().send(user.whatsapp_phone, opts.whatsappText)
         logEntry({ channel: 'whatsapp', event: opts.event, recipient: user.whatsapp_phone, subject: null, body: opts.whatsappText, status: 'sent', userId: user.id, userEmail: user.email })
+        succeeded++
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         logEntry({ channel: 'whatsapp', event: opts.event, recipient: user.whatsapp_phone, subject: null, body: opts.whatsappText, status: 'failed', error: msg, userId: user.id, userEmail: user.email })
@@ -108,6 +120,9 @@ export async function notifyAdmins(opts: {
       }
     }
   }))
+  if (opts.requireDelivery && (attempted === 0 || succeeded === 0)) {
+    throw new Error(attempted === 0 ? 'No configured administrator notification recipient' : 'All administrator notification deliveries failed')
+  }
 }
 
 export async function notifyHousekeeper(reservationId: number, door: string): Promise<void> {

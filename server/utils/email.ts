@@ -1,7 +1,38 @@
-import { Resend } from 'resend'
+import { useRuntimeConfig } from '#imports'
+import { getDb } from '../db/index'
 
-function getResend(apiKey: string) {
-  return new Resend(apiKey)
+export function getEmailConfig(): { apiKey: string; from: string; configured: boolean } {
+  const runtime = useRuntimeConfig()
+  const rows = getDb().prepare("SELECT key, value FROM app_settings WHERE key IN ('sendgrid_api_key', 'email_from')").all() as Array<{ key: string; value: string }>
+  const settings = Object.fromEntries(rows.map(row => [row.key, row.value]))
+  const apiKey = settings.sendgrid_api_key || String(runtime.sendgridApiKey || '')
+  const from = settings.email_from || String(runtime.adminEmailFrom || '')
+  return { apiKey, from, configured: Boolean(apiKey && from) }
+}
+
+export async function sendEmail(opts: { apiKey: string; from: string; to: string; subject: string; html: string }): Promise<void> {
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: opts.to }] }],
+      from: { email: opts.from },
+      subject: opts.subject,
+      content: [{ type: 'text/html', value: opts.html }],
+    }),
+  })
+  if (!response.ok) throw new Error(`SendGrid error ${response.status}: ${await response.text()}`)
+}
+
+function getEmailSender(apiKey: string) {
+  return {
+    emails: {
+      send: (opts: { from: string; to: string; subject: string; html: string }) => sendEmail({ apiKey, ...opts }),
+    },
+  }
 }
 
 export async function sendMagicLink(opts: {
@@ -12,8 +43,8 @@ export async function sendMagicLink(opts: {
   baseUrl: string
 }) {
   const url = `${opts.baseUrl}/auth/verify?token=${opts.token}`
-  const resend = getResend(opts.apiKey)
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
     subject: 'Prijavna povezava — Maple & Pine Portal',
@@ -38,26 +69,35 @@ export async function sendGuestPin(opts: {
   portalLink: string
   apiKey: string
   from: string
+  lang?: string | null
 }) {
-  const resend = getResend(opts.apiKey)
-  const doorDisplay = opts.door === 'Maple,Pine' ? 'Maple & Pine' : `${opts.door} Apartment`
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  const locale = (['en', 'sl', 'de', 'hr', 'sr'].includes(opts.lang ?? '') ? opts.lang : 'en') as 'en' | 'sl' | 'de' | 'hr' | 'sr'
+  const copy = {
+    en: { subject: 'Your Access PIN', dear: 'Dear', intro: 'Your door access PIN has been set:', access: 'Access', from: 'Valid from', until: 'Valid until', link: 'View your access details online', apartment: 'Apartment' },
+    sl: { subject: 'Vaša dostopna PIN koda', dear: 'Spoštovani', intro: 'Vaša PIN koda za dostop je pripravljena:', access: 'Dostop', from: 'Velja od', until: 'Velja do', link: 'Odprite podrobnosti dostopa', apartment: 'Apartma' },
+    de: { subject: 'Ihre Zugangs-PIN', dear: 'Guten Tag', intro: 'Ihre PIN für den Türzugang wurde eingerichtet:', access: 'Zugang', from: 'Gültig ab', until: 'Gültig bis', link: 'Zugangsdaten online anzeigen', apartment: 'Apartment' },
+    hr: { subject: 'Vaš pristupni PIN', dear: 'Poštovani', intro: 'Vaš PIN za pristup vratima je postavljen:', access: 'Pristup', from: 'Vrijedi od', until: 'Vrijedi do', link: 'Pogledajte podatke za pristup', apartment: 'Apartman' },
+    sr: { subject: 'Vaš pristupni PIN', dear: 'Poštovani', intro: 'Vaš PIN za pristup vratima je postavljen:', access: 'Pristup', from: 'Važi od', until: 'Važi do', link: 'Pogledajte podatke za pristup', apartment: 'Apartman' },
+  }[locale]
+  const doorDisplay = opts.door === 'Maple,Pine' ? 'Maple & Pine' : `${copy.apartment} ${opts.door}`
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
-    subject: `Your Access PIN — ${doorDisplay}`,
+    subject: `${copy.subject} — ${doorDisplay}`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
         <h2 style="color:#2d6a4f">Maple & Pine Apartments</h2>
-        <p>Dear ${opts.guestName},</p>
-        <p>Your door access PIN has been set:</p>
+        <p>${copy.dear} ${opts.guestName},</p>
+        <p>${copy.intro}</p>
         <div style="background:#f0faf5;border:2px solid #2d6a4f;border-radius:8px;padding:20px;text-align:center;margin:16px 0">
           <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#2d6a4f">${opts.pin}</div>
         </div>
-        <p><strong>Access:</strong> ${doorDisplay}</p>
-        <p><strong>Valid from:</strong> ${opts.validFrom}</p>
-        <p><strong>Valid until:</strong> ${opts.validUntil}</p>
+        <p><strong>${copy.access}:</strong> ${doorDisplay}</p>
+        <p><strong>${copy.from}:</strong> ${opts.validFrom}</p>
+        <p><strong>${copy.until}:</strong> ${opts.validUntil}</p>
         <p style="margin-top:24px">
-          <a href="${opts.portalLink}" style="color:#2d6a4f">View your access details online</a>
+          <a href="${opts.portalLink}" style="color:#2d6a4f">${copy.link}</a>
         </p>
         <p style="color:#888;font-size:13px">Maple & Pine Apartments, Bled, Slovenia</p>
       </div>
@@ -75,8 +115,8 @@ export async function sendAdminPinAdded(opts: {
   from: string
   to: string
 }) {
-  const resend = getResend(opts.apiKey)
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
     subject: `✓ PIN dodan — ${opts.guestName}`,
@@ -104,8 +144,8 @@ export async function sendAdminPinUpdated(opts: {
   from: string
   to: string
 }) {
-  const resend = getResend(opts.apiKey)
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
     subject: `✎ Dostop posodobljen — ${opts.guestName}`,
@@ -132,8 +172,8 @@ export async function sendAdminJobFailed(opts: {
   from: string
   to: string
 }) {
-  const resend = getResend(opts.apiKey)
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
     subject: `✗ Napaka pri jobu — ${opts.guestName}`,
@@ -160,8 +200,8 @@ export async function sendAdminSyncError(opts: {
   from: string
   to: string
 }) {
-  const resend = getResend(opts.apiKey)
-  await resend.emails.send({
+  const email = getEmailSender(opts.apiKey)
+  await email.emails.send({
     from: opts.from,
     to: opts.to,
     subject: `⚠ Bentral sync napaka — ${opts.tier}`,

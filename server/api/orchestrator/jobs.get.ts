@@ -1,15 +1,27 @@
-import { getDb } from '../../db/index'
-import { getPendingJobs, markJobsInProgress, mergePendingJobs } from '../../utils/jobs'
+import { getDb, now } from '../../db/index'
+import { getPendingJobs, markJobsInProgress, mergePendingJobs, requeueExpiredJobs } from '../../utils/jobs'
+import { hasValidOrchestratorToken } from '../../utils/orchestrator'
 
 export default defineEventHandler(async (event) => {
   const configuredKey = (getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value?.trim()
   const authHeader = getHeader(event, 'authorization')
 
-  if (!configuredKey || !authHeader || authHeader !== `Bearer ${configuredKey}`) {
+  if (!hasValidOrchestratorToken(configuredKey, authHeader)) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
   const db = getDb()
+  requeueExpiredJobs()
+  db.prepare(`
+    INSERT INTO app_settings (key, value, updated_at) VALUES ('orchestrator_last_seen', ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(now(), now())
+  db.prepare(`
+    UPDATE jobs SET status = 'superseded', reason = 'Rezervacija že ima PIN', updated_at = ?
+    WHERE status = 'pending' AND action = 'insert' AND reservation_id IN (
+      SELECT id FROM reservations WHERE pin IS NOT NULL AND TRIM(pin) <> ''
+    )
+  `).run(now())
   const publishSetting = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('auto_publish_ekey') as { value: string } | undefined
   if (publishSetting && publishSetting.value === '0') {
     return { jobs: [] }

@@ -120,7 +120,7 @@ function fmtDate(iso: string) {
         Ni obvestil.
       </div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="border-b border-stone-200 bg-stone-50">
               <th class="text-left px-4 py-3 font-medium text-stone-600 whitespace-nowrap">Čas</th>

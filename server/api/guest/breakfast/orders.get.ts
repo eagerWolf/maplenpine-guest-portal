@@ -9,13 +9,16 @@ export default defineEventHandler(async (event) => {
   const { reservationId } = validateGuestToken(token)
   const db = getDb()
 
-  const orders = db.prepare(
-    'SELECT * FROM partner_orders WHERE reservation_id = ? ORDER BY created_at DESC',
-  ).all(reservationId) as PartnerOrder[]
+  const orders = db.prepare(`
+    SELECT o.*, p.name AS partner_name
+    FROM partner_orders o LEFT JOIN partners p ON p.id = o.partner_id
+    WHERE o.reservation_id = ? ORDER BY o.created_at DESC
+  `).all(reservationId) as Array<PartnerOrder & { partner_name: string | null }>
 
   return {
     orders: orders.map(o => ({
       id: o.id,
+      providerName: o.partner_name,
       selectedDates: JSON.parse(o.selected_dates) as string[],
       deliverySlot: o.delivery_slot,
       breakfastCount: o.breakfast_count,

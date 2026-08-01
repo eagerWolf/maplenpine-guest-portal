@@ -22,15 +22,18 @@ export default defineEventHandler(async (event) => {
     name?: string
     type?: string
     website?: string
+    location_id?: number | null
     description?: unknown
     active?: boolean
     sort_order?: number
     recurring?: boolean; valid_from?: string | null; valid_to?: string | null
+    website_slug?: string
   }>(event)
 
   const name = body.name?.trim() ?? item.name
   const type = body.type !== undefined ? (ALLOWED_TYPES.includes(body.type) ? body.type : item.type) : item.type
   const website = 'website' in body ? (body.website?.trim() || null) : item.website
+  const locationId = 'location_id' in body ? (body.location_id || null) : (item as any).location_id
   const description = body.description !== undefined ? parseLocalizedText(body.description, 'Opis') : JSON.parse(item.description)
   const active = body.active ?? !!item.active
   const sort_order = body.sort_order ?? item.sort_order
@@ -42,9 +45,9 @@ export default defineEventHandler(async (event) => {
   }
 
   db.prepare(`
-    UPDATE restaurants SET name = ?, type = ?, website = ?, description = ?, active = ?, sort_order = ?, recurring=?, valid_from=?, valid_to=?, updated_at = ?
+    UPDATE restaurants SET name = ?, type = ?, website = ?, location_id = ?, description = ?, active = ?, sort_order = ?, recurring=?, valid_from=?, valid_to=?, website_slug=?, updated_at = ?
     WHERE id = ?
-  `).run(name, type, website, JSON.stringify(description), active ? 1 : 0, sort_order, recurring?1:0, dates.validFrom, dates.validTo, now(), id)
+  `).run(name, type, website, locationId, JSON.stringify(description), active ? 1 : 0, sort_order, recurring?1:0, dates.validFrom, dates.validTo, body.website_slug !== undefined ? body.website_slug.trim() || null : item.website_slug, now(), id)
 
   return { success: true }
 })

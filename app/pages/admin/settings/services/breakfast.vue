@@ -1,157 +1,175 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth', 'admin'] })
 
-const { data: settings, refresh } = await useFetch<Record<string, string>>('/api/admin/settings')
+interface Provider {
+  id: number
+  name: string
+  contact_name: string | null
+  contact_email: string | null
+  whatsapp: string | null
+  notes: string | null
+  active: number
+  breakfast_enabled: number
+  breakfast_cost: number
+  breakfast_margin: number
+  breakfast_cutoff_hour: number
+  breakfast_jan1_note: string | null
+  breakfast_min_count: number
+  breakfast_max_count: number
+  breakfast_exceptions: Array<{ date: string; recurring: boolean }>
+}
 
-const form = reactive({
-  breakfast_enabled: '0',
-  breakfast_partner_whatsapp: '',
-  breakfast_partner_cost: '12.00',
-  breakfast_margin: '2.00',
-  breakfast_order_cutoff_hour: '18',
-  breakfast_jan1_note: '',
-  breakfast_min_count: '2',
-  breakfast_max_count_fallback: '8',
-})
-
-watch(settings, (s) => {
-  if (!s) return
-  form.breakfast_enabled = s.breakfast_enabled ?? '0'
-  form.breakfast_partner_whatsapp = s.breakfast_partner_whatsapp ?? ''
-  form.breakfast_partner_cost = s.breakfast_partner_cost ?? '12.00'
-  form.breakfast_margin = s.breakfast_margin ?? '2.00'
-  form.breakfast_order_cutoff_hour = s.breakfast_order_cutoff_hour ?? '18'
-  form.breakfast_jan1_note = s.breakfast_jan1_note ?? ''
-  form.breakfast_min_count = s.breakfast_min_count ?? '2'
-  form.breakfast_max_count_fallback = s.breakfast_max_count_fallback ?? '8'
+const { data: settings, refresh: refreshSettings } = await useFetch<Record<string, string>>('/api/admin/settings')
+const { data, refresh } = await useFetch<{ providers: Provider[] }>('/api/admin/breakfast/providers')
+const providers = ref<Provider[]>([])
+watch(data, (value) => {
+  providers.value = (value?.providers ?? []).map(provider => ({
+    ...provider,
+    breakfast_exceptions: Array.isArray(provider.breakfast_exceptions) ? provider.breakfast_exceptions.map(item => ({ ...item })) : [],
+  }))
 }, { immediate: true })
-
-const partnerCost = computed(() => parseFloat(form.breakfast_partner_cost) || 0)
-const margin = computed(() => parseFloat(form.breakfast_margin) || 0)
-const guestPrice = computed(() => partnerCost.value + margin.value)
-
+const enabled = ref(settings.value?.breakfast_enabled === '1')
 const saving = ref(false)
 const saved = ref(false)
 const error = ref('')
+const newProvider = ref(false)
 
-async function save() {
+const twilioReady = computed(() => Boolean(
+  settings.value?.twilio_account_sid?.trim()
+  && settings.value?.twilio_auth_token?.trim()
+  && settings.value?.twilio_whatsapp_from?.trim(),
+))
+
+function emptyProvider(): Omit<Provider, 'id'> {
+  return {
+    name: '', contact_name: '', contact_email: '', whatsapp: '', notes: '', active: 1,
+    breakfast_enabled: 1, breakfast_cost: 12, breakfast_margin: 2, breakfast_cutoff_hour: 18,
+    breakfast_jan1_note: 'Naročilo za 1. januar ni možno, ker partner ta dan ne obratuje.',
+    breakfast_min_count: 2, breakfast_max_count: 8,
+    breakfast_exceptions: [{ date: '01-01', recurring: true }],
+  }
+}
+const draft = reactive(emptyProvider())
+
+async function saveAll() {
   saving.value = true
   saved.value = false
   error.value = ''
   try {
-    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form } })
+    if (enabled.value && !twilioReady.value) throw new Error('Najprej nastavite Twilio WhatsApp.')
+    const activeProviders = providers.value.filter(p => p.active && p.breakfast_enabled)
+    if (enabled.value && activeProviders.length === 0) throw new Error('Omogočite vsaj enega ponudnika zajtrka.')
+    for (const provider of providers.value) {
+      if (provider.breakfast_enabled && (!provider.whatsapp?.trim() || !provider.contact_email?.trim())) {
+        throw new Error(`Pri ponudniku ${provider.name} vnesite WhatsApp in e-pošto.`)
+      }
+      await $fetch(`/api/admin/breakfast/providers/${provider.id}`, { method: 'PATCH', body: provider })
+    }
+    await $fetch('/api/admin/settings', { method: 'POST', body: { breakfast_enabled: enabled.value ? '1' : '0' } })
+    await Promise.all([refresh(), refreshSettings()])
     saved.value = true
-    await refresh()
     setTimeout(() => { saved.value = false }, 3000)
   } catch (err: any) {
-    error.value = err?.data?.statusMessage ?? 'Napaka pri shranjevanju'
-  } finally {
-    saving.value = false
+    error.value = err?.data?.statusMessage ?? err?.message ?? 'Napaka pri shranjevanju'
+  } finally { saving.value = false }
+}
+
+async function addProvider() {
+  error.value = ''
+  try {
+    if (!draft.name.trim()) throw new Error('Vnesite ime ponudnika.')
+    await $fetch('/api/admin/breakfast/providers', { method: 'POST', body: draft })
+    Object.assign(draft, emptyProvider())
+    newProvider.value = false
+    await refresh()
+  } catch (err: any) {
+    error.value = err?.data?.statusMessage ?? err?.message ?? 'Ponudnika ni bilo mogoče dodati'
   }
+}
+
+function addException(provider: Record<string, any>) {
+  if (!Array.isArray(provider.breakfast_exceptions)) provider.breakfast_exceptions = []
+  provider.breakfast_exceptions.push({ date: '', recurring: true })
+}
+
+function removeException(provider: Record<string, any>, index: number) {
+  if (Array.isArray(provider.breakfast_exceptions)) provider.breakfast_exceptions.splice(index, 1)
+}
+
+function exceptionCalendarValue(exception: { date: string; recurring: boolean }): string {
+  if (exception.recurring && /^\d{2}-\d{2}$/.test(exception.date)) {
+    return `${new Date().getFullYear()}-${exception.date}`
+  }
+  return exception.date || ''
+}
+
+function setExceptionDate(exception: { date: string; recurring: boolean }, value: string) {
+  exception.date = exception.recurring ? value.slice(5) : value
+}
+
+function setExceptionRecurring(exception: { date: string; recurring: boolean }, recurring: boolean) {
+  const calendarDate = exceptionCalendarValue(exception)
+  exception.recurring = recurring
+  exception.date = recurring ? calendarDate.slice(5) : calendarDate
 }
 </script>
 
 <template>
-  <div class="max-w-lg space-y-6">
-
-    <div class="bg-white rounded-xl border border-stone-200 p-6">
-      <h2 class="font-medium text-stone-700 mb-4">Zajtrk (Bled Breakfast)</h2>
-      <div class="space-y-5">
-
-        <!-- Enable toggle -->
-        <label class="flex items-center justify-between gap-4 cursor-pointer">
-          <div class="text-sm font-medium text-stone-700">Omogoči naročanje zajtrka</div>
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="form.breakfast_enabled === '1'"
-            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-pine-500 focus:ring-offset-2"
-            :class="form.breakfast_enabled === '1' ? 'bg-pine-600' : 'bg-stone-200'"
-            @click="form.breakfast_enabled = form.breakfast_enabled === '1' ? '0' : '1'"
-          >
-            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200" :class="form.breakfast_enabled === '1' ? 'translate-x-5' : 'translate-x-0'" />
-          </button>
-        </label>
-
-        <!-- Partner WhatsApp -->
-        <div class="border-t border-stone-100 pt-4">
-          <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp partnerja</label>
-          <input
-            v-model="form.breakfast_partner_whatsapp"
-            type="text"
-            placeholder="+386 41 123 456"
-            class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pine-500"
-          />
-          <p class="text-xs text-stone-400 mt-1">Na to številko se pošlje naročilo zajtrka.</p>
-        </div>
-
-        <!-- Partner cost + margin -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-600 mb-1">Strošek partnerja (EUR / zajtrk)</label>
-            <input v-model="form.breakfast_partner_cost" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-            <p class="text-xs text-stone-400 mt-1">Partner dobi ta znesek</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-600 mb-1">Vaša marža (EUR / zajtrk)</label>
-            <input v-model="form.breakfast_margin" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-            <p class="text-xs text-stone-400 mt-1">Portal obdrži ta znesek</p>
-          </div>
-        </div>
-
-        <!-- Live preview -->
-        <div v-if="partnerCost > 0 || margin > 0" class="bg-stone-50 rounded-lg px-4 py-3 text-sm space-y-1">
-          <div class="flex justify-between">
-            <span class="text-stone-500">Partner dobi:</span>
-            <span class="font-medium text-stone-700">{{ partnerCost.toFixed(2) }} EUR / zajtrk</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-stone-500">Vaša marža:</span>
-            <span class="font-medium text-pine-700">{{ margin.toFixed(2) }} EUR / zajtrk</span>
-          </div>
-          <div class="flex justify-between border-t border-stone-200 pt-1 mt-1">
-            <span class="text-stone-600 font-medium">Gost plača:</span>
-            <span class="font-semibold text-stone-800">{{ guestPrice.toFixed(2) }} EUR / zajtrk</span>
-          </div>
-        </div>
-
-        <!-- Min/max counts -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-600 mb-1">Min. zajtrkov</label>
-            <input v-model="form.breakfast_min_count" type="number" min="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-600 mb-1">Max (če ni podatka o gostih)</label>
-            <input v-model="form.breakfast_max_count_fallback" type="number" min="1" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          </div>
-        </div>
-
-        <!-- Cutoff -->
+  <div class="max-w-3xl space-y-6">
+    <div class="rounded-xl border border-stone-200 bg-white p-6">
+      <div class="flex items-center justify-between gap-4">
         <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Rok naročila za naslednji dan (ura)</label>
-          <input v-model="form.breakfast_order_cutoff_hour" type="number" min="0" max="23" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Po tej uri naročilo za jutri ni mogoče (privzeto 18).</p>
+          <h2 class="font-medium text-stone-700">Prodaja zajtrka</h2>
+          <p class="mt-1 text-xs text-stone-400">Gost lahko izbira med vsemi omogočenimi ponudniki.</p>
         </div>
-
-        <!-- Jan 1 note -->
-        <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Opomba za 1. januar</label>
-          <input v-model="form.breakfast_jan1_note" type="text" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-        </div>
-
+        <button type="button" role="switch" :aria-checked="enabled" :disabled="!twilioReady && !enabled"
+          class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors disabled:opacity-40"
+          :class="enabled ? 'bg-pine-600' : 'bg-stone-200'" @click="enabled = !enabled">
+          <span class="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform" :class="enabled ? 'translate-x-5' : 'translate-x-0'" />
+        </button>
+      </div>
+      <div v-if="!twilioReady" class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Prodajo lahko omogočite po nastavitvi
+        <NuxtLink to="/admin/settings/integrations/whatsapp" class="font-medium underline">Twilio WhatsApp</NuxtLink>.
       </div>
     </div>
 
-    <div v-if="error" class="text-sm text-maple-600 bg-maple-50 rounded-lg px-4 py-3">{{ error }}</div>
-    <div v-if="saved" class="text-sm text-pine-700 bg-pine-50 rounded-lg px-4 py-3">✓ Nastavitve shranjene</div>
+    <div class="flex items-center justify-between">
+      <h2 class="font-medium text-stone-700">Ponudniki zajtrka</h2>
+      <button class="rounded-lg bg-pine-600 px-4 py-2 text-sm font-medium text-white hover:bg-pine-700" @click="newProvider = !newProvider">+ Dodaj ponudnika</button>
+    </div>
 
-    <button
-      class="w-full bg-pine-600 hover:bg-pine-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50"
-      :disabled="saving"
-      @click="save"
-    >
-      {{ saving ? 'Shranjujem…' : 'Shrani nastavitve' }}
+    <div v-if="newProvider" class="rounded-xl border-2 border-pine-200 bg-white p-5">
+      <h3 class="mb-4 font-medium text-stone-700">Nov ponudnik</h3>
+      <ProviderFields :provider="draft" />
+      <div class="mt-4 border-t border-stone-100 pt-4">
+        <div class="mb-2 flex items-center justify-between gap-3"><div><div class="text-sm font-medium text-stone-700">Izjeme dobave</div><p class="text-xs text-stone-400">Obvestilo gostu se sestavi samodejno v vseh jezikih.</p></div><button type="button" class="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" @click="draft.breakfast_exceptions.push({ date: '', recurring: true })">+ Dodaj datum</button></div>
+        <div v-for="(exception, index) in draft.breakfast_exceptions" :key="index" class="mb-2 flex items-center gap-2 rounded-lg bg-stone-50 p-2"><input :value="exceptionCalendarValue(exception)" type="date" class="min-w-44 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm" @input="setExceptionDate(exception, ($event.target as HTMLInputElement).value)" /><label class="flex items-center gap-2 text-xs"><input :checked="exception.recurring" type="checkbox" @change="setExceptionRecurring(exception, ($event.target as HTMLInputElement).checked)" /> Vsako leto</label><button type="button" class="px-2 text-lg text-maple-500" @click="removeException(draft, index)">×</button></div>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button class="rounded-lg px-4 py-2 text-sm text-stone-500" @click="newProvider = false">Prekliči</button>
+        <button class="rounded-lg bg-pine-600 px-4 py-2 text-sm font-medium text-white" @click="addProvider">Dodaj</button>
+      </div>
+    </div>
+
+    <div v-for="provider in providers" :key="provider.id" class="rounded-xl border border-stone-200 bg-white p-5">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <input v-model="provider.name" class="min-w-0 flex-1 border-0 p-0 text-base font-semibold text-stone-800 focus:ring-0" />
+        <label class="flex items-center gap-2 text-sm text-stone-500">
+          <input v-model="provider.breakfast_enabled" :true-value="1" :false-value="0" type="checkbox" class="rounded border-stone-300 text-pine-600" /> Omogočen
+        </label>
+      </div>
+      <ProviderFields :provider="provider" />
+      <div class="mt-4 border-t border-stone-100 pt-4">
+        <div class="mb-2 flex items-center justify-between gap-3"><div><div class="text-sm font-medium text-stone-700">Izjeme dobave</div><p class="text-xs text-stone-400">Obvestilo gostu se sestavi samodejno v vseh jezikih.</p></div><button type="button" class="rounded-lg border border-stone-300 px-3 py-1.5 text-xs" @click="provider.breakfast_exceptions.push({ date: '', recurring: true })">+ Dodaj datum</button></div>
+        <div v-for="(exception, index) in provider.breakfast_exceptions" :key="index" class="mb-2 flex items-center gap-2 rounded-lg bg-stone-50 p-2"><input :value="exceptionCalendarValue(exception)" type="date" class="min-w-44 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm" @input="setExceptionDate(exception, ($event.target as HTMLInputElement).value)" /><label class="flex items-center gap-2 text-xs"><input :checked="exception.recurring" type="checkbox" @change="setExceptionRecurring(exception, ($event.target as HTMLInputElement).checked)" /> Vsako leto</label><button type="button" class="px-2 text-lg text-maple-500" @click="removeException(provider, index)">×</button></div>
+      </div>
+    </div>
+
+    <div v-if="error" class="rounded-lg bg-maple-50 px-4 py-3 text-sm text-maple-600">{{ error }}</div>
+    <div v-if="saved" class="rounded-lg bg-pine-50 px-4 py-3 text-sm text-pine-700">✓ Nastavitve shranjene</div>
+    <button class="w-full rounded-lg bg-pine-600 px-4 py-2.5 font-medium text-white hover:bg-pine-700 disabled:opacity-50" :disabled="saving" @click="saveAll">
+      {{ saving ? 'Shranjujem…' : 'Shrani vse nastavitve' }}
     </button>
   </div>
 </template>

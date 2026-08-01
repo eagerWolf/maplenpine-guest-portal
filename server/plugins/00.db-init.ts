@@ -53,7 +53,9 @@ export default defineNitroPlugin(() => {
       result TEXT,
       reason TEXT,
       created_at TEXT NOT NULL,
-      updated_at TEXT
+      updated_at TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      lease_expires_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -96,10 +98,31 @@ export default defineNitroPlugin(() => {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS integration_outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      unique_key TEXT UNIQUE NOT NULL,
+      type TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at TEXT NOT NULL,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_integration_outbox_pending
+      ON integration_outbox(status, next_attempt_at);
+
     CREATE TABLE IF NOT EXISTS locations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       country TEXT NOT NULL DEFAULT 'Slovenia',
+      address TEXT,
+      google_maps_url TEXT,
+      latitude REAL,
+      longitude REAL,
+      free_parking INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL
     );
@@ -117,6 +140,20 @@ export default defineNitroPlugin(() => {
       contract_original_name TEXT,
       notes TEXT,
       active INTEGER NOT NULL DEFAULT 1,
+      breakfast_enabled INTEGER NOT NULL DEFAULT 0,
+      breakfast_cost REAL NOT NULL DEFAULT 12,
+      breakfast_margin REAL NOT NULL DEFAULT 2,
+      breakfast_cutoff_hour INTEGER NOT NULL DEFAULT 18,
+      breakfast_jan1_note TEXT,
+      breakfast_min_count INTEGER NOT NULL DEFAULT 2,
+      breakfast_max_count INTEGER NOT NULL DEFAULT 8,
+      breakfast_exceptions TEXT NOT NULL DEFAULT '[]',
+      rental_enabled INTEGER NOT NULL DEFAULT 0,
+      rental_daily_cost REAL NOT NULL DEFAULT 0,
+      rental_daily_margin REAL NOT NULL DEFAULT 0,
+      rental_exceptions TEXT NOT NULL DEFAULT '[]',
+      pickup_location_id INTEGER REFERENCES locations(id),
+      return_location_id INTEGER REFERENCES locations(id),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -273,6 +310,31 @@ export default defineNitroPlugin(() => {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS bike_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reservation_id INTEGER NOT NULL,
+      guest_token TEXT NOT NULL,
+      partner_id INTEGER NOT NULL REFERENCES partners(id),
+      guest_name TEXT NOT NULL,
+      guest_phone TEXT,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      bike_count INTEGER NOT NULL,
+      guest_notes TEXT,
+      daily_cost REAL NOT NULL,
+      daily_margin REAL NOT NULL,
+      total_price REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'requested',
+      confirmation_token TEXT NOT NULL UNIQUE,
+      payment_id TEXT,
+      payment_transaction_id TEXT,
+      confirmed_at TEXT,
+      rejected_at TEXT,
+      paid_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `)
 
   // Seed default settings if missing
@@ -293,12 +355,15 @@ export default defineNitroPlugin(() => {
     ['auto_sync_bentral', '1'],
     ['auto_publish_ekey', '1'],
     ['orchestrator_api_key', ''],
+    ['orchestrator_lease_minutes', '30'],
+    ['orchestrator_max_attempts', '5'],
     ['bentral_api_key', ''],
     ['breakfast_partner_id', ''],
     ['breakfast_enabled', '0'],
     ['breakfast_partner_cost', '12.00'],
     ['breakfast_margin', '2.00'],
     ['breakfast_partner_whatsapp', ''],
+    ['breakfast_partner_email', ''],
     ['breakfast_order_cutoff_hour', '18'],
     ['breakfast_jan1_note', 'Naročilo za 1. januar ni možno, ker partner ta dan ne obratuje.'],
     ['breakfast_min_count', '2'],
@@ -309,7 +374,18 @@ export default defineNitroPlugin(() => {
     ['twilio_account_sid', ''],
     ['twilio_auth_token', ''],
     ['twilio_whatsapp_from', ''],
+    ['sendgrid_api_key', ''],
+    ['email_from', ''],
     ['reception_whatsapp', ''],
+    ['ebike_enabled', '0'],
+    ['website_export_token', ''],
+    ['website_public_url', 'https://maplenpine.com'],
+    ['website_portal_public_url', ''],
+    ['cloudflare_deploy_hook', ''],
+    ['website_nightly_publish', '0'],
+    ['website_last_publish_at', ''],
+    ['website_last_publish_status', ''],
+    ['website_last_publish_error', ''],
   ]
   const ins = db.prepare(
     'INSERT OR IGNORE INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)',
@@ -380,6 +456,13 @@ export default defineNitroPlugin(() => {
   }
 
   // Migrations
+  const jobCols = db.prepare("PRAGMA table_info(jobs)").all() as Array<{ name: string }>
+  if (!jobCols.some(c => c.name === 'attempt_count')) {
+    db.exec("ALTER TABLE jobs ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0")
+  }
+  if (!jobCols.some(c => c.name === 'lease_expires_at')) {
+    db.exec("ALTER TABLE jobs ADD COLUMN lease_expires_at TEXT")
+  }
   const userCols = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>
   if (!userCols.some(c => c.name === 'password_hash')) {
     db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
@@ -444,6 +527,106 @@ export default defineNitroPlugin(() => {
     } else {
       db.exec("ALTER TABLE partner_orders ADD COLUMN margin_per_unit REAL NOT NULL DEFAULT 0")
     }
+  }
+
+  const partnerCols = db.prepare("PRAGMA table_info(partners)").all() as Array<{ name: string }>
+  const partnerNames = new Set(partnerCols.map(c => c.name))
+  const partnerColumnMigrations: Array<[string, string]> = [
+    ['breakfast_enabled', 'INTEGER NOT NULL DEFAULT 0'],
+    ['breakfast_cost', 'REAL NOT NULL DEFAULT 12'],
+    ['breakfast_margin', 'REAL NOT NULL DEFAULT 2'],
+    ['breakfast_cutoff_hour', 'INTEGER NOT NULL DEFAULT 18'],
+    ['breakfast_jan1_note', 'TEXT'],
+    ['breakfast_min_count', 'INTEGER NOT NULL DEFAULT 2'],
+    ['breakfast_max_count', 'INTEGER NOT NULL DEFAULT 8'],
+    ['breakfast_exceptions', `TEXT NOT NULL DEFAULT '[]'`],
+    ['rental_enabled', 'INTEGER NOT NULL DEFAULT 0'],
+    ['rental_daily_cost', 'REAL NOT NULL DEFAULT 0'],
+    ['rental_daily_margin', 'REAL NOT NULL DEFAULT 0'],
+    ['rental_exceptions', `TEXT NOT NULL DEFAULT '[]'`],
+    ['pickup_location_id', 'INTEGER REFERENCES locations(id)'],
+    ['return_location_id', 'INTEGER REFERENCES locations(id)'],
+  ]
+  for (const [column, definition] of partnerColumnMigrations) {
+    if (!partnerNames.has(column)) db.exec(`ALTER TABLE partners ADD COLUMN ${column} ${definition}`)
+  }
+  const locationCols = db.prepare("PRAGMA table_info(locations)").all() as Array<{ name: string }>
+  if (!locationCols.some(c => c.name === 'address')) db.exec('ALTER TABLE locations ADD COLUMN address TEXT')
+  if (!locationCols.some(c => c.name === 'google_maps_url')) db.exec('ALTER TABLE locations ADD COLUMN google_maps_url TEXT')
+  if (!locationCols.some(c => c.name === 'latitude')) db.exec('ALTER TABLE locations ADD COLUMN latitude REAL')
+  if (!locationCols.some(c => c.name === 'longitude')) db.exec('ALTER TABLE locations ADD COLUMN longitude REAL')
+  if (!locationCols.some(c => c.name === 'free_parking')) db.exec('ALTER TABLE locations ADD COLUMN free_parking INTEGER NOT NULL DEFAULT 0')
+
+  const restaurantCols = db.prepare("PRAGMA table_info(restaurants)").all() as Array<{ name: string }>
+  if (!restaurantCols.some(c => c.name === 'location_id')) db.exec('ALTER TABLE restaurants ADD COLUMN location_id INTEGER REFERENCES locations(id)')
+  if (!restaurantCols.some(c => c.name === 'website_slug')) db.exec('ALTER TABLE restaurants ADD COLUMN website_slug TEXT')
+
+  const suggestionWebsiteCols = db.prepare("PRAGMA table_info(suggestions)").all() as Array<{ name: string }>
+  if (!suggestionWebsiteCols.some(c => c.name === 'website_slug')) db.exec('ALTER TABLE suggestions ADD COLUMN website_slug TEXT')
+  if (!suggestionWebsiteCols.some(c => c.name === 'youtube_url')) db.exec('ALTER TABLE suggestions ADD COLUMN youtube_url TEXT')
+  const suggestionSlugs = ['life-adventure','pletna-island','horse-carriages','ojstrica','bled-breakfast','skiing','sledding','vintgar-gorge','pokljuka-gorge','radovna-valley','soca-river','zelenci','lake-bohinj','radovljica','postojna-cave','horse-ridding','ljubljana','velika-planina','zipline-dolinka','sea-side','mountains']
+  const setSuggestionSlug = db.prepare('UPDATE suggestions SET website_slug=? WHERE sort_order=? AND (website_slug IS NULL OR website_slug=?)')
+  suggestionSlugs.forEach((slug, index) => setSuggestionSlug.run(slug, index, ''))
+  db.prepare("UPDATE suggestions SET youtube_url='https://www.youtube.com/embed/ZpIO7qyk760?si=HaZpAqX8mg89Ptbl' WHERE website_slug='life-adventure' AND youtube_url IS NULL").run()
+  const restaurantSlugs = ['old-cellar','planinc','blejska-hisa','al-fresco','julijana','sova','spica','central','grajska-plaza','mega-burger']
+  const setRestaurantSlug = db.prepare('UPDATE restaurants SET website_slug=? WHERE sort_order=? AND (website_slug IS NULL OR website_slug=?)')
+  restaurantSlugs.forEach((slug, index) => setRestaurantSlug.run(slug, index, ''))
+
+  // Preserve the original single-provider setup as the first breakfast provider.
+  const breakfastProviderCount = (db.prepare("SELECT COUNT(*) c FROM partners WHERE category = 'breakfast'").get() as { c: number }).c
+  if (breakfastProviderCount === 0) {
+    let location = db.prepare("SELECT id FROM locations WHERE active = 1 ORDER BY id LIMIT 1").get() as { id: number } | undefined
+    if (!location) {
+      const locationResult = db.prepare("INSERT INTO locations (name, country, active, created_at) VALUES ('Bled', 'Slovenia', 1, ?)").run(ts)
+      location = { id: Number(locationResult.lastInsertRowid) }
+    }
+    const legacyRows = db.prepare(`SELECT key, value FROM app_settings WHERE key LIKE 'breakfast_%'`).all() as Array<{ key: string; value: string }>
+    const legacy = Object.fromEntries(legacyRows.map(row => [row.key, row.value]))
+    const providerResult = db.prepare(`
+      INSERT INTO partners (
+        location_id, category, name, contact_email, whatsapp, active,
+        breakfast_enabled, breakfast_cost, breakfast_margin, breakfast_cutoff_hour,
+        breakfast_jan1_note, breakfast_min_count, breakfast_max_count, breakfast_exceptions, created_at, updated_at
+      ) VALUES (?, 'breakfast', 'Bled Breakfast', ?, ?, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      location.id,
+      legacy.breakfast_partner_email || null,
+      legacy.breakfast_partner_whatsapp || null,
+      Number(legacy.breakfast_partner_cost || 12),
+      Number(legacy.breakfast_margin || 2),
+      Number(legacy.breakfast_order_cutoff_hour || 18),
+      legacy.breakfast_jan1_note || null,
+      Number(legacy.breakfast_min_count || 2),
+      Number(legacy.breakfast_max_count_fallback || 8),
+      JSON.stringify([{ date: '01-01', recurring: true }]),
+      ts, ts,
+    )
+    const providerId = Number(providerResult.lastInsertRowid)
+    db.prepare('UPDATE partner_orders SET partner_id = ? WHERE partner_id IS NULL').run(providerId)
+    db.prepare("UPDATE app_settings SET value = ?, updated_at = ? WHERE key = 'breakfast_partner_id'").run(String(providerId), ts)
+  } else if (!partnerNames.has('breakfast_enabled')) {
+    const legacyRows = db.prepare(`SELECT key, value FROM app_settings WHERE key LIKE 'breakfast_%'`).all() as Array<{ key: string; value: string }>
+    const legacy = Object.fromEntries(legacyRows.map(row => [row.key, row.value]))
+    const provider = db.prepare("SELECT id FROM partners WHERE category = 'breakfast' ORDER BY id LIMIT 1").get() as { id: number }
+    db.prepare(`
+      UPDATE partners SET
+        whatsapp = COALESCE(NULLIF(whatsapp, ''), ?), contact_email = COALESCE(NULLIF(contact_email, ''), ?),
+        breakfast_enabled = 1, breakfast_cost = ?, breakfast_margin = ?, breakfast_cutoff_hour = ?,
+        breakfast_jan1_note = ?, breakfast_min_count = ?, breakfast_max_count = ?,
+        breakfast_exceptions = ?, updated_at = ?
+      WHERE id = ?
+    `).run(
+      legacy.breakfast_partner_whatsapp || null, legacy.breakfast_partner_email || null,
+      Number(legacy.breakfast_partner_cost || 12), Number(legacy.breakfast_margin || 2),
+      Number(legacy.breakfast_order_cutoff_hour || 18), legacy.breakfast_jan1_note || null,
+      Number(legacy.breakfast_min_count || 2), Number(legacy.breakfast_max_count_fallback || 8),
+      JSON.stringify([{ date: '01-01', recurring: true }]), ts, provider.id,
+    )
+    db.prepare('UPDATE partner_orders SET partner_id = ? WHERE partner_id IS NULL').run(provider.id)
+  }
+  if (!partnerNames.has('breakfast_exceptions')) {
+    db.prepare("UPDATE partners SET breakfast_exceptions = ? WHERE category = 'breakfast' AND (breakfast_exceptions IS NULL OR breakfast_exceptions = '[]')")
+      .run(JSON.stringify([{ date: '01-01', recurring: true }]))
   }
 
   const guestTokenCols = db.prepare("PRAGMA table_info(guest_tokens)").all() as Array<{ name: string }>

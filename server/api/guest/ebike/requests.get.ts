@@ -1,0 +1,2 @@
+import { getDb } from '../../../db/index';import { validateGuestToken } from '../../../utils/breakfast'
+export default defineEventHandler(event=>{const token=String(getQuery(event).token||'');const {reservationId}=validateGuestToken(token);return{requests:getDb().prepare(`SELECT r.id,r.start_date startDate,r.end_date endDate,r.bike_count bikeCount,r.total_price totalPrice,r.status,p.name partnerName FROM bike_requests r JOIN partners p ON p.id=r.partner_id WHERE r.reservation_id=? ORDER BY r.created_at DESC`).all(reservationId)}})

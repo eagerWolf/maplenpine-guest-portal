@@ -37,11 +37,45 @@ export function createJob(
   triggeredBy: string,
 ): number {
   const db = getDb()
+  if (action === 'insert') {
+    const reservation = db.prepare('SELECT pin FROM reservations WHERE id = ?').get(reservationId) as { pin: string | null } | undefined
+    if (reservation?.pin?.trim()) return 0
+  }
   const result = db.prepare(`
     INSERT INTO jobs (reservation_id, action, status, triggered_by, payload, created_at)
     VALUES (?, ?, 'pending', ?, ?, ?)
   `).run(reservationId, action, triggeredBy, JSON.stringify(payload), now())
   return result.lastInsertRowid as number
+}
+
+/** Queue deletion only when the portal can prove the eKey entry is automation-managed. */
+export function queueExpiredManagedCodeCleanup(referenceTime = now()): number {
+  const db = getDb()
+  const reservations = db.prepare(`
+    SELECT r.* FROM reservations r
+    WHERE r.pin IS NOT NULL AND TRIM(r.pin) <> ''
+      AND r.access_valid_until IS NOT NULL AND r.access_valid_until < ?
+      AND EXISTS (
+        SELECT 1 FROM jobs inserted
+        WHERE inserted.reservation_id = r.id AND inserted.action = 'insert'
+          AND inserted.status = 'success'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM jobs cleanup
+        WHERE cleanup.reservation_id = r.id AND cleanup.action = 'cancel'
+          AND cleanup.status IN ('pending', 'in_progress', 'success')
+      )
+  `).all(referenceTime) as Reservation[]
+
+  const transaction = db.transaction(() => {
+    let queued = 0
+    for (const reservation of reservations) {
+      const id = createJob(reservation.id, 'cancel', buildJobPayload(reservation, 'cancel'), 'daily_managed_cleanup')
+      if (id) queued++
+    }
+    return queued
+  })
+  return transaction()
 }
 
 export function getPendingJobs(): Array<Job & { bentral_reservation_id: string }> {
@@ -108,8 +142,10 @@ export function mergePendingJobs(jobs: Job[]): Array<{ orchestratorJob: MergedOr
   const merged: Array<{ orchestratorJob: MergedOrchestratorJob; allJobIds: number[] }> = []
   for (const group of byReservation.values()) {
     const sorted = [...group].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    if (!sorted.length) continue
     const primary = sorted[0]
     const latest = sorted[sorted.length - 1]
+    if (!primary || !latest) continue
     const latestPayload = latest.payload ? JSON.parse(latest.payload) : {}
     const hasCancel = sorted.some(j => j.action === 'cancel')
     const hasInsert = sorted.some(j => j.action === 'insert')
@@ -138,8 +174,32 @@ export function markJobsInProgress(ids: number[]): void {
   if (ids.length === 0) return
   const db = getDb()
   const placeholders = ids.map(() => '?').join(',')
-  db.prepare(`UPDATE jobs SET status = 'in_progress', updated_at = ? WHERE id IN (${placeholders})`)
-    .run(now(), ...ids)
+  const leasedAt = now()
+  const settings = getSettings()
+  const configuredMinutes = Number.parseInt(settings.orchestrator_lease_minutes || '30', 10)
+  const leaseMinutes = Number.isFinite(configuredMinutes) && configuredMinutes >= 15 ? configuredMinutes : 30
+  const leaseExpiresAt = new Date(Date.now() + leaseMinutes * 60_000).toISOString()
+  db.prepare(`UPDATE jobs SET status = 'in_progress', updated_at = ?, lease_expires_at = ?, attempt_count = attempt_count + 1 WHERE id IN (${placeholders})`)
+    .run(leasedAt, leaseExpiresAt, ...ids)
+}
+
+/** Returns abandoned work to the queue after its lease expires. */
+export function requeueExpiredJobs(referenceTime = now()): number {
+  const db = getDb()
+  const settings = getSettings()
+  const configuredMax = Number.parseInt(settings.orchestrator_max_attempts || '5', 10)
+  const maxAttempts = Number.isInteger(configuredMax) && configuredMax >= 1 ? configuredMax : 5
+  db.prepare(`
+    UPDATE jobs
+    SET status = 'failed', reason = 'Orchestrator did not return a result before the retry limit', lease_expires_at = NULL, updated_at = ?
+    WHERE status = 'in_progress' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ? AND attempt_count >= ?
+  `).run(referenceTime, referenceTime, maxAttempts)
+  const result = db.prepare(`
+    UPDATE jobs
+    SET status = 'pending', reason = 'Orchestrator lease expired; retrying', lease_expires_at = NULL, updated_at = ?
+    WHERE status = 'in_progress' AND lease_expires_at IS NOT NULL AND lease_expires_at <= ? AND attempt_count < ?
+  `).run(referenceTime, referenceTime, maxAttempts)
+  return result.changes
 }
 
 export function updateJobResult(
@@ -150,7 +210,7 @@ export function updateJobResult(
 ): void {
   const db = getDb()
   db.prepare(`
-    UPDATE jobs SET status = ?, result = ?, reason = ?, updated_at = ? WHERE id = ?
+    UPDATE jobs SET status = ?, result = ?, reason = ?, updated_at = ?, lease_expires_at = NULL WHERE id = ?
   `).run(status, JSON.stringify(result), reason ?? null, now(), jobId)
 }
 
@@ -175,8 +235,9 @@ export function getSettings(): Record<string, string> {
 }
 
 function applyOffset(dateStr: string, timeStr: string, offsetMin: number): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const [h, m] = timeStr.split(':').map(Number)
+  const [year = NaN, month = NaN, day = NaN] = dateStr.split('-').map(Number)
+  const [h = NaN, m = NaN] = timeStr.split(':').map(Number)
+  if (![year, month, day, h, m].every(Number.isFinite)) throw new Error(`Neveljaven datum ali čas: ${dateStr} ${timeStr}`)
   let total = h * 60 + m + offsetMin
   const dayShift = Math.floor(total / 1440)
   total = ((total % 1440) + 1440) % 1440

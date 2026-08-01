@@ -3,6 +3,11 @@ import { syncBentral } from '../utils/sync'
 import { notifyHousekeeper, notifyReception } from '../utils/notify'
 import { getDb } from '../db/index'
 import { useRuntimeConfig } from '#imports'
+import { queueExpiredManagedCodeCleanup } from '../utils/jobs'
+import { processIntegrationOutbox } from '../utils/integrationOutbox'
+import { checkOrchestratorHealth } from '../utils/orchestratorHealth'
+import { backupDatabase } from '../utils/dbBackup'
+import { triggerWebsitePublish } from '../utils/websiteContent'
 
 function addDays(date: Date, days: number): string {
   const d = new Date(date)
@@ -55,6 +60,11 @@ export default defineNitroPlugin(() => {
   const warmExpr = config.bentralWarmCron || '0 */5 * * *'
   const coldExpr = config.bentralColdCron || '0 3 * * *'
   const hkExpr = config.housekeeperCron || '0 10 * * *'
+  const ekeyCleanupExpr = '15 3 * * *'
+  const outboxExpr = '* * * * *'
+  const orchestratorHealthExpr = '*/5 * * * *'
+  const backupExpr = '30 2 * * *'
+  const websitePublishExpr = '15 1 * * *'
 
   function isSyncEnabled(): boolean {
     const db = getDb()
@@ -82,11 +92,45 @@ export default defineNitroPlugin(() => {
     runReceptionReminders().catch(err => console.error('[cron:reception]', err))
   })
 
-  // Run hot sync once on startup
-  setImmediate(() => {
-    if (!isSyncEnabled()) return
-    syncBentral('hot').catch(err => console.error('[cron:startup]', err))
+  cron.schedule(ekeyCleanupExpr, () => {
+    try {
+      const queued = queueExpiredManagedCodeCleanup()
+      if (queued) console.log(`[cron:ekey-cleanup] Queued ${queued} managed code deletion(s)`)
+    } catch (err) {
+      console.error('[cron:ekey-cleanup]', err)
+    }
   })
 
-  console.log('[cron] Scheduled — hot:', hotExpr, '| warm:', warmExpr, '| cold:', coldExpr, '| housekeeper:', hkExpr)
+  cron.schedule(outboxExpr, () => {
+    processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox]', err))
+  })
+
+  cron.schedule(orchestratorHealthExpr, () => {
+    checkOrchestratorHealth().catch(err => console.error('[cron:orchestrator-health]', err))
+  })
+
+  cron.schedule(backupExpr, () => {
+    backupDatabase().then(path => console.log('[cron:backup]', path)).catch(err => console.error('[cron:backup]', err))
+  })
+
+  cron.schedule(websitePublishExpr, () => {
+    const enabled = (getDb().prepare("SELECT value FROM app_settings WHERE key='website_nightly_publish'").get() as { value: string } | undefined)?.value === '1'
+    if (!enabled) return
+    triggerWebsitePublish('scheduled').catch(err => console.error('[cron:website-publish]', err))
+  })
+
+  // Run hot sync once on startup
+  setImmediate(() => {
+    if (isSyncEnabled()) syncBentral('hot').catch(err => console.error('[cron:startup]', err))
+    processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox:startup]', err))
+    backupDatabase().catch(err => console.error('[cron:backup:startup]', err))
+    try {
+      const queued = queueExpiredManagedCodeCleanup()
+      if (queued) console.log(`[cron:ekey-cleanup:startup] Queued ${queued} managed code deletion(s)`)
+    } catch (err) {
+      console.error('[cron:ekey-cleanup:startup]', err)
+    }
+  })
+
+  console.log('[cron] Scheduled — hot:', hotExpr, '| warm:', warmExpr, '| cold:', coldExpr, '| housekeeper:', hkExpr, '| eKey cleanup:', ekeyCleanupExpr, '| outbox:', outboxExpr, '| Orchestrator health:', orchestratorHealthExpr, '| backup:', backupExpr, '| website:', websitePublishExpr)
 })

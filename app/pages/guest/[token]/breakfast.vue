@@ -7,12 +7,15 @@ const token = route.params.token as string
 const guestToken = useGuestToken()
 guestToken.value = token
 
-const { t } = useLocale()
+const { locale, t } = useLocale()
 const bf = computed(() => t.value.breakfast)
 
 interface DateEntry { date: string; disabled: boolean; reason?: string }
 interface AvailabilityData {
   enabled: boolean
+  providerId: number | null
+  providerName: string
+  providers: Array<{ id: number; name: string; pricePerPerson: number }>
   dates: DateEntry[]
   hasJan1Warning: boolean
   jan1Note: string
@@ -26,6 +29,7 @@ interface AvailabilityData {
 }
 interface GuestOrder {
   id: number
+  providerName: string | null
   selectedDates: string[]
   deliverySlot: string
   breakfastCount: number
@@ -39,11 +43,16 @@ interface GuestOrder {
 }
 
 const SLOTS = ['08:00-09:00', '09:00-10:00', '10:00-11:00']
+const selectedProviderId = ref<number | undefined>()
 
 const { data: avail, error: availError } = await useFetch<AvailabilityData>(
   `/api/guest/breakfast/availability`,
-  { query: { token }, key: `breakfast-avail-${token}` },
+  { query: { token, partnerId: selectedProviderId, lang: locale }, key: `breakfast-avail-${token}`, watch: [selectedProviderId, locale] },
 )
+
+watchEffect(() => {
+  if (!selectedProviderId.value && avail.value?.providerId) selectedProviderId.value = avail.value.providerId
+})
 
 useGuestAccessBlocked().value = !!availError.value
 
@@ -177,6 +186,7 @@ async function submit() {
           glutenFreeCount: glutenFreeCount.value,
           guestPhone: guestPhone.value || undefined,
           guestNotes: guestNotes.value || undefined,
+          partnerId: selectedProviderId.value,
         },
       },
     )
@@ -300,8 +310,17 @@ function statusColor(status: string): string {
         <div class="bf-header">
           <img src="/suggestions/bled-breakfast.webp" alt="Bled Breakfast" class="bf-header__logo" loading="lazy" />
           <div class="bf-icon">🍳</div>
-          <h1 class="bf-header__title">{{ bf.title }}</h1>
+          <h1 class="bf-header__title">{{ avail.providerName || bf.title }}</h1>
           <p class="bf-header__sub">{{ bf.subtitle }}</p>
+        </div>
+
+        <div v-if="avail.providers.length > 1" class="bf-card">
+          <h2 class="bf-step-title">Izberite ponudnika zajtrka</h2>
+          <select v-model.number="selectedProviderId" class="bf-select" style="width:100%">
+            <option v-for="provider in avail.providers" :key="provider.id" :value="provider.id">
+              {{ provider.name }} · {{ provider.pricePerPerson.toFixed(2) }} EUR
+            </option>
+          </select>
         </div>
 
         <!-- Jan 1 warning -->
@@ -334,14 +353,14 @@ function statusColor(status: string): string {
                 :class="{
                   'bf-date-chip--selected': selectedDates.has(d.date) && !d.disabled,
                   'bf-date-chip--disabled': d.disabled,
-                  'bf-date-chip--jan1': d.reason === 'jan1',
+                  'bf-date-chip--jan1': d.reason === 'exception',
                 }"
                 :disabled="d.disabled"
-                :title="d.reason === 'jan1' ? avail.jan1Note : ''"
+                :title="d.reason === 'exception' ? avail.jan1Note : ''"
                 @click="toggleDate(d.date, d.disabled)"
               >
                 {{ formatDate(d.date) }}
-                <span v-if="d.reason === 'jan1'" class="bf-date-chip__note">1. jan</span>
+                <span v-if="d.reason === 'exception'" class="bf-date-chip__note">×</span>
               </button>
             </div>
             <p v-if="selectedDates.size > 0" class="bf-selection-hint">
@@ -473,7 +492,7 @@ function statusColor(status: string): string {
               </span>
             </div>
             <div class="bf-order__meta">
-              {{ o.deliverySlot }} · {{ o.breakfastCount }} · {{ o.totalPrice.toFixed(2) }} EUR
+              {{ o.providerName ? `${o.providerName} · ` : '' }}{{ o.deliverySlot }} · {{ o.breakfastCount }} · {{ o.totalPrice.toFixed(2) }} EUR
             </div>
           </div>
         </div>

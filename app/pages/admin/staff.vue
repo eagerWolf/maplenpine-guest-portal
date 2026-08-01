@@ -42,10 +42,11 @@ async function addUser() {
 }
 
 const { user: currentUser } = useUserSession()
+const deletion = useAdminConfirm()
 
-async function removeUser(id: number) {
-  if (!confirm('Res odstraniti tega uporabnika?')) return
-  await $fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+async function removeUser(user: StaffUser) {
+  if (!await deletion.ask({ title: 'Odstranim uporabnika?', message: `${user.email} ne bo imel več dostopa do administracije.` })) return
+  await $fetch(`/api/admin/users/${user.id}`, { method: 'DELETE' })
   await refresh()
 }
 
@@ -123,7 +124,7 @@ function levelClass(level: string) {
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
       <h1 class="text-xl font-semibold text-stone-800">Upravljanje osebja</h1>
       <button
         class="text-sm bg-pine-600 hover:bg-pine-700 text-white px-3 py-1.5 rounded-lg transition-colors"
@@ -175,9 +176,32 @@ function levelClass(level: string) {
       <div v-if="addError" class="mt-2 text-sm text-maple-600">{{ addError }}</div>
     </div>
 
-    <!-- Users table -->
-    <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
-      <table class="w-full text-sm">
+    <!-- Mobile user cards -->
+    <div class="space-y-3 sm:hidden">
+      <article v-for="u in users" :key="u.id" class="rounded-xl border border-stone-200 bg-white p-4" :class="{ 'opacity-50': !u.active }">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="break-all text-sm font-semibold leading-5 text-stone-800">{{ u.email }}</p>
+            <p v-if="u.id === currentUser?.id" class="mt-0.5 text-xs text-stone-400">Trenutno prijavljeni uporabnik</p>
+          </div>
+          <span v-if="!u.active" class="flex-none rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">Neaktiven</span>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <span class="rounded-full px-2 py-1 text-xs font-medium" :class="u.role === 'admin' ? 'bg-pine-100 text-pine-700' : 'bg-stone-100 text-stone-600'">{{ u.role === 'admin' ? 'Admin' : 'Osebje' }}</span>
+          <span class="rounded-full px-2 py-1 text-xs font-medium" :class="levelClass(u.notification_level)">{{ levelLabel(u.notification_level) }}</span>
+          <span v-if="u.notify_housekeeper" class="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">Opomnik za čiščenje</span>
+        </div>
+        <p v-if="u.notes" class="mt-3 whitespace-pre-wrap break-words text-xs leading-5 text-stone-500">{{ u.notes }}</p>
+        <div class="mt-4 flex gap-2 border-t border-stone-100 pt-3">
+          <button class="min-h-10 flex-1 rounded-lg border border-stone-300 px-3 text-sm font-medium text-pine-700" @click="openEdit(u)">Uredi</button>
+          <button v-if="u.id !== currentUser?.id" class="min-h-10 flex-1 rounded-lg border border-maple-200 bg-maple-50 px-3 text-sm font-medium text-maple-700" @click="removeUser(u)">Odstrani</button>
+        </div>
+      </article>
+    </div>
+
+    <!-- Desktop users table -->
+    <div class="relative hidden overflow-x-auto rounded-xl border border-stone-200 bg-white [scrollbar-gutter:stable] sm:block">
+      <table class="w-full min-w-[660px] text-sm">
         <thead>
           <tr class="border-b border-stone-200 bg-stone-50">
             <th class="text-left px-4 py-3 font-medium text-stone-600">Email</th>
@@ -185,14 +209,14 @@ function levelClass(level: string) {
             <th class="text-left px-4 py-3 font-medium text-stone-600 hidden sm:table-cell">Obvestila</th>
             <th class="text-left px-4 py-3 font-medium text-stone-600 hidden md:table-cell">Opomnik</th>
             <th class="text-left px-4 py-3 font-medium text-stone-600 hidden md:table-cell">Opombe</th>
-            <th class="px-4 py-3"></th>
+            <th class="sticky right-0 z-10 bg-stone-50 px-4 py-3 shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-stone-100">
           <tr
             v-for="u in users"
             :key="u.id"
-            class="hover:bg-stone-50 transition-opacity"
+            class="group hover:bg-stone-50 transition-opacity"
             :class="{ 'opacity-40': !u.active }"
           >
             <td class="px-4 py-3">
@@ -223,7 +247,8 @@ function levelClass(level: string) {
             <td class="px-4 py-3 hidden md:table-cell text-stone-500 text-xs max-w-[180px] truncate" :title="u.notes ?? ''">
               {{ u.notes || '—' }}
             </td>
-            <td class="px-4 py-3 text-right flex items-center justify-end gap-3">
+            <td class="sticky right-0 bg-white px-4 py-3 text-right shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)] group-hover:bg-stone-50">
+              <div class="flex items-center justify-end gap-3 whitespace-nowrap">
               <button
                 class="text-xs text-pine-600 hover:underline"
                 @click="openEdit(u)"
@@ -233,10 +258,11 @@ function levelClass(level: string) {
               <button
                 v-if="u.id !== currentUser?.id"
                 class="text-xs text-maple-600 hover:underline"
-                @click="removeUser(u.id)"
+                @click="removeUser(u)"
               >
                 Odstrani
               </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -344,5 +370,6 @@ function levelClass(level: string) {
         </div>
       </div>
     </Teleport>
+    <AdminConfirmDialog :open="deletion.open.value" :title="deletion.title.value" :message="deletion.message.value" :confirm-label="deletion.confirmLabel.value" @confirm="deletion.confirm" @cancel="deletion.cancel" />
   </div>
 </template>

@@ -163,3 +163,13 @@ export async function patchBentralEntranceCode(
     throw new Error(`Bentral eKey PATCH ${res.status}: ${text}`)
   }
 }
+
+export async function sendBentralGuestMessage(apiKey: string, reservationId: string, message: string): Promise<void> {
+  const res = await fetch('https://api.bentral.com/v1/messages', {
+    method: 'POST',
+    headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'email', reservationId, message }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) throw new Error(`Bentral message API ${res.status}: ${await res.text()}`)
+}
