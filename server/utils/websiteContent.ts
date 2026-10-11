@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { getDb, now, today } from '../db/index'
 import { isActiveToday } from './dateRange'
 import { normalizeLocalizedLabel } from './localized'
+import { getSettingValue } from './secretSettings'
 
 export const WEBSITE_EXPORT_SCHEMA_VERSION = 1
 export const WEBSITE_LOCALES = ['en', 'sl', 'de', 'hr', 'sr'] as const
@@ -12,7 +13,7 @@ function parseJson<T>(value: string | null, fallback: T): T {
 }
 
 function setting(key: string): string {
-  return (getDb().prepare('SELECT value FROM app_settings WHERE key=?').get(key) as { value: string } | undefined)?.value?.trim() || ''
+  return getSettingValue(key).trim()
 }
 
 function safeTokenEqual(actual: string, expected: string): boolean {

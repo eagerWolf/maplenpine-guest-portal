@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs'
 import { getDb } from '../../db/index'
 import type { DbUser } from '../../db/index'
+import { enforceRateLimit } from '../../utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
+  enforceRateLimit(event, 'login', 10)
   const { email, password } = await readBody<{ email: string; password: string }>(event)
 
   if (!email || !password) {
@@ -21,9 +23,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Račun je neaktiven' })
   }
 
-  // First login — no password set yet
   if (!user.password_hash) {
-    return { firstLogin: true }
+    throw createError({ statusCode: 401, statusMessage: 'Račun še ni aktiviran. Uporabite aktivacijsko povezavo.' })
   }
 
   const valid = await bcrypt.compare(password, user.password_hash)

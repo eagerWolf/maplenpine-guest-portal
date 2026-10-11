@@ -5,6 +5,7 @@ import type { BentralReservation } from './bentral'
 import { buildAccessTimes, buildJobPayload, createJob, getSettings } from './jobs'
 import { notifyAdmins } from './notify'
 import { useRuntimeConfig } from '#imports'
+import { getSettingValue } from './secretSettings'
 
 function extractPhone(phone: BentralReservation['guest']['phone']): string | null {
   if (!phone) return null
@@ -43,7 +44,7 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
 
   const { from, to } = ranges[tier]
 
-  const dbApiKey = (db.prepare("SELECT value FROM app_settings WHERE key = 'bentral_api_key'").get() as { value: string } | undefined)?.value
+  const dbApiKey = getSettingValue('bentral_api_key')
   const bentralApiKey = dbApiKey || config.bentralApiKey
 
   let bentralReservations: BentralReservation[]

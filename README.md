@@ -2,9 +2,11 @@
 
 Administracijski in gostinski portal za rezervacije, eKey kode, vsebine, obvestila ter prodajo dodatnih storitev. Portal je tudi vir uredniške vsebine za javno stran `maplenpine.com`.
 
+Celoten postopek prve namestitve portala, javne strani in Windows Orchestratorja je v [INSTALLATION.md](INSTALLATION.md).
+
 ## Zahteve
 
-- Node.js 22 LTS
+- Node.js 22.19 ali novejši LTS
 - npm
 - trajen disk za mapo `data/`
 - HTTPS domena za produkcijo
@@ -32,6 +34,7 @@ Ukaz izvede avtomatske teste, TypeScript preverjanje in produkcijski build.
 Za začetek kopiraj `.env.example` v `.env`. Najpomembnejše skupine nastavitev so:
 
 - `NUXT_SESSION_PASSWORD`: naključna skrivnost dolžine vsaj 32 znakov;
+- `NUXT_SETTINGS_ENCRYPTION_KEY`: ločena naključna skrivnost dolžine vsaj 32 znakov, s katero se občutljive nastavitve šifrirajo v bazi;
 - Google OAuth client ID in secret ter produkcijski redirect URL;
 - Bentral API ključ, property ID in ID enot Maple/Pine;
 - SendGrid ključ ter naslovi pošiljateljev/prejemnikov;
@@ -40,6 +43,8 @@ Za začetek kopiraj `.env.example` v `.env`. Najpomembnejše skupine nastavitev 
 - po želji GA4 in prilagojeni cron intervali.
 
 Token Orchestratorja in token izvoza spletne strani se nastavljata v adminu portala, ne v `.env`. Orchestrator mora uporabljati isti Bearer token, ki je prikazan v **Nastavitve → Platforma → Orchestrator**.
+
+`NUXT_SETTINGS_ENCRYPTION_KEY` varno shrani tudi zunaj strežnika. Menjava ali izguba tega ključa brez predhodne rotacije onemogoči branje šifriranih API ključev iz baze.
 
 ## Podatki in varnostne kopije
 
@@ -68,7 +73,7 @@ Na strežniku morajo ostati:
 
 - produkcijski `.env`;
 - trajna mapa `data/` z dovoljenjem pisanja za uporabnika procesa;
-- Node.js 22 in PM2;
+- Node.js 22.19 ali novejši in PM2;
 - samo ena instanca aplikacije (`instances: 1`).
 
 Po prvem deploymentu omogoči samodejni zagon PM2:

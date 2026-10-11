@@ -1,5 +1,6 @@
 import { getDb, now } from '../db/index'
 import type { Reservation, Job } from '../db/index'
+import { decodeSetting } from './secretSettings'
 
 export interface JobPayload {
   jobId: string
@@ -229,7 +230,7 @@ export function getSettings(): Record<string, string> {
     property_nav_url: '',
   }
   for (const row of rows) {
-    defaults[row.key] = row.value
+    defaults[row.key] = decodeSetting(row.key, row.value)
   }
   return defaults
 }

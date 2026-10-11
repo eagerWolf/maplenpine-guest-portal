@@ -1,6 +1,7 @@
-import { createHmac } from 'node:crypto'
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { getDb } from '../../db/index'
 import type { PaymentProvider, CreatePaymentOpts, PaymentCreateResult, PaymentStatusResult, RefundResult } from './index'
+import { decodeSetting } from '../secretSettings'
 
 const SUMUP_BASE = 'https://api.sumup.com'
 
@@ -10,7 +11,7 @@ function getSumUpConfig() {
     "SELECT key, value FROM app_settings WHERE key IN ('sumup_api_key','sumup_merchant_code','sumup_webhook_secret')",
   ).all() as Array<{ key: string; value: string }>
   const m: Record<string, string> = {}
-  rows.forEach(r => { m[r.key] = r.value })
+  rows.forEach(r => { m[r.key] = decodeSetting(r.key, r.value) })
   return {
     apiKey: m.sumup_api_key ?? '',
     merchantCode: m.sumup_merchant_code ?? '',
@@ -86,8 +87,10 @@ export class SumUpProvider implements PaymentProvider {
 
   validateWebhookSignature(rawBody: string, signature: string): boolean {
     const cfg = getSumUpConfig()
-    if (!cfg.webhookSecret) return true // Skip validation if not configured
+    if (!cfg.webhookSecret || !signature) return false
     const expected = createHmac('sha256', cfg.webhookSecret).update(rawBody).digest('hex')
-    return expected === signature
+    const received = signature.trim().toLowerCase()
+    if (!/^[a-f0-9]{64}$/.test(received)) return false
+    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(received, 'hex'))
   }
 }

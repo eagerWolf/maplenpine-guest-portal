@@ -20,6 +20,12 @@ export default defineNitroPlugin(() => {
   mkdirSync(join(process.cwd(), 'data', 'contracts'), { recursive: true })
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      applied_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS reservations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       bentral_reservation_id TEXT UNIQUE NOT NULL,
@@ -690,6 +696,13 @@ export default defineNitroPlugin(() => {
   db.prepare(`
     INSERT OR IGNORE INTO users (email, role, created_at)
     VALUES ('matija.volk@gmail.com', 'admin', datetime('now'))
+  `).run()
+
+  // Existing installations are brought to this idempotent baseline above. All
+  // subsequent schema changes must receive a new, ordered migration version.
+  db.prepare(`
+    INSERT OR IGNORE INTO schema_migrations (version, name, applied_at)
+    VALUES (1, 'legacy-schema-baseline', datetime('now'))
   `).run()
 
   console.log('[db] Schema ready')

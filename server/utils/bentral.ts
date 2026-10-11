@@ -100,6 +100,19 @@ export async function fetchBentralReservations(
   return all
 }
 
+export async function fetchBentralReservation(reservationId: string, apiKey: string): Promise<BentralReservation> {
+  if (!apiKey) throw new Error('Bentral API key is not configured')
+  const res = await fetch(`https://api.bentral.com/v1/reservations/${encodeURIComponent(reservationId)}`, {
+    headers: { 'X-API-KEY': apiKey },
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) throw new Error(`Bentral reservation verification failed (${res.status})`)
+  const json = await res.json() as BentralReservation | { data?: BentralReservation }
+  const reservation = 'data' in json && json.data ? json.data : json as BentralReservation
+  if (!reservation?.id || String(reservation.id) !== String(reservationId)) throw new Error('Bentral returned an unexpected reservation')
+  return reservation
+}
+
 export function parseName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/)
   const firstName = parts[0] ?? ''

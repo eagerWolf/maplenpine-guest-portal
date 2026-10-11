@@ -1,4 +1,5 @@
 import { getDb, now } from '../../../db/index'
+import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
 
 const ALLOWED_KEYS = [
   'bentral_checkin_time',
@@ -57,7 +58,7 @@ export default defineEventHandler(async (event) => {
   const ts = now()
 
   const currentRows = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
-  const effective = { ...Object.fromEntries(currentRows.map(row => [row.key, row.value])), ...body }
+  const effective = { ...Object.fromEntries(currentRows.map(row => [row.key, decodeSetting(row.key, row.value)])), ...body }
   const leaseMinutes = Number.parseInt(effective.orchestrator_lease_minutes || '30', 10)
   if (!Number.isInteger(leaseMinutes) || leaseMinutes < 15 || leaseMinutes > 1440) {
     throw createError({ statusCode: 400, statusMessage: 'Čas za obnovitev Orchestrator opravila mora biti med 15 in 1440 minutami.' })
@@ -103,7 +104,7 @@ export default defineEventHandler(async (event) => {
   const updated: string[] = []
   for (const key of ALLOWED_KEYS) {
     if (body[key] !== undefined) {
-      upsert.run(key, String(body[key]), ts)
+      upsert.run(key, encodeSetting(key, String(body[key])), ts)
       updated.push(key)
     }
   }

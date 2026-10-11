@@ -1,9 +1,10 @@
 import { getDb, now } from '../../db/index'
 import { getPendingJobs, markJobsInProgress, mergePendingJobs, requeueExpiredJobs } from '../../utils/jobs'
 import { hasValidOrchestratorToken } from '../../utils/orchestrator'
+import { getSettingValue } from '../../utils/secretSettings'
 
 export default defineEventHandler(async (event) => {
-  const configuredKey = (getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value?.trim()
+  const configuredKey = getSettingValue('orchestrator_api_key').trim()
   const authHeader = getHeader(event, 'authorization')
 
   if (!hasValidOrchestratorToken(configuredKey, authHeader)) {

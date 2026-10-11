@@ -1,5 +1,6 @@
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
+import { decodeSetting } from './secretSettings'
 
 interface WhatsAppProvider {
   send(to: string, message: string): Promise<void>
@@ -88,7 +89,7 @@ export function getTwilioConfig(): {
   const rows = db.prepare(
     `SELECT key, value FROM app_settings WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from')`,
   ).all() as Array<{ key: string; value: string }>
-  const dbSettings = Object.fromEntries(rows.map(r => [r.key, r.value]))
+  const dbSettings = Object.fromEntries(rows.map(r => [r.key, decodeSetting(r.key, r.value)]))
 
   const accountSid = dbSettings.twilio_account_sid || (config.twilioAccountSid as string)
   const authToken = dbSettings.twilio_auth_token || (config.twilioAuthToken as string)

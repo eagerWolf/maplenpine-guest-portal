@@ -1,5 +1,7 @@
 import { getDb, now } from '../../db/index'
 import type { DbUser } from '../../db/index'
+import { randomBytes } from 'node:crypto'
+import { getEmailConfig, sendEmail } from '../../utils/email'
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event)
@@ -36,6 +38,30 @@ export default defineEventHandler(async (event) => {
     'INSERT INTO users (email, role, notification_level, whatsapp_phone, created_at) VALUES (?, ?, ?, ?, ?)',
   ).run(email.toLowerCase().trim(), role, notification_level, phone, ts)
 
+  const normalizedEmail = email.toLowerCase().trim()
+  const activationToken = randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  db.prepare('DELETE FROM auth_tokens WHERE email = ? AND used = 0').run(normalizedEmail)
+  db.prepare('INSERT INTO auth_tokens (email, token, expires_at, used, created_at) VALUES (?, ?, ?, 0, ?)')
+    .run(normalizedEmail, activationToken, expiresAt, ts)
+  const baseUrl = String(useRuntimeConfig().public.baseUrl).replace(/\/$/, '')
+  const activationUrl = `${baseUrl}/activate?token=${activationToken}`
+
+  const mail = getEmailConfig()
+  let activationEmailSent = false
+  if (mail.configured) {
+    try {
+      await sendEmail({
+        apiKey: mail.apiKey, from: mail.from, to: normalizedEmail,
+        subject: 'Aktivacija računa — Maple & Pine Portal',
+        html: `<p>Administrator vam je ustvaril račun.</p><p><a href="${activationUrl}">Aktivirajte račun in nastavite geslo</a></p><p>Povezava velja 24 ur.</p>`,
+      })
+      activationEmailSent = true
+    } catch (error) {
+      console.error('[users:activation-email]', error)
+    }
+  }
+
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)
     VALUES (?, ?, 'add_staff', ?, ?)
@@ -46,5 +72,5 @@ export default defineEventHandler(async (event) => {
     ts,
   )
 
-  return { id: result.lastInsertRowid, email, role, notification_level, whatsapp_phone: phone, created_at: ts }
+  return { id: result.lastInsertRowid, email: normalizedEmail, role, notification_level, whatsapp_phone: phone, created_at: ts, activationUrl, activationEmailSent }
 })

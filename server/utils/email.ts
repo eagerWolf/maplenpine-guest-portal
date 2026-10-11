@@ -1,10 +1,11 @@
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
+import { decodeSetting } from './secretSettings'
 
 export function getEmailConfig(): { apiKey: string; from: string; configured: boolean } {
   const runtime = useRuntimeConfig()
   const rows = getDb().prepare("SELECT key, value FROM app_settings WHERE key IN ('sendgrid_api_key', 'email_from')").all() as Array<{ key: string; value: string }>
-  const settings = Object.fromEntries(rows.map(row => [row.key, row.value]))
+  const settings = Object.fromEntries(rows.map(row => [row.key, decodeSetting(row.key, row.value)]))
   const apiKey = settings.sendgrid_api_key || String(runtime.sendgridApiKey || '')
   const from = settings.email_from || String(runtime.adminEmailFrom || '')
   return { apiKey, from, configured: Boolean(apiKey && from) }

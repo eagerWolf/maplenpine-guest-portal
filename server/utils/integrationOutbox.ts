@@ -4,6 +4,7 @@ import { getEmailConfig, sendGuestPin } from './email'
 import { patchBentralEntranceCode } from './bentral'
 import { computeDisplayFrom, computeDisplayUntil, getSettings } from './jobs'
 import { notifyAdmins } from './notify'
+import { getSettingValue } from './secretSettings'
 
 export type OutboxType = 'guest_pin_email' | 'bentral_ekey' | 'admin_notification'
 
@@ -41,7 +42,7 @@ function buildUnits(unitId: string | null, unitName: string | null) {
 }
 
 function getBentralApiKey(): string {
-  const dbValue = (getDb().prepare("SELECT value FROM app_settings WHERE key = 'bentral_api_key'").get() as { value: string } | undefined)?.value?.trim()
+  const dbValue = getSettingValue('bentral_api_key').trim()
   return dbValue || String(useRuntimeConfig().bentralApiKey || '')
 }
 

@@ -1,6 +1,7 @@
 import { getDb } from '../../../db/index'
 import type { Job } from '../../../db/index'
 import { toOrchestratorJob, mergePendingJobs } from '../../../utils/jobs'
+import { getSettingValue } from '../../../utils/secretSettings'
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event)
@@ -44,7 +45,7 @@ export default defineEventHandler(async (event) => {
 
   const publishSetting = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('auto_publish_ekey') as { value: string } | undefined
   const autoPublishEnabled = !publishSetting || publishSetting.value !== '0'
-  const orchestratorApiKey = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value ?? ''
+  const orchestratorApiKey = getSettingValue('orchestrator_api_key')
   const orchestratorLeaseMinutes = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_lease_minutes') as { value: string } | undefined)?.value ?? '30'
   const orchestratorMaxAttempts = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_max_attempts') as { value: string } | undefined)?.value ?? '5'
   const orchestratorLastSeen = (db.prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_last_seen') as { value: string } | undefined)?.value ?? null

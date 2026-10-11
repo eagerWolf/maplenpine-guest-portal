@@ -22,15 +22,21 @@ const newRole = ref<'staff' | 'admin'>('staff')
 const newNotificationLevel = ref<'none' | 'errors' | 'all'>('none')
 const addLoading = ref(false)
 const addError = ref('')
+const activationResult = ref<{ url: string; emailed: boolean } | null>(null)
+
+async function copyActivationUrl() {
+  if (activationResult.value) await navigator.clipboard.writeText(activationResult.value.url)
+}
 
 async function addUser() {
   addLoading.value = true
   addError.value = ''
   try {
-    await $fetch('/api/admin/users', {
+    const created = await $fetch<{ activationUrl: string; activationEmailSent: boolean }>('/api/admin/users', {
       method: 'POST',
       body: { email: newEmail.value, role: newRole.value, notification_level: newNotificationLevel.value },
     })
+    activationResult.value = { url: created.activationUrl, emailed: created.activationEmailSent }
     newEmail.value = ''
     showAdd.value = false
     await refresh()
@@ -174,6 +180,11 @@ function levelClass(level: string) {
         </button>
       </div>
       <div v-if="addError" class="mt-2 text-sm text-maple-600">{{ addError }}</div>
+    </div>
+
+    <div v-if="activationResult" class="mb-6 rounded-xl border border-pine-200 bg-pine-50 p-4 text-sm text-pine-900">
+      <p class="font-semibold">Aktivacijska povezava {{ activationResult.emailed ? 'je bila poslana tudi po e-pošti.' : 'ni bila poslana po e-pošti; kopirajte jo ročno.' }}</p>
+      <div class="mt-2 flex gap-2"><input :value="activationResult.url" readonly class="min-w-0 flex-1 rounded border bg-white px-3 py-2 font-mono text-xs" /><button class="rounded bg-pine-700 px-3 text-white" @click="copyActivationUrl">Kopiraj</button></div>
     </div>
 
     <!-- Mobile user cards -->

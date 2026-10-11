@@ -5,10 +5,11 @@ import { updateJobResult } from '../../utils/jobs'
 import { notifyAdmins } from '../../utils/notify'
 import { hasValidOrchestratorToken, parseOrchestratorResults } from '../../utils/orchestrator'
 import { enqueueIntegration } from '../../utils/integrationOutbox'
+import { getSettingValue } from '../../utils/secretSettings'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const configuredKey = (getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get('orchestrator_api_key') as { value: string } | undefined)?.value?.trim()
+  const configuredKey = getSettingValue('orchestrator_api_key').trim()
   const authHeader = getHeader(event, 'authorization')
 
   if (!hasValidOrchestratorToken(configuredKey, authHeader)) {

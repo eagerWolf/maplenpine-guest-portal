@@ -37,15 +37,12 @@ watchEffect(() => {
   }
 })
 
-// Identify guest in Google Analytics
+// Anonymous portal context only. Never send guest names or access tokens to analytics.
 watchEffect(() => {
   if (data.value && typeof window !== 'undefined' && (window as any).gtag) {
     const g = window as any
-    g.gtag('set', 'user_id', token)
     g.gtag('set', 'user_properties', {
-      portal_type: 'guest_portal',
       apartment: (data.value as any)?.door ?? 'unknown',
-      guest_name: (data.value as any)?.name ?? 'unknown',
     })
   }
 })
