@@ -32,6 +32,9 @@ export default defineEventHandler(async (event) => {
   if (!reservation) {
     throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
   }
+  if (!adminPreview && reservation.status === 'cancelled') {
+    throw createError({ statusCode: 410, statusMessage: 'Rezervacija je preklicana' })
+  }
   if (!adminPreview && reservation.check_out < today()) {
     throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
   }

@@ -1,6 +1,7 @@
 import { getDb, now } from '../db/index'
 import type { Reservation, Job } from '../db/index'
 import { decodeSetting } from './secretSettings'
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 
 export interface JobPayload {
   jobId: string
@@ -49,13 +50,23 @@ export function createJob(
   return result.lastInsertRowid as number
 }
 
-/** Queue deletion only when the portal can prove the eKey entry is automation-managed. */
+/** Local eKey times use Ljubljana; keep expired access for seven full days (168h). */
+export function isManagedAccessReadyForCleanup(validUntil: string, referenceTime: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(validUntil)) return false
+  const expiry = fromZonedTime(validUntil, 'Europe/Ljubljana')
+  if (!Number.isFinite(expiry.getTime())) return false
+  if (formatInTimeZone(expiry, 'Europe/Ljubljana', 'yyyy-MM-dd HH:mm') !== validUntil) return false
+  const reference = Date.parse(referenceTime)
+  return Number.isFinite(reference) && reference - expiry.getTime() >= 7 * 24 * 60 * 60 * 1000
+}
+
+/** Only proven managed entries; cancellation jobs elsewhere remain immediate. */
 export function queueExpiredManagedCodeCleanup(referenceTime = now()): number {
   const db = getDb()
   const reservations = db.prepare(`
     SELECT r.* FROM reservations r
     WHERE r.pin IS NOT NULL AND TRIM(r.pin) <> ''
-      AND r.access_valid_until IS NOT NULL AND r.access_valid_until < ?
+      AND r.access_valid_until IS NOT NULL
       AND EXISTS (
         SELECT 1 FROM jobs inserted
         WHERE inserted.reservation_id = r.id AND inserted.action = 'insert'
@@ -66,11 +77,12 @@ export function queueExpiredManagedCodeCleanup(referenceTime = now()): number {
         WHERE cleanup.reservation_id = r.id AND cleanup.action = 'cancel'
           AND cleanup.status IN ('pending', 'in_progress', 'success')
       )
-  `).all(referenceTime) as Reservation[]
+  `).all() as Reservation[]
 
   const transaction = db.transaction(() => {
     let queued = 0
     for (const reservation of reservations) {
+      if (!isManagedAccessReadyForCleanup(reservation.access_valid_until!, referenceTime)) continue
       const id = createJob(reservation.id, 'cancel', buildJobPayload(reservation, 'cancel'), 'daily_managed_cleanup')
       if (id) queued++
     }
@@ -85,7 +97,7 @@ export function getPendingJobs(): Array<Job & { bentral_reservation_id: string }
     SELECT j.*, r.bentral_reservation_id
     FROM jobs j
     JOIN reservations r ON r.id = j.reservation_id
-    WHERE j.status = 'pending'
+    WHERE j.status = 'pending' AND (r.status = 'active' OR j.action = 'cancel')
     ORDER BY j.created_at ASC
   `).all() as Array<Job & { bentral_reservation_id: string }>
 }

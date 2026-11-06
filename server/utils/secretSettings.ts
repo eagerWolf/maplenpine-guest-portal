@@ -9,7 +9,9 @@ function encryptionKey(): Buffer | null {
   return secret && secret.length >= 32 ? createHash('sha256').update(secret).digest() : null
 }
 
-export function isSecretSetting(key: string): boolean { return SECRET_KEYS.has(key) }
+export function isSecretSetting(key: string): boolean {
+  return SECRET_KEYS.has(key) || /^tv_(maple|pine)_(token|wifi_password)$/.test(key)
+}
 
 export function encodeSetting(key: string, value: string): string {
   if (!isSecretSetting(key) || !value || value.startsWith(PREFIX)) return value

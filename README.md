@@ -4,6 +4,8 @@ Administracijski in gostinski portal za rezervacije, eKey kode, vsebine, obvesti
 
 Celoten postopek prve namestitve portala, javne strani in Windows Orchestratorja je v [INSTALLATION.md](INSTALLATION.md).
 
+Izolirana testna objava in prevzemni seznam: [STAGING.md](STAGING.md).
+
 ## Zahteve
 
 - Node.js 22.19 ali novejši LTS
@@ -30,6 +32,23 @@ npm run check
 Ukaz izvede avtomatske teste, TypeScript preverjanje in produkcijski build.
 
 ## Konfiguracija
+
+### Zaupanja vredni proxyji in prijava
+
+Privzeto se za omejevanje prijav uporablja IP neposredne povezave; posredovane IP-glave se ignorirajo. `TRUSTED_PROXY_IPS` sprejme seznam točnih IP-naslovov proxyjev (brez CIDR), `TRUSTED_PROXY_HEADER` pa natanko `x-forwarded-for` ali `cf-connecting-ip`.
+
+Za lokalni Nginx nastavite `TRUSTED_PROXY_IPS=127.0.0.1,::1` in `TRUSTED_PROXY_HEADER=x-forwarded-for`. Nginx mora prepisati glavo z `proxy_set_header X-Forwarded-For $remote_addr;`. Če je pred njim Cloudflare, najprej pravilno nastavite preverjanje njegovih zaupanja vrednih izvornih naslovov; brez tega ne uporabljajte klientove CF-glave. Pri Cloudflare Tunnel izberite CF-glavo le, če povezava res prihaja iz nadzorovanega lokalnega tunela in Cloudflare prepiše vrednost. Ne dodajajte javnih odjemalcev na seznam zaupanja.
+
+PM2 konfiguracija veže Nitro na `127.0.0.1:3001`. Ob deploymentu preverite z `lsof -nP -iTCP:3001 -sTCP:LISTEN`, da ni poslušanja na `0.0.0.0` ali `::`, ter z zunanje naprave, da vrata 3001 niso dosegljiva. Požarni zid in proxy je treba preveriti v dejanskem okolju; lokalna sprememba konfiguracije ni potrditev deploymenta.
+
+### Varno lokalno preverjanje vseh treh projektov
+
+- Portal: `npm test`, `npm run typecheck`, `npm run build`. Testi uporabljajo SQLite v pomnilniku in nadomestne zunanje integracije. Gradnja ne zažene cron opravil.
+- Javna stran: `CONTENT_EXPORT_URL= CONTENT_EXPORT_TOKEN= npm run check` v `maplenpine`; vključuje lokalni HTTP test izvoza, izpada in slikovnega predpomnilnika.
+- eKey: `npm test` v `ekey-automation/orchestrator`; brez dostopa do Windows GUI ali produkcijskega portala.
+- Ne uporabljajte `npm run dev` s produkcijskimi poverilnicami za izolirane teste: zagon portala aktivira strežniške vtičnike in cron.
+
+Portal je lastnik rezervacij, vsebin, čakalnih vrst in obvestil; javna stran vsebino samo uvozi ob gradnji; Windows worker izvaja izključno naročene eKey operacije. Ob odpovedi se gostovi tokeni odstranijo, čakajoča obvestila se ne pošljejo, pozni uspešni rezultat ustvarjanja dostopa pa povzroči nalogo za izbris, ne objave PIN-a. Fizični izbris je asinhron: do uspešne izvedbe in sinhronizacije naprave lahko koda še obstaja. V nujnem primeru je potreben nadzorovan ročni preklic.
 
 Za začetek kopiraj `.env.example` v `.env`. Najpomembnejše skupine nastavitev so:
 

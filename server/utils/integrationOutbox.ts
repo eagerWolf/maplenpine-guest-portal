@@ -70,6 +70,8 @@ async function execute(type: OutboxType, payload: OutboxPayload): Promise<void> 
   const integrationPayload = payload as GuestPinPayload | BentralPayload
   const reservation = getDb().prepare('SELECT * FROM reservations WHERE id = ?').get(integrationPayload.reservationId) as Reservation | undefined
   if (!reservation) throw new Error(`Reservation ${integrationPayload.reservationId} not found`)
+  // Recheck at delivery time: a reservation can be cancelled while a retry waits.
+  if (reservation.status !== 'active') return
   if (type === 'bentral_ekey') return patchBentral(reservation, integrationPayload.pin)
   const emailPayload = integrationPayload as GuestPinPayload
   if (!reservation.guest_email) return

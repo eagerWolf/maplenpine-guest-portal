@@ -24,6 +24,9 @@ export default defineEventHandler(async (event) => {
   if (!reservation.pin) {
     throw createError({ statusCode: 400, statusMessage: 'PIN ni dodeljen' })
   }
+  if (reservation.status === 'cancelled') {
+    throw createError({ statusCode: 400, statusMessage: 'Rezervacija je preklicana' })
+  }
 
   const settings = getSettings()
 

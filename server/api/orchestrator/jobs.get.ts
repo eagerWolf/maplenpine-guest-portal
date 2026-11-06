@@ -42,10 +42,10 @@ export default defineEventHandler(async (event) => {
   // all of them together once the orchestrator reports back on the merged call.
   for (const m of merged) {
     const siblingIds = m.allJobIds.filter(id => id !== m.orchestratorJob._internalJobId)
-    if (siblingIds.length === 0) continue
     const primaryRow = db.prepare('SELECT payload FROM jobs WHERE id = ?').get(m.orchestratorJob._internalJobId) as { payload: string | null }
     const payload = primaryRow.payload ? JSON.parse(primaryRow.payload) : {}
     payload._mergedJobIds = siblingIds
+    payload._dispatchedAction = m.orchestratorJob.action
     db.prepare('UPDATE jobs SET payload = ? WHERE id = ?').run(JSON.stringify(payload), m.orchestratorJob._internalJobId)
   }
 

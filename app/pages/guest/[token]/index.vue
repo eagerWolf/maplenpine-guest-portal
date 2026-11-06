@@ -210,12 +210,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
       <!-- Weather -->
       <div class="weather-panel">
         <p class="guest-kicker">{{ t.weather.kicker }}</p>
-        <iframe
-          src="https://vreme.arso.gov.si/widget/?&loc=Bled"
-          style="border:0; height:185px; width:100%;"
-          title="Vreme Bled — ARSO"
-          loading="lazy"
-        />
+        <ArsoWeather />
       </div>
 
       <!-- Parking -->

@@ -1,0 +1,23 @@
+import { afterEach, expect, it, vi } from 'vitest'
+const calls = vi.hoisted(() => ({ schedule: vi.fn(), config: vi.fn() }))
+vi.mock('node-cron', () => ({ default: { schedule: calls.schedule } }))
+vi.mock('#imports', () => ({ useRuntimeConfig: calls.config }))
+vi.mock('../server/utils/sync', () => ({ syncBentral: vi.fn() }))
+vi.mock('../server/utils/notify', () => ({ notifyHousekeeper: vi.fn(), notifyReception: vi.fn() }))
+vi.mock('../server/db/index', () => ({ getDb: vi.fn() }))
+vi.mock('../server/utils/jobs', () => ({ queueExpiredManagedCodeCleanup: vi.fn() }))
+vi.mock('../server/utils/integrationOutbox', () => ({ processIntegrationOutbox: vi.fn() }))
+vi.mock('../server/utils/orchestratorHealth', () => ({ checkOrchestratorHealth: vi.fn() }))
+vi.mock('../server/utils/dbBackup', () => ({ backupDatabase: vi.fn() }))
+vi.mock('../server/utils/websiteContent', () => ({ triggerWebsitePublish: vi.fn() }))
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+it('staging never schedules cron or queues startup integration work', async () => {
+  vi.stubEnv('PORTAL_DISABLE_BACKGROUND_TASKS', 'true')
+  vi.stubGlobal('defineNitroPlugin', (callback: () => void) => callback)
+  const immediate = vi.spyOn(globalThis, 'setImmediate')
+  const plugin = (await import('../server/plugins/01.cron')).default as unknown as () => void
+  plugin()
+  expect(calls.schedule).not.toHaveBeenCalled()
+  expect(calls.config).not.toHaveBeenCalled()
+  expect(immediate).not.toHaveBeenCalled()
+})

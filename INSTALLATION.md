@@ -8,6 +8,8 @@ Ta vodič opisuje postavitev vseh treh delov:
 
 Priporočen vrstni red je portal → javna stran → Orchestrator. Ukaze izvajaj v posameznem repozitoriju.
 
+Za izolirano testno objavo najprej sledi [STAGING.md](STAGING.md).
+
 ## 1. Predpogoji
 
 Pripravi:
@@ -67,7 +69,7 @@ npm run build
 Portal najprej enkrat zaženi, da ustvari shemo baze:
 
 ```bash
-node .output/server/index.mjs
+node --env-file=.env .output/server/index.mjs
 ```
 
 Ko v izpisu vidiš `[db] Schema ready`, proces ustavi s `Ctrl+C`. Nato ustvari enkratno aktivacijsko povezavo prvega administratorja:
@@ -207,7 +209,7 @@ npm test
 V `C:\ekey-automation\orchestrator\.env` nastavi:
 
 ```env
-PORTAL_BASE_URL=https://guestportal.maplenpine.com
+PORTAL_BASE_URL=https://guestportal-staging.example.com
 PORTAL_API_KEY=<isti-token-kot-v-adminu-Orchestratorja>
 
 AHK_EXE=C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe
@@ -232,6 +234,8 @@ DRY_RUN=true
 `PORTAL_API_KEY` in token v portalu morata biti popolnoma enaka. `EKEY_PASSWORD` ostane samo na Windows VM in se ne vnaša v portal.
 
 ### 4.3 Prvi test
+
+Ta korak izvedi samo proti **ločenemu testnemu portalu**, z njegovo prazno bazo, testnim tokenom in testnimi rezervacijami. Ne uporabi produkcijskega URL-ja ali pending datotek. `DRY_RUN=true` še vedno prevzema naloge in portalu vrača simulirane PIN-e.
 
 Najprej pusti `DRY_RUN=true`:
 

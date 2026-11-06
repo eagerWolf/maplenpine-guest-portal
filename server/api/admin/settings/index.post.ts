@@ -2,6 +2,9 @@ import { getDb, now } from '../../../db/index'
 import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
 
 const ALLOWED_KEYS = [
+  'tv_maple_token', 'tv_pine_token',
+  'tv_maple_wifi_ssid', 'tv_maple_wifi_password',
+  'tv_pine_wifi_ssid', 'tv_pine_wifi_password',
   'bentral_checkin_time',
   'bentral_checkout_time',
   'checkin_offset_minutes',
@@ -59,6 +62,19 @@ export default defineEventHandler(async (event) => {
 
   const currentRows = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
   const effective = { ...Object.fromEntries(currentRows.map(row => [row.key, decodeSetting(row.key, row.value)])), ...body }
+  for (const apartment of ['maple', 'pine']) {
+    const token = effective[`tv_${apartment}_token`] || ''
+    if (token && !/^[A-Za-z0-9_-]{32,256}$/.test(token)) {
+      throw createError({ statusCode: 400, statusMessage: 'TV ključ mora imeti 32–256 znakov (črke, številke, _ ali -).' })
+    }
+    if ((effective[`tv_${apartment}_wifi_ssid`] || '').length > 128 ||
+      (effective[`tv_${apartment}_wifi_password`] || '').length > 256) {
+      throw createError({ statusCode: 400, statusMessage: 'Wi-Fi podatki so predolgi.' })
+    }
+  }
+  if (effective.tv_maple_token && effective.tv_maple_token === effective.tv_pine_token) {
+    throw createError({ statusCode: 400, statusMessage: 'Maple in Pine morata imeti različna TV ključa.' })
+  }
   const leaseMinutes = Number.parseInt(effective.orchestrator_lease_minutes || '30', 10)
   if (!Number.isInteger(leaseMinutes) || leaseMinutes < 15 || leaseMinutes > 1440) {
     throw createError({ statusCode: 400, statusMessage: 'Čas za obnovitev Orchestrator opravila mora biti med 15 in 1440 minutami.' })
@@ -115,7 +131,7 @@ export default defineEventHandler(async (event) => {
   `).run(
     session.user.id,
     session.user.email,
-    JSON.stringify({ updated, values: Object.fromEntries(updated.map(k => [k, /(key|token|secret)/i.test(k) ? '[REDACTED]' : body[k]])) }),
+    JSON.stringify({ updated, values: Object.fromEntries(updated.map(k => [k, /(key|token|secret|password)/i.test(k) ? '[REDACTED]' : body[k]])) }),
     ts,
   )
 

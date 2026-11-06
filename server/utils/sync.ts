@@ -236,6 +236,7 @@ async function processReservation(
   if (statusChanged && isCancelled && existing.status !== 'cancelled') {
     db.prepare(`UPDATE reservations SET status = 'cancelled', updated_at = ? WHERE id = ?`)
       .run(now(), existing.id)
+    db.prepare('DELETE FROM guest_tokens WHERE reservation_id = ?').run(existing.id)
     const payload = buildJobPayload(existing, 'cancel')
     createJob(existing.id, 'cancel', payload, 'bentral_sync')
     return 'cancel'

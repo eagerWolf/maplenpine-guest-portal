@@ -54,6 +54,11 @@ async function runReceptionReminders(): Promise<void> {
 }
 
 export default defineNitroPlugin(() => {
+  if (process.env.PORTAL_DISABLE_BACKGROUND_TASKS === 'true') {
+    console.log('[cron] Background tasks disabled (isolated staging)')
+    return
+  }
+
   const config = useRuntimeConfig()
 
   const hotExpr = config.bentralHotCron || '*/30 * * * *'

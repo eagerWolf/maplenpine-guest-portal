@@ -76,6 +76,7 @@ async function publishWebsite() {
 
 <template>
   <div class="max-w-lg space-y-6">
+    <NuxtLink to="/admin/settings/tv" class="block bg-white rounded-xl border border-stone-200 p-6 text-pine-700">TV portal · Wi-Fi in dostop naprav →</NuxtLink>
 
     <div class="bg-white rounded-xl border border-stone-200 p-6">
       <h2 class="font-medium text-stone-700 mb-4">Kontakt in navigacija</h2>

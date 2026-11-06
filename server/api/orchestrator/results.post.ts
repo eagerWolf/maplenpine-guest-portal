@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { getDb, now, guestTokenExpiry } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
-import { updateJobResult } from '../../utils/jobs'
+import { updateJobResult, createJob, buildJobPayload } from '../../utils/jobs'
 import { notifyAdmins } from '../../utils/notify'
 import { hasValidOrchestratorToken, parseOrchestratorResults } from '../../utils/orchestrator'
 import { enqueueIntegration } from '../../utils/integrationOutbox'
@@ -53,7 +53,9 @@ export default defineEventHandler(async (event) => {
       continue
     }
 
-    if (result.status === 'success' && job.action === 'insert' && !/^\d{4}$/.test(result.pin ?? '')) {
+    const jobPayload = job.payload ? JSON.parse(job.payload) : {}
+    const action = jobPayload._dispatchedAction ?? job.action
+    if (result.status === 'success' && action === 'insert' && !/^\d{4}$/.test(result.pin ?? '')) {
       throw createError({ statusCode: 400, statusMessage: 'Successful insert requires a four-digit PIN' })
     }
 
@@ -64,14 +66,21 @@ export default defineEventHandler(async (event) => {
       continue
     }
 
-    const jobPayload = job.payload ? JSON.parse(job.payload) : {}
     const mergedJobIds: number[] = jobPayload._mergedJobIds ?? []
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(job.reservation_id) as Reservation | undefined
     db.transaction(() => {
       updateJobResult(job.id, result.status, { ...result }, result.reason)
       for (const siblingId of mergedJobIds) updateJobResult(siblingId, result.status, { ...result }, result.reason)
       if (!reservation || result.status !== 'success') return
-      if (job.action === 'insert' && result.pin) {
+      if (reservation.status === 'cancelled' && action !== 'cancel') {
+        // Hardware may already have created access. Never publish it; ensure deletion.
+        const cleanup = db.prepare("SELECT id FROM jobs WHERE reservation_id = ? AND action = 'cancel' AND status = 'pending'").get(reservation.id)
+        if (!cleanup) createJob(reservation.id, 'cancel', buildJobPayload(reservation, 'cancel'), 'cancelled_late_result')
+        db.prepare('DELETE FROM guest_tokens WHERE reservation_id = ?').run(reservation.id)
+        db.prepare('UPDATE reservations SET pin = NULL WHERE id = ?').run(reservation.id)
+        return
+      }
+      if (action === 'insert' && result.pin) {
         db.prepare('UPDATE reservations SET pin = ?, updated_at = ? WHERE id = ?').run(result.pin, now(), reservation.id)
         const token = randomUUID()
         db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
@@ -79,19 +88,20 @@ export default defineEventHandler(async (event) => {
         const portalLink = `${config.public.baseUrl}/guest/${token}`
         enqueueIntegration(`ekey-job:${job.id}:guest-pin`, 'guest_pin_email', { reservationId: reservation.id, pin: result.pin, portalLink })
         enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: result.pin })
-      } else if (job.action === 'update' && reservation.pin) {
+      } else if (action === 'update' && reservation.pin) {
         enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: reservation.pin })
-      } else if (job.action === 'cancel') {
+      } else if (action === 'cancel') {
         db.prepare('UPDATE reservations SET pin = NULL, updated_at = ? WHERE id = ?').run(now(), reservation.id)
+        db.prepare('DELETE FROM guest_tokens WHERE reservation_id = ?').run(reservation.id)
       }
     })()
     processed++
-    if (!reservation) continue
+    if (!reservation || reservation.status === 'cancelled') continue
 
     const guestName = `${reservation.first_name} ${reservation.last_name}`
 
     if (result.status === 'success') {
-      if (job.action === 'insert' && result.pin) {
+      if (action === 'insert' && result.pin) {
         const doorDisplay = reservation.door === 'Maple,Pine' ? 'Maple & Pine' : reservation.door
         await notifyAdmins({
           event: 'pin_added',
@@ -111,7 +121,7 @@ export default defineEventHandler(async (event) => {
           whatsappText: `✓ PIN dodan — ${guestName} (${doorDisplay})\nPIN: ${result.pin}\nOd: ${reservation.access_valid_from ?? reservation.check_in}\nDo: ${reservation.access_valid_until ?? reservation.check_out}`,
         }).catch(() => {})
 
-      } else if (job.action === 'update') {
+      } else if (action === 'update') {
         const triggeredBy = job.triggered_by === 'bentral_sync' ? 'Bentral sync' : (job.triggered_by ?? 'unknown')
         await notifyAdmins({
           event: 'pin_updated',
