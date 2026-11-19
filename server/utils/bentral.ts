@@ -177,12 +177,29 @@ export async function patchBentralEntranceCode(
   }
 }
 
+// Bentral support, email dated 18 March 2026 (Dostop API):
+// POST /v1/messages, JSON type=email, reservationId, message. Omit recipient:
+// Bentral chooses the reservation's channel (Booking/Airbnb/direct email).
+// This endpoint is provided by support but is not officially supported.
+export class BentralMessageDeliveryUnknown extends Error {
+  constructor() {
+    super('Bentral message delivery could not be confirmed. Check the reservation conversation before retrying manually.')
+    this.name = 'BentralMessageDeliveryUnknown'
+  }
+}
+
 export async function sendBentralGuestMessage(apiKey: string, reservationId: string, message: string): Promise<void> {
-  const res = await fetch('https://api.bentral.com/v1/messages', {
-    method: 'POST',
-    headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'email', reservationId, message }),
-    signal: AbortSignal.timeout(15_000),
-  })
-  if (!res.ok) throw new Error(`Bentral message API ${res.status}: ${await res.text()}`)
+  if (!apiKey || !reservationId || !message.trim()) throw new Error('Bentral message requires an API key, reservation ID and message')
+  let response: Response
+  try {
+    response = await fetch('https://api.bentral.com/v1/messages', {
+      method: 'POST',
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'email', reservationId, message }),
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch { throw new BentralMessageDeliveryUnknown() }
+  // POST has no documented idempotency key. A timeout/5xx can mean acceptance.
+  if (response.status >= 500) throw new BentralMessageDeliveryUnknown()
+  if (!response.ok) throw new Error(`Bentral message API rejected the request (${response.status})`)
 }

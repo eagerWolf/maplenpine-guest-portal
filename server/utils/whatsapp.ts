@@ -1,3 +1,4 @@
+import { messagingEnabled } from './servicePolicy'
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
 import { decodeSetting } from './secretSettings'
@@ -13,7 +14,7 @@ function normalizePhone(phone: string): string {
 
 class StubProvider implements WhatsAppProvider {
   async send(to: string, message: string): Promise<void> {
-    console.log(`[whatsapp:stub] TO=${to}\nMSG=${message}`)
+    throw new Error('WhatsApp delivery is disabled or not configured')
   }
 }
 
@@ -62,6 +63,7 @@ class WebhookProvider implements WhatsAppProvider {
 }
 
 export function getWhatsAppProvider(): WhatsAppProvider {
+  if (!messagingEnabled()) return new StubProvider()
   const twilio = getTwilioConfig()
 
   if (twilio.configured) {
@@ -83,6 +85,7 @@ export function getTwilioConfig(): {
   whatsappFrom: string
   configured: boolean
 } {
+  if (!messagingEnabled()) return { accountSid: '', authToken: '', whatsappFrom: '', configured: false }
   const config = useRuntimeConfig()
 
   const db = getDb()

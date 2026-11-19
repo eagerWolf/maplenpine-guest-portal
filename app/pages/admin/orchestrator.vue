@@ -35,6 +35,7 @@ const { data, refresh, pending } = await useFetch<{
   jobsUrl: string
   resultsUrl: string
   batchPayload: { jobs: Record<string, unknown>[] }
+  messagingEnabled: boolean
   outbox: OutboxItem[]
 }>('/api/admin/orchestrator/jobs')
 
@@ -91,7 +92,7 @@ async function retryOutbox(id: number) {
 }
 
 function outboxType(type: string) {
-  return ({ guest_pin_email: 'Email gostu', bentral_ekey: 'Bentral eKey', admin_notification: 'Opozorilo administratorjem' } as Record<string, string>)[type] ?? type
+  return ({ guest_pin_email: 'Stara e-pošta (izključeno)', bentral_guest_message: 'Sporočilo gostu prek Bentrala', bentral_ekey: 'Bentral eKey', admin_notification: 'Opozorilo administratorjem' } as Record<string, string>)[type] ?? type
 }
 
 function fmtTs(ts: string) {
@@ -109,6 +110,7 @@ function heartbeatState(lastSeen: string | null | undefined) {
 
 <template>
   <div class="space-y-6">
+    <p class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">PIN in sporočilo s povezavo do gostovega portala se pošljeta prek Bentrala. SendGrid je izključen. Pred ročno ponovitvijo sporočila z nejasnim izidom preverite pogovor v Bentralu.</p>
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold text-stone-800">Orchestrator</h1>
       <button
@@ -218,7 +220,8 @@ function heartbeatState(lastSeen: string | null | undefined) {
     <div class="bg-white rounded-xl border border-stone-200 overflow-hidden">
       <div class="px-5 py-4 border-b border-stone-100">
         <h2 class="font-medium text-stone-700">Integracije ({{ data?.outbox.length ?? 0 }})</h2>
-        <p class="mt-1 text-xs text-stone-400">Čakajoči in neuspešni zapisi za Bentral, email ter sistemska opozorila; prikazani so tudi uspešni iz zadnjih 24 ur.</p>
+        <p v-if="!data?.messagingEnabled" class="mt-2 text-sm text-amber-700">WhatsApp obvestila osebju so izključena. Bentral zapisi se še naprej obdelujejo.</p>
+        <p class="mt-1 text-xs text-stone-400">Zapisi integracij; prikazani so tudi uspešni iz zadnjih 24 ur.</p>
       </div>
       <div v-if="!data?.outbox.length" class="px-5 py-6 text-center text-stone-400 text-sm">Ni čakajočih integracij.</div>
       <div v-else class="divide-y divide-stone-100">

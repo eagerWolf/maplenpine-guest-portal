@@ -23,7 +23,7 @@ watch(settings, (s) => {
   form.contact_phone = s.contact_phone ?? ''
   form.property_nav_url = s.property_nav_url ?? ''
   form.housekeeper_whatsapp = s.housekeeper_whatsapp ?? ''
-  form.reception_whatsapp = s.reception_whatsapp ?? ''
+  form.reception_whatsapp = s.reception_whatsapp || ''
   form.instagram_url = s.instagram_url ?? ''
   form.facebook_url = s.facebook_url ?? ''
   form.website_export_token = s.website_export_token ?? ''
@@ -81,11 +81,7 @@ async function publishWebsite() {
     <div class="bg-white rounded-xl border border-stone-200 p-6">
       <h2 class="font-medium text-stone-700 mb-4">Kontakt in navigacija</h2>
       <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Telefonska številka (za klice gostov)</label>
-          <input v-model="form.contact_phone" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Prikazana kot gumb »Pokliči« na gostovi strani</p>
-        </div>
+
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Navigacijski URL (Google Maps / Waze)</label>
           <input v-model="form.property_nav_url" type="url" placeholder="https://maps.google.com/?q=..." class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
@@ -97,9 +93,9 @@ async function publishWebsite() {
           <p class="text-xs text-stone-400 mt-1">Obvestilo 24h pred odjavo (čiščenje) — format +386... · prazno = izklopljeno</p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp sprejem</label>
+          <label class="block text-sm font-medium text-stone-600 mb-1">Sprejem — telefon in WhatsApp</label>
           <input v-model="form.reception_whatsapp" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Obvestilo 24h pred prihodom gosta (sprejem) — format +386... · prazno = izklopljeno</p>
+          <p class="text-xs text-stone-400 mt-1">Ista številka za klice in WhatsApp gostov ter obvestila sprejemu pred prihodom. Format +386... · prazno = izklopljeno</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Instagram URL</label>
@@ -108,6 +104,11 @@ async function publishWebsite() {
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Facebook URL</label>
           <input v-model="form.facebook_url" type="url" placeholder="https://www.facebook.com/mapleandpinebled" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-600 mb-1">Telefonska številka (za klice gostov)</label>
+          <input v-model="form.contact_phone" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+          <p class="text-xs text-stone-400 mt-1">Dodatni kontakt za goste, prikazan zadnji. Za vprašanja gost najprej pokliče sprejem.</p>
         </div>
       </div>
     </div>

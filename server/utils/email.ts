@@ -1,8 +1,10 @@
+import { emailEnabled } from './servicePolicy'
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
 import { decodeSetting } from './secretSettings'
 
 export function getEmailConfig(): { apiKey: string; from: string; configured: boolean } {
+  if (!emailEnabled()) return { apiKey: '', from: '', configured: false }
   const runtime = useRuntimeConfig()
   const rows = getDb().prepare("SELECT key, value FROM app_settings WHERE key IN ('sendgrid_api_key', 'email_from')").all() as Array<{ key: string; value: string }>
   const settings = Object.fromEntries(rows.map(row => [row.key, decodeSetting(row.key, row.value)]))
@@ -12,6 +14,7 @@ export function getEmailConfig(): { apiKey: string; from: string; configured: bo
 }
 
 export async function sendEmail(opts: { apiKey: string; from: string; to: string; subject: string; html: string }): Promise<void> {
+  if (!emailEnabled()) throw new Error('Portal messaging is disabled')
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {

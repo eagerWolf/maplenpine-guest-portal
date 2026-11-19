@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('#imports', () => ({ useRuntimeConfig: () => ({}) }))
 import { sendGuestPin } from '../server/utils/email'
 
-describe('večjezični PIN email', () => {
+describe('večjezični PIN email (samo izrecno omogočena stara integracija)', () => {
+  beforeEach(() => vi.stubEnv('PORTAL_EMAIL_ENABLED', 'true'))
+  afterEach(() => vi.unstubAllEnvs())
   it('uporabi jezik rezervacije', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)

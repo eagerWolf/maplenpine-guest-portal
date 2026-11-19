@@ -20,7 +20,7 @@ Pripravi:
 - Cloudflare Pages projekt za `maplenpine.com`;
 - Windows VM na QNAP-u z ekey net admin, AutoHotkey v2 in Node.js;
 - Bentral API ključ ter ID-je objekta in enot Maple/Pine;
-- po potrebi SendGrid, Twilio in SumUp podatke.
+- Twilio WhatsApp podatke za obvestila osebju; SendGrid in SumUp za trenutno obliko portala nista potrebna.
 
 Za skrivnosti lahko na Linuxu ustvariš naključne vrednosti:
 
@@ -117,8 +117,8 @@ Po prijavi nastavi v tem vrstnem redu:
 
 1. **Nastavitve → Splošno/Bentral** – API ključ, objekt, enote in časi dostopa;
 2. ročno sproži sinhronizacijo in preveri rezervacije v koledarju;
-3. **Nastavitve → Obvestila** – SendGrid in po potrebi Twilio WhatsApp;
-4. **Nastavitve → Plačila/storitve** – SumUp, zajtrk in ponudniki e-koles;
+3. **Nastavitve → WhatsApp** – Twilio ter prejemniki obvestil za osebje/administratorje; SendGrid je izključen;
+4. **Nastavitve → Zajtrk / Najem koles** – preveri zunanja priporočila, opise in povezave; naročanje in plačila ne potekajo v portalu;
 5. **Nastavitve → Platforma → Orchestrator** – generiraj oziroma vnesi Bearer token;
 6. **Nastavitve → Spletna stran maplenpine.com** – generiraj token izvoza;
 7. dodaj lokacije, restavracije, predloge, novice in drugo uredniško vsebino.
@@ -278,7 +278,7 @@ Uporabi testno rezervacijo in preveri naslednji tok:
 4. rezultat s štirimestnim PIN-om se vrne portalu;
 5. portal zapiše kodo v Bentral in pošlje obvestilo gostu;
 6. gostova povezava odpre pravilen apartma in vsebine;
-7. testno SumUp plačilo pravilno spremeni stanje samo enkrat;
+7. priporočili odpreta zunanji strani Bled Breakfast in A&B Bike; portal ne zahteva plačila;
 8. objava vsebine sproži Cloudflare Pages in osveži javno stran.
 
 ## 6. Varnostne kopije in posodobitve

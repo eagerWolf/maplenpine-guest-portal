@@ -1,7 +1,7 @@
 import { getDb } from '../../db/index'
-import { getTwilioConfig } from '../../utils/whatsapp'
+import { recommendationDefaults, recommendationKeys } from '../../../shared/serviceRecommendations'
 
-const PUBLIC_KEYS = ['instagram_url', 'facebook_url', 'contact_phone', 'property_nav_url', 'breakfast_enabled', 'ebike_enabled']
+const PUBLIC_KEYS = ['instagram_url', 'facebook_url', 'contact_phone', 'property_nav_url', 'breakfast_enabled', 'ebike_enabled', ...recommendationKeys]
 
 export default defineEventHandler(() => {
   const db = getDb()
@@ -10,8 +10,10 @@ export default defineEventHandler(() => {
   ).all(...PUBLIC_KEYS) as Array<{ key: string; value: string }>
 
   const result: Record<string, string> = {}
-  for (const key of PUBLIC_KEYS) result[key] = ''
+  for (const key of PUBLIC_KEYS) result[key] = recommendationDefaults[key] || ''
   for (const row of rows) result[row.key] = row.value
-  if (!getTwilioConfig().configured) result.breakfast_enabled = '0'
+  // Legacy order switches no longer control the recommendation pages.
+  result.breakfast_enabled = '0'
+  result.ebike_enabled = '0'
   return result
 })

@@ -1,7 +1,9 @@
+import { recommendationKeys } from '../../../../shared/serviceRecommendations'
 import { getDb, now } from '../../../db/index'
 import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
 
 const ALLOWED_KEYS = [
+  ...recommendationKeys,
   'tv_maple_token', 'tv_pine_token',
   'tv_maple_wifi_ssid', 'tv_maple_wifi_password',
   'tv_pine_wifi_ssid', 'tv_pine_wifi_password',
@@ -83,22 +85,18 @@ export default defineEventHandler(async (event) => {
   if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
     throw createError({ statusCode: 400, statusMessage: 'Največje število poskusov mora biti med 1 in 20.' })
   }
-  if (effective.breakfast_enabled === '1') {
-    if (!effective.twilio_account_sid?.trim() || !effective.twilio_auth_token?.trim() || !effective.twilio_whatsapp_from?.trim()) {
-      throw createError({ statusCode: 400, statusMessage: 'Pred omogočanjem zajtrka nastavite vse podatke Twilio WhatsApp.' })
-    }
-    const breakfastProviders = (db.prepare("SELECT COUNT(*) count FROM partners WHERE category = 'breakfast' AND active = 1 AND breakfast_enabled = 1 AND whatsapp IS NOT NULL AND whatsapp != '' AND contact_email IS NOT NULL AND contact_email != ''").get() as { count: number }).count
-    if (!breakfastProviders) throw createError({ statusCode: 400, statusMessage: 'Omogočite vsaj enega ponudnika zajtrka z WhatsApp številko in e-pošto.' })
+  if (body.breakfast_enabled === '1' || body.ebike_enabled === '1') {
+    throw createError({ statusCode: 400, statusMessage: 'Zajtrk in najem koles sta samo zunanji priporočili. Naročanje v portalu je umaknjeno.' })
   }
-  if (effective.ebike_enabled === '1') {
-    if (!effective.twilio_account_sid?.trim() || !effective.twilio_auth_token?.trim() || !effective.twilio_whatsapp_from?.trim()) {
-      throw createError({ statusCode: 400, statusMessage: 'Pred omogočanjem e-koles nastavite vse podatke Twilio WhatsApp.' })
+  for (const key of recommendationKeys) {
+    if (body[key] === undefined) continue
+    if (typeof body[key] !== 'string' || body[key].length > 4000) throw createError({ statusCode: 400, statusMessage: 'Besedilo priporočila je predolgo.' })
+    if (key.endsWith('_url')) {
+      try {
+        const url = new URL(body[key])
+        if (url.protocol !== 'https:' || url.username || url.password) throw new Error()
+      } catch { throw createError({ statusCode: 400, statusMessage: 'Povezava priporočila mora biti veljaven HTTPS naslov.' }) }
     }
-    if (!effective.sendgrid_api_key?.trim() || !effective.email_from?.trim()) {
-      throw createError({ statusCode: 400, statusMessage: 'Pred omogočanjem e-koles nastavite SendGrid in naslov pošiljatelja.' })
-    }
-    const ebikeProviders = (db.prepare("SELECT COUNT(*) count FROM partners WHERE category = 'ebike' AND active = 1 AND rental_enabled = 1 AND whatsapp IS NOT NULL AND whatsapp != '' AND contact_email IS NOT NULL AND contact_email != ''").get() as { count: number }).count
-    if (!ebikeProviders) throw createError({ statusCode: 400, statusMessage: 'Omogočite vsaj enega ponudnika e-koles z WhatsApp številko in e-pošto.' })
   }
   if (effective.website_nightly_publish === '1') {
     if (!effective.website_export_token?.trim() || effective.website_export_token.trim().length < 32) {

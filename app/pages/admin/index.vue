@@ -387,7 +387,8 @@ function actionLabel(action: string) {
     cancel: 'Preklic',
     extend_access: 'Podaljšan dostop',
     create_pin: 'Kreiran PIN',
-    send_pin_bentral: 'Poslano sporočilo',
+    send_pin_bentral: 'PIN zapisan v Bentral',
+    queue_pin_bentral: 'PIN in povezava pripravljena za Bentral',
   } as Record<string, string>)[action] ?? action
 }
 
@@ -745,12 +746,12 @@ function statusClass(status: string) {
               :disabled="sendPinLoading"
               @click="sendPin"
             >
-              {{ sendPinLoading ? '…' : 'Pošlji PIN' }}
+              {{ sendPinLoading ? '…' : 'Pripravi za Bentral' }}
             </button>
             <p v-if="pinError" class="drawer__pin-action-msg drawer__pin-action-msg--error">{{ pinError }}</p>
             <p v-if="pinQueued" class="drawer__pin-action-msg drawer__pin-action-msg--ok">✓ V pripravi…</p>
             <p v-if="sendPinError" class="drawer__pin-action-msg drawer__pin-action-msg--error">{{ sendPinError }}</p>
-            <p v-if="sendPinDone" class="drawer__pin-action-msg drawer__pin-action-msg--ok">✓ Sporočilo poslano</p>
+            <p v-if="sendPinDone" class="drawer__pin-action-msg drawer__pin-action-msg--ok">✓ PIN in sporočilo s povezavo sta dodana v vrsto za Bentral</p>
           </div>
 
           <!-- Adjust access times -->

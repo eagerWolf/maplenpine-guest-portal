@@ -1,86 +1,28 @@
-import { getDb, now } from '../../../../db/index'
+import { randomUUID } from 'node:crypto'
+import { getDb, now, guestTokenExpiry } from '../../../../db/index'
 import type { Reservation } from '../../../../db/index'
-import { patchBentralEntranceCode } from '../../../../utils/bentral'
-import { getSettings, computeDisplayFrom, computeDisplayUntil } from '../../../../utils/jobs'
+import { enqueueIntegration } from '../../../../utils/integrationOutbox'
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const session = await requireUserSession(event)
-  if (!['admin', 'staff'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Ni dovoljenja' })
-  }
-
-  const config = useRuntimeConfig()
-  if (!config.bentralApiKey) {
-    throw createError({ statusCode: 503, statusMessage: 'Bentral API ključ ni nastavljen' })
-  }
-
-  const id = getRouterParam(event, 'id')
+  if (!['admin', 'staff'].includes(session.user.role)) throw createError({ statusCode: 403, statusMessage: 'Ni dovoljenja' })
   const db = getDb()
-
-  const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(id) as Reservation | undefined
-  if (!reservation) {
-    throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
-  }
-  if (!reservation.pin) {
-    throw createError({ statusCode: 400, statusMessage: 'PIN ni dodeljen' })
-  }
-  if (reservation.status === 'cancelled') {
-    throw createError({ statusCode: 400, statusMessage: 'Rezervacija je preklicana' })
-  }
-
-  const settings = getSettings()
-
-  const parseTime = (dt: string | null, fallbackDate: string, fallbackTime: string) => {
-    if (dt) { const [d = '', t = ''] = dt.split(' '); if (d && t) return { date: d, time: t } }
-    return { date: fallbackDate, time: fallbackTime }
-  }
-  const checkin = parseTime(computeDisplayFrom(reservation, settings), reservation.check_in, '15:00')
-  const checkout = parseTime(computeDisplayUntil(reservation, settings), reservation.check_out, '11:00')
-
-  const buildUnits = (unitId: string | null, unitName: string | null) => {
-    if (!unitId || !unitName) return []
-    return unitId.split(',').map((id, i) => ({ id, name: unitName.split(',')[i] ?? '' })).filter(u => u.id && u.name)
-  }
-
-  const primaryUnits = buildUnits(reservation.bentral_unit_id, reservation.bentral_unit_name)
-  if (primaryUnits.length > 0) {
-    await patchBentralEntranceCode(
-      config.bentralApiKey,
-      reservation.bentral_reservation_id,
-      primaryUnits,
-      reservation.pin,
-      checkin.date, checkin.time,
-      checkout.date, checkout.time,
-    )
-  }
-
-  if (reservation.bentral_paired_reservation_id) {
-    const pairedUnits = buildUnits(reservation.bentral_paired_unit_id, reservation.bentral_paired_unit_name)
-    if (pairedUnits.length > 0) {
-      await patchBentralEntranceCode(
-        config.bentralApiKey,
-        reservation.bentral_paired_reservation_id,
-        pairedUnits,
-        reservation.pin,
-        checkin.date, checkin.time,
-        checkout.date, checkout.time,
-      )
+  const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(getRouterParam(event, 'id')) as Reservation | undefined
+  if (!reservation) throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
+  if (!/^\d{4}$/.test(reservation.pin || '')) throw createError({ statusCode: 400, statusMessage: 'PIN ni dodeljen' })
+  if (reservation.status !== 'active') throw createError({ statusCode: 400, statusMessage: 'Rezervacija ni aktivna' })
+  if (new Date(guestTokenExpiry(reservation.check_out)).getTime() <= Date.now()) throw createError({ statusCode: 410, statusMessage: 'Dostop je potekel' })
+  const requestId = randomUUID()
+  db.transaction(() => {
+    let access = db.prepare('SELECT token FROM guest_tokens WHERE reservation_id = ? AND expires_at > ? ORDER BY id DESC LIMIT 1').get(reservation.id, now()) as { token: string } | undefined
+    if (!access) {
+      access = { token: randomUUID() }
+      db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)').run(reservation.id, access.token, guestTokenExpiry(reservation.check_out), now())
     }
-  }
-
-  db.prepare(`
-    INSERT INTO audit_log (user_id, user_email, action, detail, created_at)
-    VALUES (?, ?, 'send_pin_bentral', ?, ?)
-  `).run(
-    session.user.id,
-    session.user.email,
-    JSON.stringify({
-      reservation_id: reservation.id,
-      name: `${reservation.first_name} ${reservation.last_name}`,
-      bentral_id: reservation.bentral_reservation_id,
-    }),
-    now(),
-  )
-
-  return { ok: true }
+    const portalLink = `${String(useRuntimeConfig().public.baseUrl).replace(/\/$/, '')}/guest/${access.token}`
+    enqueueIntegration(`manual:${requestId}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: reservation.pin! })
+    enqueueIntegration(`manual:${requestId}:guest-pin`, 'bentral_guest_message', { reservationId: reservation.id, pin: reservation.pin!, portalLink })
+    db.prepare("INSERT INTO audit_log (user_id, user_email, action, detail, created_at) VALUES (?, ?, 'queue_pin_bentral', ?, ?)").run(session.user.id, session.user.email, JSON.stringify({ reservation_id: reservation.id }), now())
+  })()
+  return { ok: true, queued: true, message: 'PIN in sporočilo s povezavo sta dodana v vrsto za Bentral.' }
 })

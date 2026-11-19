@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 let db: Database.Database
 let body: unknown
@@ -11,7 +11,7 @@ vi.mock('../server/db/index', () => ({
 }))
 vi.mock('#imports', () => ({ useRuntimeConfig: () => ({ bentralUnitIdMaple: 'maple', bentralUnitIdPine: 'pine' }) }))
 vi.mock('../server/utils/email', () => ({ getEmailConfig: vi.fn(() => ({ configured: false })), sendGuestPin: vi.fn() }))
-vi.mock('../server/utils/bentral', async importOriginal => ({ ...await importOriginal<typeof import('../server/utils/bentral')>(), patchBentralEntranceCode: vi.fn() }))
+vi.mock('../server/utils/bentral', async importOriginal => ({ ...await importOriginal<typeof import('../server/utils/bentral')>(), patchBentralEntranceCode: vi.fn(), sendBentralGuestMessage: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('../server/utils/notify', () => ({ notifyAdmins: vi.fn().mockResolvedValue(undefined) }))
 
 vi.stubGlobal('getHeader', (event: { authorization?: string }, name: string) => name === 'authorization' ? event.authorization : undefined)
@@ -28,6 +28,7 @@ const { processIntegrationOutbox } = await import('../server/utils/integrationOu
 const { checkOrchestratorHealth } = await import('../server/utils/orchestratorHealth')
 const retryOutboxHandler = (await import('../server/api/admin/orchestrator/outbox/[id]/retry.post')).default as (event: { id: string }) => Promise<{ success: boolean }>
 const { processBentralWebhookReservation } = await import('../server/utils/sync')
+const { sendBentralGuestMessage } = await import('../server/utils/bentral')
 const { getEmailConfig, sendGuestPin } = await import('../server/utils/email')
 
 function seedDb() {
@@ -53,6 +54,7 @@ function seedDb() {
       attempt_count INTEGER DEFAULT 0, next_attempt_at TEXT, last_error TEXT, created_at TEXT, updated_at TEXT, completed_at TEXT
     );
     INSERT INTO app_settings VALUES ('orchestrator_api_key', 'secret', '2026-08-01T00:00:00.000Z');
+    INSERT INTO app_settings VALUES ('bentral_api_key', 'test-bentral-key', '2026-08-01');
     INSERT INTO app_settings VALUES ('auto_publish_ekey', '1', '2026-08-01T00:00:00.000Z');
     INSERT INTO app_settings VALUES ('orchestrator_lease_minutes', '30', '2026-08-01T00:00:00.000Z');
     INSERT INTO app_settings VALUES ('orchestrator_max_attempts', '5', '2026-08-01T00:00:00.000Z');
@@ -70,12 +72,13 @@ function seedDb() {
 }
 
 describe('Orchestrator HTTP endpointa', () => {
-  beforeEach(() => { db?.close(); seedDb(); vi.mocked(getEmailConfig).mockReturnValue({ configured: false } as any) })
+  afterEach(() => vi.unstubAllEnvs())
+  beforeEach(() => { vi.stubEnv('BENTRAL_GUEST_MESSAGES_ENABLED', 'true'); vi.stubEnv('PORTAL_WHATSAPP_ENABLED', 'true'); db?.close(); seedDb(); vi.mocked(getEmailConfig).mockReturnValue({ configured: false } as any) })
 
   const auth = { authorization: 'Bearer secret' }
   const reservation = { id: 'R-new', arrival: '2026-08-02', departure: '2026-08-05', status: 'confirmed', updated: '2026-08-01 10:00:00', units: [{ id: 'maple', name: 'Maple' }], guest: { name: 'Test Guest', email: 'guest@example.test' } }
 
-  it('full reservation lifecycle: create, PIN, email, duplicate, update and cancel', async () => {
+  it('full reservation lifecycle: create, PIN and portal link via Bentral, duplicate, update and cancel', async () => {
     db.exec('DELETE FROM jobs; DELETE FROM reservations;')
     expect(await processBentralWebhookReservation(reservation)).toBe('insert')
     expect(await processBentralWebhookReservation(reservation)).toBe('skip')
@@ -86,8 +89,10 @@ describe('Orchestrator HTTP endpointa', () => {
     await resultsHandler(auth)
     vi.mocked(getEmailConfig).mockReturnValue({ configured: true, apiKey: 'test', from: 'test@example.test' } as any)
     await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
-    expect(sendGuestPin).toHaveBeenCalledTimes(1)
-    expect(sendGuestPin).toHaveBeenCalledWith(expect.objectContaining({ pin: '1234', to: 'guest@example.test' }))
+    expect(sendGuestPin).not.toHaveBeenCalled()
+    expect(sendBentralGuestMessage).toHaveBeenCalledTimes(1)
+    expect(sendBentralGuestMessage).toHaveBeenCalledWith('test-bentral-key', 'R-new', expect.stringContaining('1234'))
+    expect(sendBentralGuestMessage).toHaveBeenCalledWith('test-bentral-key', 'R-new', expect.stringContaining('https://portal.test/guest/'))
     expect(await processBentralWebhookReservation({ ...reservation, departure: '2026-08-06', updated: '2026-08-01 11:00:00' })).toBe('update')
     response = await jobsHandler(auth); job = response.jobs[0] as any
     expect(job.action).toBe('update')
@@ -151,6 +156,42 @@ describe('Orchestrator HTTP endpointa', () => {
     vi.mocked(getEmailConfig).mockReturnValue({ configured: true } as any)
     await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
     expect(sendGuestPin).not.toHaveBeenCalled()
+    expect(sendBentralGuestMessage).not.toHaveBeenCalled()
+  })
+
+  it('retains paused Bentral guest messages and still publishes PINs', async () => {
+    vi.stubEnv('BENTRAL_GUEST_MESSAGES_ENABLED', 'false')
+    db.exec('DELETE FROM jobs; DELETE FROM reservations;')
+    await processBentralWebhookReservation(reservation)
+    const job = (await jobsHandler(auth)).jobs[0] as any
+    body = { results: [{ ...job, status: 'success', pin: '1234' }] }
+    await resultsHandler(auth)
+    await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
+    expect(db.prepare("SELECT status FROM integration_outbox WHERE type = 'bentral_ekey'").get()).toEqual({ status: 'completed' })
+    expect(db.prepare("SELECT status, attempt_count FROM integration_outbox WHERE type = 'bentral_guest_message'").get()).toEqual({ status: 'pending', attempt_count: 0 })
+    expect(sendBentralGuestMessage).not.toHaveBeenCalled()
+    expect(sendGuestPin).not.toHaveBeenCalled()
+  })
+
+  it('does not automatically resend a guest message after an ambiguous outcome', async () => {
+    db.exec('DELETE FROM jobs; DELETE FROM reservations;')
+    await processBentralWebhookReservation(reservation)
+    const job = (await jobsHandler(auth)).jobs[0] as any
+    body = { results: [{ ...job, status: 'success', pin: '1234' }] }
+    await resultsHandler(auth)
+    const { BentralMessageDeliveryUnknown } = await import('../server/utils/bentral')
+    vi.mocked(sendBentralGuestMessage).mockRejectedValueOnce(new BentralMessageDeliveryUnknown())
+    await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
+    expect(db.prepare("SELECT status FROM integration_outbox WHERE type = 'bentral_guest_message'").get()).toEqual({ status: 'failed' })
+    await processIntegrationOutbox('2026-08-02T12:00:00.000Z')
+    expect(sendBentralGuestMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not resend a message abandoned during a process restart', async () => {
+    db.exec("INSERT INTO integration_outbox (unique_key, type, payload, status, attempt_count, next_attempt_at, created_at, updated_at) VALUES ('unknown-message', 'bentral_guest_message', '{}', 'processing', 0, '2026-08-01', '2026-08-01', '2026-08-01T10:00:00.000Z')")
+    await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
+    expect(db.prepare("SELECT status FROM integration_outbox WHERE unique_key = 'unknown-message'").get()).toEqual({ status: 'failed' })
+    expect(sendBentralGuestMessage).not.toHaveBeenCalled()
   })
 
   it('vrne 401 brez pravilnega tokena', async () => {
@@ -245,14 +286,14 @@ describe('Orchestrator HTTP endpointa', () => {
     expect(queueExpiredManagedCodeCleanup('2026-08-15T12:00:00Z')).toBe(0)
   })
 
-  it('outbox dokonča Bentral brez enot, email pa trajno obdrži za retry', async () => {
+  it('outbox retries PIN publication without units and never sends legacy SendGrid jobs', async () => {
     db.prepare("UPDATE reservations SET guest_email = 'ana@example.com' WHERE id = 1").run()
     db.prepare(`INSERT INTO integration_outbox VALUES
       (1, 'email-1', 'guest_pin_email', '{"reservationId":1,"pin":"1234","portalLink":"https://portal.test/g"}', 'pending', 0, '2026-08-01T12:00:00.000Z', NULL, '2026-08-01', '2026-08-01', NULL),
       (2, 'bentral-1', 'bentral_ekey', '{"reservationId":1,"pin":"1234"}', 'pending', 0, '2026-08-01T12:00:00.000Z', NULL, '2026-08-01', '2026-08-01', NULL)
     `).run()
-    expect(await processIntegrationOutbox('2026-08-01T12:00:00.000Z')).toEqual({ completed: 1, retried: 1, failed: 0 })
-    expect(db.prepare("SELECT status, attempt_count FROM integration_outbox WHERE id = 1").get()).toEqual({ status: 'pending', attempt_count: 1 })
+    expect(await processIntegrationOutbox('2026-08-01T12:00:00.000Z')).toEqual({ completed: 0, retried: 1, failed: 0 })
+    expect(db.prepare("SELECT status, attempt_count FROM integration_outbox WHERE id = 1").get()).toEqual({ status: 'pending', attempt_count: 0 })
   })
 
   it('administrator lahko trajno neuspešno integracijo ponovno aktivira', async () => {

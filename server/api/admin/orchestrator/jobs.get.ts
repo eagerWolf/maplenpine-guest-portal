@@ -1,3 +1,4 @@
+import { messagingEnabled } from '../../../utils/servicePolicy'
 import { getDb } from '../../../db/index'
 import type { Job } from '../../../db/index'
 import { toOrchestratorJob, mergePendingJobs } from '../../../utils/jobs'
@@ -67,6 +68,7 @@ export default defineEventHandler(async (event) => {
     jobsUrl: `${portalOrigin}/api/orchestrator/jobs`,
     resultsUrl: `${portalOrigin}/api/orchestrator/results`,
     batchPayload: { jobs: merged.map(m => m.orchestratorJob) },
+    messagingEnabled: messagingEnabled(),
     outbox,
   }
 })

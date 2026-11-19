@@ -66,6 +66,15 @@ const doorLabel = computed(() => {
 })
 
 const guestCount = computed(() => (data.value as any)?.guestCount ?? null)
+const receptionPhone = computed(() => (data.value as any)?.receptionPhone ?? null)
+const receptionWhatsapp = computed(() => (data.value as any)?.receptionWhatsapp ?? null)
+const contactCopy = computed(() => ({
+  en: { title: 'Questions during your stay?', call: 'Call reception', whatsapp: 'WhatsApp reception', other: 'Additional contact' },
+  sl: { title: 'Imaš vprašanja med bivanjem?', call: 'Pokliči sprejem', whatsapp: 'WhatsApp sprejem', other: 'Dodatni kontakt' },
+  de: { title: 'Fragen während Ihres Aufenthalts?', call: 'Rezeption anrufen', whatsapp: 'WhatsApp Rezeption', other: 'Weiterer Kontakt' },
+  hr: { title: 'Imaš pitanja tijekom boravka?', call: 'Nazovi recepciju', whatsapp: 'WhatsApp recepcija', other: 'Dodatni kontakt' },
+  sr: { title: 'Imaš pitanja tokom boravka?', call: 'Pozovi recepciju', whatsapp: 'WhatsApp recepcija', other: 'Dodatni kontakt' },
+})[locale.value])
 const contactPhone = computed(() => (data.value as any)?.contactPhone ?? null)
 const propertyNavUrl = computed(() => (data.value as any)?.propertyNavUrl ?? null)
 
@@ -149,7 +158,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
         </div>
 
         <!-- Nav + Call buttons -->
-        <div v-if="propertyNavUrl || contactPhone" class="guest-hero__actions">
+        <div v-if="propertyNavUrl || receptionPhone" class="guest-hero__actions">
           <a
             v-if="propertyNavUrl"
             :href="propertyNavUrl"
@@ -161,15 +170,24 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
             {{ t.hero.directions }}
           </a>
           <a
-            v-if="contactPhone"
-            :href="`tel:${contactPhone}`"
+            v-if="receptionPhone"
+            :href="`tel:${receptionPhone}`"
             class="guest-action-btn guest-action-btn--call"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.64 3.42 2 2 0 0 1 3.6 1.26h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.38a16 16 0 0 0 5.66 5.66l1.34-1.34a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 15z"/></svg>
-            {{ t.hero.callUs }}
+            {{ contactCopy.call }}
           </a>
         </div>
       </div>
+
+      <section v-if="receptionPhone || receptionWhatsapp || contactPhone" class="info-panel">
+        <h2 class="guest-kicker">{{ contactCopy.title }}</h2>
+        <div class="guest-hero__actions">
+          <a v-if="receptionPhone" :href="`tel:${receptionPhone}`" class="guest-action-btn">{{ contactCopy.call }} · {{ receptionPhone }}</a>
+          <a v-if="receptionWhatsapp" :href="`https://wa.me/${receptionWhatsapp.replace(/\D/g, '')}`" target="_blank" rel="noopener noreferrer" class="guest-action-btn">{{ contactCopy.whatsapp }}</a>
+          <a v-if="contactPhone" :href="`tel:${contactPhone}`" class="guest-action-btn">{{ contactCopy.other }} · {{ contactPhone }}</a>
+        </div>
+      </section>
 
       <!-- PIN panel -->
       <div class="pin-panel">

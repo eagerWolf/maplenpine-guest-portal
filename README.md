@@ -1,6 +1,6 @@
 # Maple & Pine Guest Portal
 
-Administracijski in gostinski portal za rezervacije, eKey kode, vsebine, obvestila ter prodajo dodatnih storitev. Portal je tudi vir uredniške vsebine za javno stran `maplenpine.com`.
+Administracijski in gostinski portal za rezervacije, eKey kode, vsebine, WhatsApp obvestila osebju in zunanja priporočila za zajtrk ter najem koles. Portal je tudi vir uredniške vsebine za javno stran `maplenpine.com`.
 
 Celoten postopek prve namestitve portala, javne strani in Windows Orchestratorja je v [INSTALLATION.md](INSTALLATION.md).
 
@@ -56,7 +56,7 @@ Za začetek kopiraj `.env.example` v `.env`. Najpomembnejše skupine nastavitev 
 - `NUXT_SETTINGS_ENCRYPTION_KEY`: ločena naključna skrivnost dolžine vsaj 32 znakov, s katero se občutljive nastavitve šifrirajo v bazi;
 - Google OAuth client ID in secret ter produkcijski redirect URL;
 - Bentral API ključ, property ID in ID enot Maple/Pine;
-- SendGrid ključ ter naslovi pošiljateljev/prejemnikov;
+- Twilio nastavitve za WhatsApp obvestila čistilkam, sprejemu in administratorjem; SendGrid ni potreben;
 - Twilio ali webhook nastavitve za WhatsApp;
 - `NUXT_PUBLIC_BASE_URL=https://guestportal.maplenpine.com`;
 - po želji GA4 in prilagojeni cron intervali.
@@ -129,3 +129,13 @@ V adminu odpri **Nastavitve → Splošno → Spletna stran maplenpine.com** ter 
 - po želji nočno objavo.
 
 Gumb **Shrani in objavi zdaj** sproži Cloudflare build. Portal izvaža samo aktivno in trenutno veljavno vsebino v jezikih `en`, `sl`, `de`, `hr` in `sr`; javna stran trenutno izdela angleške in slovenske poti.
+
+## Trenutni način storitev in obvestil
+
+- Zajtrk in najem koles sta priporočili za Bled Breakfast in A&B Bike. Opise in povezave v petih jezikih ureja administrator pod Nastavitve → Zajtrk / Najem koles. Naročilo, plačilo ter dostavo gost dogovori pri ponudniku. Stari API-ji za nova naročila in potrditve so umaknjeni (410); zgodovina podatkov ostane ohranjena.
+- Sprejem ima eno številko za telefon in WhatsApp (`reception_whatsapp`). Dodatna kontaktna številka za klice gostov je prikazana zadnja.
+- `PORTAL_WHATSAPP_ENABLED=true` ohrani obvestila osebju in administratorjem. Brez konfiguriranega ponudnika dostava odpove; izpis v log ni uspešna dostava. `PORTAL_EMAIL_ENABLED=false` izključi SendGrid. Osebje še vedno lahko aktivira račun s povezavo iz administracije.
+- Po uspešnem eKey ustvarjanju se PIN zapiše v Bentral, nato trajni outbox pošlje lokalizirano sporočilo s PIN-om in povezavo do gostovega portala prek Bentrala. Gostov email v naši bazi ni pogoj: prejemnika in kanal izbere Bentral. Stara čakajoča SendGrid opravila se ne pošiljajo. `BENTRAL_GUEST_MESSAGES_ENABLED=false` začasno zadrži sporočila, PIN zapisi pa ostanejo aktivni.
+- Pogodba pošiljanja izhaja iz navodil Bentral podpore z dne 18. 3. 2026, pogovor »Dostop API«: POST `https://api.bentral.com/v1/messages`, JSON `{type: "email", reservationId, message}`, glava `X-API-KEY`; polja `recipient` ne pošiljamo. Podpora opozarja, da endpoint ni uradno podprt.
+- Ker API nima dokumentiranega idempotency ključa, se timeout, omrežna napaka, odgovor 5xx ali prekinitev procesa med pošiljanjem sporočila ne ponovijo samodejno. Opravilo zahteva pregled pogovora v Bentralu pred ročno ponovitvijo. To prepreči slepo ponovno pošiljanje po nejasnem izidu, ne zagotavlja točno enkratne dostave zunanjega sistema.
+- Lokalni razvoj in staging naj uporabljata `PORTAL_DISABLE_BACKGROUND_TASKS=true`; to izključi avtomatsko pošiljanje, ročni gumbi pa ostanejo dejanja. Pravih sporočil gostom med razvojem ne pošiljaj.

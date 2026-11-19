@@ -56,6 +56,8 @@ export default defineEventHandler(async (event) => {
     guestCount: reservation.guest_count,
     lang: reservation.guest_lang_override || reservation.guest_lang || null,
     contactPhone: settings.contact_phone || null,
+    receptionPhone: settings.reception_whatsapp || null,
+    receptionWhatsapp: settings.reception_whatsapp || null,
     propertyNavUrl: settings.property_nav_url || null,
   }
 })

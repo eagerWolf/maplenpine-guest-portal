@@ -1,3 +1,4 @@
+import { messagingEnabled } from './servicePolicy'
 import { getDb, now } from '../db/index'
 import { getWhatsAppProvider } from './whatsapp'
 import { getEmailConfig, sendEmail } from './email'
@@ -69,6 +70,10 @@ export async function notifyAdmins(opts: {
   whatsappText: string
   requireDelivery?: boolean
 }): Promise<void> {
+  if (!messagingEnabled()) {
+    if (opts.requireDelivery) throw new Error('Portal messaging is disabled')
+    return
+  }
   const emailConfig = getEmailConfig()
   const db = getDb()
 
@@ -126,6 +131,7 @@ export async function notifyAdmins(opts: {
 }
 
 export async function notifyHousekeeper(reservationId: number, door: string): Promise<void> {
+  if (!messagingEnabled()) return
   const db = getDb()
   const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
   const s = Object.fromEntries(settings.map(r => [r.key, r.value]))
@@ -167,6 +173,7 @@ export async function notifyHousekeeper(reservationId: number, door: string): Pr
 }
 
 export async function notifyReception(reservationId: number, door: string): Promise<void> {
+  if (!messagingEnabled()) return
   const db = getDb()
   const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
   const s = Object.fromEntries(settings.map(r => [r.key, r.value]))

@@ -6,12 +6,12 @@ const section = computed(() => {
   return route.path === '/admin' ? 'calendar' : 'overview'
 })
 const groups = computed(() => section.value === 'calendar' ? [] : section.value === 'overview'
-  ? [{ title: 'Pregled', links: [{ label: 'Log', to: '/admin/logs' }, { label: 'Obvestila', to: '/admin/notifications' }, { label: 'Prodaja', to: '/admin/sales' }] }]
+  ? [{ title: 'Pregled', links: [{ label: 'Log', to: '/admin/logs' }, { label: 'Obvestila', to: '/admin/notifications' }, { label: 'Zgodovina prodaje', to: '/admin/sales' }] }]
   : section.value === 'content'
     ? [{ title: 'Vsebina', links: [{ label: 'Restavracije', to: '/admin/content/restaurants' }, { label: 'Predlogi', to: '/admin/content/suggestions' }, { label: 'FAQ', to: '/admin/content/faq' }, { label: 'Navodila', to: '/admin/content/how-to' }, { label: 'Hišni red', to: '/admin/content/house-rules' }, { label: 'Novice', to: '/admin/news' }] }]
     : [
-        { title: 'Splošno', links: [{ label: 'Splošno', to: '/admin/settings/general' }, { label: 'Lokacije', to: '/admin/settings/locations' }, { label: 'Osebje', to: '/admin/staff' }, { label: 'Zajtrk', to: '/admin/settings/services/breakfast' }, { label: 'E-kolesa', to: '/admin/settings/services/ebikes' }] },
-        { title: 'Platforma', links: [{ label: 'Bentral', to: '/admin/settings/integrations/bentral' }, { label: 'SumUp', to: '/admin/settings/integrations/sumup' }, { label: 'Sporočila', to: '/admin/settings/integrations/whatsapp' }, { label: 'Orchestrator', to: '/admin/orchestrator' }] },
+        { title: 'Splošno', links: [{ label: 'Splošno', to: '/admin/settings/general' }, { label: 'Lokacije', to: '/admin/settings/locations' }, { label: 'Osebje', to: '/admin/staff' }, { label: 'Zajtrk', to: '/admin/settings/services/breakfast' }, { label: 'Najem koles', to: '/admin/settings/services/ebikes' }] },
+        { title: 'Platforma', links: [{ label: 'Bentral', to: '/admin/settings/integrations/bentral' }, { label: 'WhatsApp', to: '/admin/settings/integrations/whatsapp' }, { label: 'Orchestrator', to: '/admin/orchestrator' }] },
       ])
 function active(to: string) { return route.path === to }
 </script>
