@@ -50,7 +50,34 @@ it('flags an ambiguous Bentral POST for manual review, without claiming non-deli
 it('composes a localized PIN and portal link without needing a guest email', () => {
   const reservation = { door: 'Maple,Pine', check_in: '2026-12-01', check_out: '2026-12-03', guest_lang: 'sl' } as Reservation
   const message = guestAccessMessage(reservation, '1234', 'https://portal.test/guest/token')
-  expect(message).toContain('Vaša koda za dostop: 1234')
+  expect(message).toContain('vaša osebna koda za vstop v apartmaja Maple & Pine je:\n\n1234')
   expect(message).toContain('https://portal.test/guest/token')
   expect(message).toContain('Maple & Pine')
+})
+
+it('personalizes the access message using exact local access dates and times', () => {
+  const reservation = {
+    first_name: 'Matija', door: 'Maple', check_in: '2026-12-06', check_out: '2026-12-12',
+    access_valid_from: '2026-12-06 13:00', access_valid_until: '2026-12-12 11:30', guest_lang: 'sl',
+  } as Reservation
+  const message = guestAccessMessage(reservation, '1234', 'https://portal.test/guest/example')
+  expect(message).toContain('Hej Matija,\n\n')
+  expect(message).toContain('Koda velja od 6. 12. 2026 ob 13:00 do 12. 12. 2026 ob 11:30.')
+  expect(message).toContain('\n\n1234\n\n')
+  expect(message).toContain('osebnem portalu:\nhttps://portal.test/guest/example')
+  expect(message).toMatch(/Lep pozdrav,\nMaple & Pine$/)
+  expect(message).not.toMatch(/\{(?:pin|signature|first_name)\}/)
+})
+
+it('uses language override, English fallback and a clean greeting without a name', () => {
+  const base = { door: 'Pine', check_in: '2026-12-06', check_out: '2026-12-12', guest_lang: 'sl', guest_lang_override: 'en' } as Reservation
+  expect(guestAccessMessage(base, '1234', 'https://portal.test')).toMatch(/^Hi,\n/)
+  expect(guestAccessMessage({ ...base, guest_lang_override: 'xx' }, '1234', 'https://portal.test')).toMatch(/^Hi,\n/)
+  for (const language of ['sl', 'en', 'de', 'hr', 'sr']) {
+    const text = guestAccessMessage({ ...base, guest_lang_override: language }, '1234', 'https://portal.test')
+    expect(text).toContain('1234')
+    expect(text).toContain('https://portal.test')
+    expect(text).toContain('6. 12. 2026')
+    expect(text).not.toContain('undefined')
+  }
 })
