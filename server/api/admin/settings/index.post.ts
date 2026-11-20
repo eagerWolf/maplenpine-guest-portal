@@ -1,3 +1,4 @@
+import { validateBentralUnitIds } from '../../../utils/bentralUnits'
 import { recommendationKeys } from '../../../../shared/serviceRecommendations'
 import { getDb, now } from '../../../db/index'
 import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
@@ -25,6 +26,8 @@ const ALLOWED_KEYS = [
   'orchestrator_lease_minutes',
   'orchestrator_max_attempts',
   'bentral_api_key',
+  'bentral_unit_id_maple',
+  'bentral_unit_id_pine',
   'breakfast_partner_id',
   'breakfast_enabled',
   'breakfast_partner_cost',
@@ -64,6 +67,10 @@ export default defineEventHandler(async (event) => {
 
   const currentRows = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
   const effective = { ...Object.fromEntries(currentRows.map(row => [row.key, decodeSetting(row.key, row.value)])), ...body }
+  if (effective.bentral_unit_id_maple || effective.bentral_unit_id_pine) {
+    try { validateBentralUnitIds(effective.bentral_unit_id_maple || '', effective.bentral_unit_id_pine || '') }
+    catch { throw createError({ statusCode: 400, statusMessage: 'Vnesi različna Bentral ID-ja enot za Maple in Pine.' }) }
+  }
   for (const apartment of ['maple', 'pine']) {
     const token = effective[`tv_${apartment}_token`] || ''
     if (token && !/^[A-Za-z0-9_-]{32,256}$/.test(token)) {

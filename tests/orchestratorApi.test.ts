@@ -78,6 +78,20 @@ describe('Orchestrator HTTP endpointa', () => {
   const auth = { authorization: 'Bearer secret' }
   const reservation = { id: 'R-new', arrival: '2026-08-02', departure: '2026-08-05', status: 'confirmed', updated: '2026-08-01 10:00:00', units: [{ id: 'maple', name: 'Maple' }], guest: { name: 'Test Guest', email: 'guest@example.test' } }
 
+  it('imports Pine reservations as Pine in storage and dispatched jobs', async () => {
+    db.exec('DELETE FROM jobs; DELETE FROM reservations')
+    expect(await processBentralWebhookReservation({ ...reservation, id: 'R-pine', units: [{ id: 'pine', name: '' }] })).toBe('insert')
+    expect(db.prepare('SELECT door FROM reservations').get()).toEqual({ door: 'Pine' })
+    const response = await jobsHandler(auth)
+    expect(response.jobs).toHaveLength(1)
+    expect(response.jobs[0]).toMatchObject({ action: 'insert', door: 'Pine' })
+  })
+
+  it('does not silently reassign existing access to another apartment', async () => {
+    await expect(processBentralWebhookReservation({ ...reservation, id: 'R-1', units: [{ id: 'pine' }] })).rejects.toThrow(/Reconcile/)
+    expect(db.prepare('SELECT door FROM reservations').get()).toEqual({ door: 'Maple' })
+  })
+
   it('full reservation lifecycle: create, PIN and portal link via Bentral, duplicate, update and cancel', async () => {
     db.exec('DELETE FROM jobs; DELETE FROM reservations;')
     expect(await processBentralWebhookReservation(reservation)).toBe('insert')

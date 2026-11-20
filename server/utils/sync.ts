@@ -6,6 +6,7 @@ import { buildAccessTimes, buildJobPayload, createJob, getSettings } from './job
 import { notifyAdmins } from './notify'
 import { useRuntimeConfig } from '#imports'
 import { getSettingValue } from './secretSettings'
+import { resolveBentralDoor, validateBentralUnitIds } from './bentralUnits'
 
 function extractPhone(phone: BentralReservation['guest']['phone']): string | null {
   if (!phone) return null
@@ -32,6 +33,10 @@ function datesOverlap(from1: string, to1: string, from2: string, to2: string): b
 export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<void> {
   const config = useRuntimeConfig()
   const db = getDb()
+  const settings = getSettings()
+  const mapleUnitId = String(settings.bentral_unit_id_maple || config.bentralUnitIdMaple || '').trim()
+  const pineUnitId = String(settings.bentral_unit_id_pine || config.bentralUnitIdPine || '').trim()
+  validateBentralUnitIds(mapleUnitId, pineUnitId)
   const today = new Date()
 
   // `from` = earliest arrival to check (tier-specific)
@@ -73,10 +78,6 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
     return
   }
 
-  const settings = getSettings()
-  const mapleUnitId = config.bentralUnitIdMaple
-  const pineUnitId = config.bentralUnitIdPine
-
   let inserted = 0
   let updated = 0
   let cancelled = 0
@@ -84,6 +85,7 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
   // Group by guest name to detect multi-door overlaps
   const byGuest = new Map<string, { maple?: BentralReservation; pine?: BentralReservation }>()
   for (const res of bentralReservations) {
+    if (!resolveBentralDoor(res.units, mapleUnitId, pineUnitId)) continue
     const key = res.guest.name.toLowerCase().trim()
     const entry = byGuest.get(key) ?? {}
     const unitIds = res.units.map(u => u.id)
@@ -123,10 +125,12 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
   // Process any reservations not grouped by the guest map
   for (const res of bentralReservations) {
     if (processedBentralIds.has(res.id)) continue
-    const unitIds = res.units.map(u => u.id)
-    let door = 'Maple'
-    if (unitIds.includes(pineUnitId) && !unitIds.includes(mapleUnitId)) door = 'Pine'
-    if (unitIds.includes(mapleUnitId) && unitIds.includes(pineUnitId)) door = 'Maple,Pine'
+    const door = resolveBentralDoor(res.units, mapleUnitId, pineUnitId)
+    if (!door) {
+      db.prepare('INSERT INTO audit_log (action, user_email, detail, created_at) VALUES (?, ?, ?, ?)')
+        .run('sync_unmapped_unit', triggeredBy, JSON.stringify({ reservationId: res.id, unitIds: res.units.map(unit => unit.id) }), now())
+      continue
+    }
 
     const key = res.guest.name.toLowerCase().trim()
     const entry = byGuest.get(key)
@@ -160,6 +164,10 @@ async function processReservation(
   ).get(br.id) as Reservation | undefined
 
   const effectiveUpdated = pairedRes && pairedRes.updated > br.updated ? pairedRes.updated : br.updated
+
+  if (existing && existing.door !== door) {
+    throw new Error('Reservation apartment differs from its saved eKey access. Reconcile the access before syncing this reservation.')
+  }
 
   if (existing && existing.bentral_updated_at === effectiveUpdated) {
     return 'skip'
@@ -260,15 +268,10 @@ async function processReservation(
 
 export async function processBentralWebhookReservation(br: BentralReservation): Promise<SyncAction> {
   const config = useRuntimeConfig()
-  const mapleUnitId = config.bentralUnitIdMaple
-  const pineUnitId = config.bentralUnitIdPine
-  const unitIds = br.units.map(u => u.id)
-
-  let door = 'Unknown'
-  if (unitIds.includes(mapleUnitId) && unitIds.includes(pineUnitId)) door = 'Maple,Pine'
-  else if (unitIds.includes(mapleUnitId)) door = 'Maple'
-  else if (unitIds.includes(pineUnitId)) door = 'Pine'
-
   const settings = getSettings()
+  const mapleUnitId = String(settings.bentral_unit_id_maple || config.bentralUnitIdMaple || '').trim()
+  const pineUnitId = String(settings.bentral_unit_id_pine || config.bentralUnitIdPine || '').trim()
+  const door = resolveBentralDoor(br.units, mapleUnitId, pineUnitId)
+  if (!door) return 'skip'
   return processReservation(br, door, settings)
 }

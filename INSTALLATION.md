@@ -312,3 +312,7 @@ Pri posodobitvi Orchestratorja ohrani `.env`, `pending-jobs.json`, `pending-resu
 ### Odgovornost za sporočila
 
 Windows Orchestrator obdeluje izključno eKey opravila in vrača rezultat s PIN-om. Bentral ključ in neposredno pošiljanje sporočil sta odgovornost Guest Portala. Za izoliran preizkus dostave ob `PORTAL_DISABLE_BACKGROUND_TASKS=true` je mogoče izrecno nastaviti `PORTAL_INTEGRATION_OUTBOX_ENABLED=true`; s tem se vsako minuto obdeluje le integracijska vrsta, ostala opravila ostanejo izključena. `BENTRAL_GUEST_MESSAGES_ENABLED=true` dovoli gostujoča Bentral sporočila po potrjeni objavi PIN-a. V Windows `.env` Bentral ključ ni potreben.
+
+### Obvezna preslikava apartmajev
+
+V Nastavitve → Integracije → Bentral nastavi različna ID-ja enot Maple in Pine. Nastavitvi imata prednost pred BENTRAL_UNIT_ID_MAPLE/BENTRAL_UNIT_ID_PINE iz okolja. Manjkajoči ali enaki preslikavi blokirata sinhronizacijo. Neznane enote nikoli ne dobijo privzetega dostopa Maple. Če se apartma obstoječe rezervacije razlikuje od shranjenega eKey dostopa, je najprej potrebna ročna uskladitev dostopa; spreminjanje datumov ne premika uporabnika med vrati.

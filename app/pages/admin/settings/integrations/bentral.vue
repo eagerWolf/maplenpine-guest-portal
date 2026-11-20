@@ -5,6 +5,8 @@ const { data: settings, refresh } = await useFetch<Record<string, string>>('/api
 
 const form = reactive({
   bentral_api_key: '',
+  bentral_unit_id_maple: '',
+  bentral_unit_id_pine: '',
   bentral_checkin_time: '',
   bentral_checkout_time: '',
   checkin_offset_minutes: '',
@@ -18,6 +20,8 @@ const form = reactive({
 watch(settings, (s) => {
   if (!s) return
   form.bentral_api_key = s.bentral_api_key ?? ''
+  form.bentral_unit_id_maple = s.bentral_unit_id_maple ?? ''
+  form.bentral_unit_id_pine = s.bentral_unit_id_pine ?? ''
   form.bentral_checkin_time = s.bentral_checkin_time ?? '15:00'
   form.bentral_checkout_time = s.bentral_checkout_time ?? '11:00'
   form.checkin_offset_minutes = s.checkin_offset_minutes ?? '-120'
@@ -93,6 +97,17 @@ function accessPreview(time: string, offset: number): string {
       />
     </div>
 
+
+    <div class="bg-white rounded-xl border border-stone-200 p-6 space-y-4">
+      <h2 class="font-medium text-stone-700">Preslikava apartmajev</h2>
+      <p class="text-xs text-stone-500">ID enote v Bentralu določa vrata v eKey. Neprepoznane enote se ne pošljejo v avtomatizacijo.</p>
+      <label class="block text-sm text-stone-700">Maple — Bentral ID enote
+        <input v-model.trim="form.bentral_unit_id_maple" class="mt-1 w-full px-3 py-2 border border-stone-300 rounded-lg font-mono text-sm" />
+      </label>
+      <label class="block text-sm text-stone-700">Pine — Bentral ID enote
+        <input v-model.trim="form.bentral_unit_id_pine" class="mt-1 w-full px-3 py-2 border border-stone-300 rounded-lg font-mono text-sm" />
+      </label>
+    </div>
 
     <!-- Check-in/out times -->
     <div class="bg-white rounded-xl border border-stone-200 p-6">
