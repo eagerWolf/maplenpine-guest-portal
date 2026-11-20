@@ -40,8 +40,9 @@ function parseAccessTime(dt: string | null, fallbackDate: string, fallbackTime: 
 }
 
 function buildUnits(unitId: string | null, unitName: string | null) {
-  if (!unitId || !unitName) return []
-  return unitId.split(',').map((id, index) => ({ id, name: unitName.split(',')[index] ?? '' })).filter(unit => unit.id && unit.name)
+  if (!unitId) return []
+  // Bentral may return a valid unit with name=""; identity is its ID.
+  return unitId.split(',').map((id, index) => ({ id, name: (unitName || '').split(',')[index] ?? '' })).filter(unit => unit.id)
 }
 
 function getBentralApiKey(): string {

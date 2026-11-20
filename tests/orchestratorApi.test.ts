@@ -286,6 +286,20 @@ describe('Orchestrator HTTP endpointa', () => {
     expect(queueExpiredManagedCodeCleanup('2026-08-15T12:00:00Z')).toBe(0)
   })
 
+  it('PIN publication accepts an unnamed Bentral unit with a valid ID', async () => {
+    db.exec("UPDATE reservations SET bentral_unit_id = 'unit-id', bentral_unit_name = ''")
+    await jobsHandler(auth)
+    body = { results: [{ _internalJobId: 1, status: 'success', pin: '1234' }] }
+    await resultsHandler(auth)
+    const { patchBentralEntranceCode } = await import('../server/utils/bentral')
+    await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
+    expect(patchBentralEntranceCode).toHaveBeenCalledWith(
+      'test-bentral-key', 'R-1', [{ id: 'unit-id', name: '' }], '1234',
+      expect.any(String), expect.any(String), expect.any(String), expect.any(String),
+    )
+    expect(sendBentralGuestMessage).toHaveBeenCalledTimes(1)
+  })
+
   it('outbox retries PIN publication without units and never sends legacy SendGrid jobs', async () => {
     db.prepare("UPDATE reservations SET guest_email = 'ana@example.com' WHERE id = 1").run()
     db.prepare(`INSERT INTO integration_outbox VALUES

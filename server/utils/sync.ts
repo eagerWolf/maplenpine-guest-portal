@@ -14,7 +14,7 @@ function extractPhone(phone: BentralReservation['guest']['phone']): string | nul
 }
 
 function unitNames(units: Array<{ id: string; name?: string }>): string {
-  return units.map(u => u.name ?? '').filter(Boolean).join(',')
+  return units.map(u => u.name ?? '').join(',')
 }
 
 type Tier = 'hot' | 'warm' | 'cold'
