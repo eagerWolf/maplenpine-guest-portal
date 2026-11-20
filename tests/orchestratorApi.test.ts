@@ -25,6 +25,7 @@ const resultsHandler = (await import('../server/api/orchestrator/results.post'))
 const { queueExpiredManagedCodeCleanup, isManagedAccessReadyForCleanup } = await import('../server/utils/jobs')
 const retryHandler = (await import('../server/api/admin/orchestrator/jobs/[id]/retry.post')).default as (event: { id: string }) => Promise<{ success: boolean }>
 const { processIntegrationOutbox } = await import('../server/utils/integrationOutbox')
+const { claimWindowsMessage, acknowledgeWindowsMessage } = await import('../server/utils/windowsMessages')
 const { checkOrchestratorHealth } = await import('../server/utils/orchestratorHealth')
 const retryOutboxHandler = (await import('../server/api/admin/orchestrator/outbox/[id]/retry.post')).default as (event: { id: string }) => Promise<{ success: boolean }>
 const { processBentralWebhookReservation } = await import('../server/utils/sync')
@@ -77,6 +78,29 @@ describe('Orchestrator HTTP endpointa', () => {
 
   const auth = { authorization: 'Bearer secret' }
   const reservation = { id: 'R-new', arrival: '2026-08-02', departure: '2026-08-05', status: 'confirmed', updated: '2026-08-01 10:00:00', units: [{ id: 'maple', name: 'Maple' }], guest: { name: 'Test Guest', email: 'guest@example.test' } }
+
+  it('Windows owns delivery exclusively and acknowledgements are idempotent and leased', async () => {
+    vi.stubEnv('BENTRAL_MESSAGE_SENDER', 'windows')
+    db.exec("UPDATE reservations SET bentral_unit_id = 'maple', bentral_unit_name = 'Maple'")
+    await jobsHandler(auth)
+    body = { results: [{ _internalJobId: 1, status: 'success', pin: '1234' }] }
+    await resultsHandler(auth)
+    const message = await claimWindowsMessage()
+    expect(message).toMatchObject({ reservationId: 'R-1' })
+    expect(message?.message).toContain('1234')
+    expect(sendBentralGuestMessage).not.toHaveBeenCalled()
+    expect(await claimWindowsMessage()).toBeNull()
+    expect(() => acknowledgeWindowsMessage({ ...message, leaseToken: 'wrong', status: 'sent' })).toThrow()
+    expect(acknowledgeWindowsMessage({ ...message, status: 'sent' })).toEqual({ success: true, duplicate: false })
+    expect(acknowledgeWindowsMessage({ ...message, status: 'sent' })).toEqual({ success: true, duplicate: true })
+    expect(db.prepare("SELECT status FROM integration_outbox WHERE type = 'bentral_guest_message'").get()).toEqual({ status: 'completed' })
+  })
+
+  it('Windows cannot claim messages while delivery is disabled', async () => {
+    vi.stubEnv('BENTRAL_MESSAGE_SENDER', 'windows')
+    vi.stubEnv('BENTRAL_GUEST_MESSAGES_ENABLED', 'false')
+    expect(await claimWindowsMessage()).toBeNull()
+  })
 
   it('full reservation lifecycle: create, PIN and portal link via Bentral, duplicate, update and cancel', async () => {
     db.exec('DELETE FROM jobs; DELETE FROM reservations;')
