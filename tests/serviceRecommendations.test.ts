@@ -62,7 +62,7 @@ it('personalizes the access message using exact local access dates and times', (
   } as Reservation
   const message = guestAccessMessage(reservation, '1234', 'https://portal.test/guest/example')
   expect(message).toContain('Hej Matija,\n\n')
-  expect(message).toContain('Koda velja od 6. 12. 2026 ob 13:00 do 12. 12. 2026 ob 11:30.')
+  expect(message).toContain('Koda velja od 06.12.2026 ob 13:00 do 12.12.2026 ob 11:30.')
   expect(message).toContain('\n\n1234\n\n')
   expect(message).toContain('osebnem portalu:\nhttps://portal.test/guest/example')
   expect(message).toMatch(/Lep pozdrav,\nMaple & Pine$/)
@@ -77,7 +77,7 @@ it('uses language override, English fallback and a clean greeting without a name
     const text = guestAccessMessage({ ...base, guest_lang_override: language }, '1234', 'https://portal.test')
     expect(text).toContain('1234')
     expect(text).toContain('https://portal.test')
-    expect(text).toContain('6. 12. 2026')
+    expect(text).toContain('06.12.2026')
     expect(text).not.toContain('undefined')
   }
 })
