@@ -22,6 +22,7 @@ if (gaId) {
 </script>
 
 <template>
+  <EnvironmentBanner />
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>

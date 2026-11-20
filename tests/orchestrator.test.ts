@@ -16,6 +16,19 @@ describe('Orchestrator API pogodba', () => {
     ] })).toHaveLength(2)
   })
 
+  it('normalizira prazen PIN pri update/cancel kot neprilozen', () => {
+    const results = parseOrchestratorResults({ results: [
+      { _internalJobId: 14, status: 'success', pin: '' },
+      { _internalJobId: 15, status: 'success' },
+    ] })
+    expect(results.map(result => result.pin)).toEqual([undefined, undefined])
+    for (const pin of ['123', '12345', '    ', 1234, null]) {
+      expect(() => parseOrchestratorResults({ results: [
+        { _internalJobId: 14, status: 'success', pin },
+      ] })).toThrow()
+    }
+  })
+
   it('zavrne neveljaven payload pred obdelavo', () => {
     expect(() => parseOrchestratorResults({ results: [{ status: 'other', jobId: 'R-1' }] })).toThrow()
     expect(() => parseOrchestratorResults({ results: [{ status: 'success' }] })).toThrow()

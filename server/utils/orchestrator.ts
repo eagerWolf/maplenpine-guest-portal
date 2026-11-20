@@ -31,14 +31,14 @@ export function parseOrchestratorResults(body: unknown): OrchestratorResult[] {
     if ((!Number.isInteger(internalId) || Number(internalId) <= 0) && (typeof jobId !== 'string' || !jobId.trim())) {
       throw new Error('Result requires _internalJobId or jobId')
     }
-    if (result.status === 'success' && result.pin !== undefined && (typeof result.pin !== 'string' || !/^\d{4}$/.test(result.pin))) {
+    if (result.status === 'success' && result.pin !== undefined && result.pin !== '' && (typeof result.pin !== 'string' || !/^\d{4}$/.test(result.pin))) {
       throw new Error('Invalid PIN')
     }
     return {
       _internalJobId: Number.isInteger(internalId) ? Number(internalId) : undefined,
       jobId: typeof jobId === 'string' ? jobId : undefined,
       status: result.status,
-      pin: typeof result.pin === 'string' ? result.pin : undefined,
+      pin: typeof result.pin === 'string' && result.pin !== '' ? result.pin : undefined,
       message: typeof result.message === 'string' ? result.message : undefined,
       reason: typeof result.reason === 'string' ? result.reason : undefined,
     }
