@@ -1,7 +1,7 @@
 import { getDb } from '../../db/index'
 import { recommendationDefaults, recommendationKeys } from '../../../shared/serviceRecommendations'
 
-const PUBLIC_KEYS = ['instagram_url', 'facebook_url', 'contact_phone', 'property_nav_url', 'breakfast_enabled', 'ebike_enabled', ...recommendationKeys]
+const PUBLIC_KEYS = ['instagram_url', 'facebook_url', 'property_nav_url', 'breakfast_enabled', 'ebike_enabled', ...recommendationKeys]
 
 export default defineEventHandler(() => {
   const db = getDb()

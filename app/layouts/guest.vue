@@ -48,8 +48,8 @@ watch(() => route.path, closeDrawer)
             <NuxtLink :to="infoLink('faq')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.faq }}</NuxtLink>
             <NuxtLink :to="infoLink('restaurants')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink :to="infoLink('suggestions')" class="guest-nav__link" :class="{ 'guest-nav__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
-            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link guest-nav__link--breakfast">🍳 {{ t.nav.breakfast }}</NuxtLink>
-            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/ebikes`" class="guest-nav__link">🚲 {{ serviceCopy[locale].bikes }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/breakfast`" class="guest-nav__link">{{ t.nav.breakfast }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/ebikes`" class="guest-nav__link">{{ serviceCopy[locale].bikes }}</NuxtLink>
           </nav>
           <div class="lang-switcher" role="group" aria-label="Language">
             <button
@@ -93,8 +93,8 @@ watch(() => route.path, closeDrawer)
             <NuxtLink :to="infoLink('faq')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.faq }}</NuxtLink>
             <NuxtLink :to="infoLink('restaurants')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.restaurants }}</NuxtLink>
             <NuxtLink :to="infoLink('suggestions')" class="drawer__link" :class="{ 'drawer__link--disabled': accessBlocked }" :aria-disabled="accessBlocked">{{ t.nav.suggestions }}</NuxtLink>
-            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">🍳 {{ t.nav.breakfast }}</NuxtLink>
-            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/ebikes`" class="drawer__link">🚲 {{ serviceCopy[locale].bikes }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/breakfast`" class="drawer__link">{{ t.nav.breakfast }}</NuxtLink>
+            <NuxtLink v-if="guestToken && !accessBlocked" :to="`/guest/${guestToken}/ebikes`" class="drawer__link">{{ serviceCopy[locale].bikes }}</NuxtLink>
           </nav>
           <div class="drawer__lang" role="group" aria-label="Language">
             <button
@@ -227,11 +227,6 @@ body {
 .guest-nav__link.router-link-active {
   color: #fffdf8;
   background: rgba(255, 253, 248, 0.1);
-}
-
-.guest-nav__link--breakfast {
-  border: 1px solid rgba(255, 253, 248, 0.2);
-  border-radius: 5px;
 }
 
 .guest-nav__link--disabled {

@@ -7,9 +7,9 @@ const token = route.params.token as string
 const guestToken = useGuestToken()
 guestToken.value = token
 
-const { locale, setLocale, t } = useLocale()
+const { locale, initializeLocale, t } = useLocale()
 
-const { data, error, pending } = await useFetch(`/api/guest/${token}`)
+const { data, error, pending, refresh } = await useFetch(`/api/guest/${token}`)
 useAdminGuestPreview().value = !!(data.value as any)?.adminPreview
 
 const accessBlocked = useGuestAccessBlocked()
@@ -29,12 +29,11 @@ const houseRules = computed(() => (houseRuleData.value ?? []).map(r => r.text[lo
 function newsTitle(item: NewsItem) { return item.title[locale.value] || item.title.en }
 function newsContent(item: NewsItem) { return item.content[locale.value] || item.content.en }
 
-// Auto-set locale from reservation's guest_lang on first load
-watchEffect(() => {
-  if (data.value) {
-    const lang = (data.value as any)?.lang
-    if (lang) setLocale(lang)
-  }
+// Restore browser preference before applying the reservation's default language.
+onMounted(() => {
+  watch(() => (data.value as any)?.lang, (lang) => {
+    if (lang) initializeLocale(lang)
+  }, { immediate: true })
 })
 
 // Anonymous portal context only. Never send guest names or access tokens to analytics.
@@ -75,6 +74,22 @@ const contactCopy = computed(() => ({
   hr: { title: 'Imaš pitanja tijekom boravka?', call: 'Nazovi recepciju', whatsapp: 'WhatsApp recepcija', other: 'Dodatni kontakt' },
   sr: { title: 'Imaš pitanja tokom boravka?', call: 'Pozovi recepciju', whatsapp: 'WhatsApp recepcija', other: 'Dodatni kontakt' },
 })[locale.value])
+const detailsLocked = computed(() => (data.value as any)?.detailsAvailable === false)
+const lockedCopy = computed(() => ({
+  en: 'Your access code and contact details will be available 72 hours before arrival.',
+  sl: 'Koda za vstop in kontaktni podatki bodo na voljo 72 ur pred prihodom.',
+  de: 'Ihr Zugangscode und die Kontaktdaten sind 72 Stunden vor der Anreise verfügbar.',
+  hr: 'Kod za ulaz i kontaktni podaci bit će dostupni 72 sata prije dolaska.',
+  sr: 'Kod za ulaz i kontakt podaci biće dostupni 72 sata pre dolaska.',
+})[locale.value])
+let detailsTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => {
+  detailsTimer = setInterval(() => {
+    const availableAt = (data.value as any)?.detailsAvailableAt
+    if (detailsLocked.value && availableAt && Date.now() >= Date.parse(availableAt)) void refresh()
+  }, 30_000)
+})
+onUnmounted(() => { if (detailsTimer) clearInterval(detailsTimer) })
 const contactPhone = computed(() => (data.value as any)?.contactPhone ?? null)
 const propertyNavUrl = computed(() => (data.value as any)?.propertyNavUrl ?? null)
 
@@ -180,9 +195,10 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
         </div>
       </div>
 
-      <section v-if="receptionPhone || receptionWhatsapp || contactPhone" class="info-panel">
+      <section v-if="detailsLocked || receptionPhone || receptionWhatsapp || contactPhone" class="info-panel">
         <h2 class="guest-kicker">{{ contactCopy.title }}</h2>
-        <div class="guest-hero__actions">
+        <div v-if="detailsLocked" class="pin-pending"><span aria-hidden="true">••• ••• •••</span><p>{{ lockedCopy }}</p></div>
+        <div v-else class="guest-hero__actions">
           <a v-if="receptionPhone" :href="`tel:${receptionPhone}`" class="guest-action-btn">{{ contactCopy.call }} · {{ receptionPhone }}</a>
           <a v-if="receptionWhatsapp" :href="`https://wa.me/${receptionWhatsapp.replace(/\D/g, '')}`" target="_blank" rel="noopener noreferrer" class="guest-action-btn">{{ contactCopy.whatsapp }}</a>
           <a v-if="contactPhone" :href="`tel:${contactPhone}`" class="guest-action-btn">{{ contactCopy.other }} · {{ contactPhone }}</a>
@@ -193,7 +209,8 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
       <div class="pin-panel">
         <p class="guest-kicker">{{ t.pin.kicker }}</p>
 
-        <template v-if="(data as any).pin">
+        <div v-if="detailsLocked" class="pin-pending"><span aria-hidden="true">• • • •</span><p>{{ lockedCopy }}</p></div>
+        <template v-else-if="(data as any).pin">
           <div class="pin-box" :class="{ 'pin-box--visible': pinVisible }">
             <span class="pin-box__code">
               {{ pinVisible ? (data as any).pin : '• • • •' }}
