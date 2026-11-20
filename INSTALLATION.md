@@ -308,9 +308,3 @@ Pri posodobitvi Orchestratorja ohrani `.env`, `pending-jobs.json`, `pending-resu
 - Javna stran ne dobi vsebine: preveri `CONTENT_EXPORT_URL`, token in Cloudflare build log.
 - SumUp webhook dobi 401: manjka ali se ne ujema webhook secret/podpis.
 - Bentral webhook odpove: preveri Bentral API ključ, saj portal vsako rezervacijo ponovno preveri prek API-ja.
-
-### Neposredno pošiljanje Bentral sporočil iz Windows workerja
-
-Za Windows pošiljatelja nastavi v portalu `BENTRAL_MESSAGE_SENDER=windows` in `BENTRAL_GUEST_MESSAGES_ENABLED=true`. V Windows `.env` nastavi `BENTRAL_MESSAGES_ENABLED=true`, lokalni `BENTRAL_API_KEY` ter ločeno datoteko `BENTRAL_MESSAGE_STATE_FILE`. Portal še vedno pripravi vsebino in preveri aktivnost rezervacije, PIN, veljavnost povezave ter predhodno objavo PIN-a v Bentral. Windows prevzame največ eno sporočilo, neposredno pokliče Bentral in potrdi rezultat portalu. Sočasno strežniško pošiljanje istih sporočil je izključeno.
-
-Pošiljanje brez potrjenega odgovora (timeout/5xx ali ponovni zagon med POST) se ne ponavlja samodejno. Pred ročnim ponovnim poskusom preveri pogovor v Bentralu. Če Windows prejme uspeh, vendar portal ni dosegljiv, ponovi samo potrditev rezultata. Pri preizkusu uporabi novo aktivno testno rezervacijo z lastnim e-poštnim naslovom; podatki preklicane rezervacije niso primerni za pošiljanje PIN-a.

@@ -77,14 +77,7 @@ async function execute(type: OutboxType, payload: OutboxPayload): Promise<void> 
   if (reservation.status !== 'active') return
   if (type === 'bentral_ekey') return patchBentral(reservation, integrationPayload.pin)
   if (type === 'guest_pin_email') throw new Error('Legacy SendGrid guest delivery is disabled')
-  const prepared = prepareBentralGuestMessage(integrationPayload as GuestPinPayload)
-  if (!prepared) return
-  await sendBentralGuestMessage(getBentralApiKey(), prepared.reservationId, prepared.message)
-}
-
-export function prepareBentralGuestMessage(messagePayload: GuestPinPayload): { reservationId: string; message: string } | null {
-  const reservation = getDb().prepare('SELECT * FROM reservations WHERE id = ?').get(messagePayload.reservationId) as Reservation | undefined
-  if (!reservation || reservation.status !== 'active') return null
+  const messagePayload = integrationPayload as GuestPinPayload
   if (!/^\d{4}$/.test(reservation.pin || '') || reservation.pin !== messagePayload.pin) {
     throw new Error('Queued PIN no longer matches the current reservation')
   }
@@ -97,7 +90,9 @@ export function prepareBentralGuestMessage(messagePayload: GuestPinPayload): { r
   const published = getDb().prepare(`SELECT id FROM integration_outbox WHERE type = 'bentral_ekey' AND status = 'completed'
     AND json_extract(payload, '$.reservationId') = ? AND json_extract(payload, '$.pin') = ? LIMIT 1`).get(reservation.id, messagePayload.pin)
   if (!published) throw new Error('PIN has not yet been published to Bentral')
-  return { reservationId: reservation.bentral_reservation_id, message: guestAccessMessage(reservation, messagePayload.pin, messagePayload.portalLink) }
+  const apiKey = getBentralApiKey()
+  if (!apiKey) throw new Error('Bentral API key is not configured')
+  await sendBentralGuestMessage(apiKey, reservation.bentral_reservation_id, guestAccessMessage(reservation, messagePayload.pin, messagePayload.portalLink))
 }
 
 interface OutboxRow { id: number; unique_key: string; type: OutboxType; payload: string; attempt_count: number }
@@ -118,7 +113,7 @@ export async function processIntegrationOutbox(referenceTime = now(), limit = 20
     WHERE status = 'pending' AND next_attempt_at <= ?
       AND (type = 'bentral_ekey' OR (type = 'admin_notification' AND ? = 1) OR (type = 'bentral_guest_message' AND ? = 1))
       ORDER BY created_at ASC, id ASC LIMIT ?
-  `).all(referenceTime, messagingEnabled() ? 1 : 0, bentralGuestMessagesEnabled() && process.env.BENTRAL_MESSAGE_SENDER !== 'windows' ? 1 : 0, limit) as OutboxRow[]
+  `).all(referenceTime, messagingEnabled() ? 1 : 0, bentralGuestMessagesEnabled() ? 1 : 0, limit) as OutboxRow[]
   const summary = { completed: 0, retried: 0, failed: 0 }
   for (const row of rows) {
     const claimed = db.prepare("UPDATE integration_outbox SET status = 'processing', updated_at = ? WHERE id = ? AND status = 'pending'")
