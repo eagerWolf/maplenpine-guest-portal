@@ -13,11 +13,25 @@ vi.mock('../server/utils/websiteContent', () => ({ triggerWebsitePublish: vi.fn(
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 it('staging never schedules cron or queues startup integration work', async () => {
   vi.stubEnv('PORTAL_DISABLE_BACKGROUND_TASKS', 'true')
+  vi.stubEnv('PORTAL_INTEGRATION_OUTBOX_ENABLED', 'false')
   vi.stubGlobal('defineNitroPlugin', (callback: () => void) => callback)
   const immediate = vi.spyOn(globalThis, 'setImmediate')
   const plugin = (await import('../server/plugins/01.cron')).default as unknown as () => void
   plugin()
   expect(calls.schedule).not.toHaveBeenCalled()
+  expect(calls.config).not.toHaveBeenCalled()
+  expect(immediate).not.toHaveBeenCalled()
+})
+
+it('explicit staging opt-in schedules only integration delivery', async () => {
+  vi.stubEnv('PORTAL_DISABLE_BACKGROUND_TASKS', 'true')
+  vi.stubEnv('PORTAL_INTEGRATION_OUTBOX_ENABLED', 'true')
+  vi.stubGlobal('defineNitroPlugin', (callback: () => void) => callback)
+  const immediate = vi.spyOn(globalThis, 'setImmediate')
+  const plugin = (await import('../server/plugins/01.cron')).default as unknown as () => void
+  plugin()
+  expect(calls.schedule).toHaveBeenCalledTimes(1)
+  expect(calls.schedule).toHaveBeenCalledWith('* * * * *', expect.any(Function))
   expect(calls.config).not.toHaveBeenCalled()
   expect(immediate).not.toHaveBeenCalled()
 })

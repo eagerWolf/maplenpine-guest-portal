@@ -55,6 +55,14 @@ async function runReceptionReminders(): Promise<void> {
 
 export default defineNitroPlugin(() => {
   if (process.env.PORTAL_DISABLE_BACKGROUND_TASKS === 'true') {
+    // Explicit opt-in for testing delivery while reservation sync, cleanup,
+    // notifications and website publishing remain paused.
+    if (process.env.PORTAL_INTEGRATION_OUTBOX_ENABLED === 'true') {
+      cron.schedule('* * * * *', () => {
+        processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox]', err))
+      })
+      console.log('[cron] Integration outbox enabled; other background tasks remain disabled')
+    }
     console.log('[cron] Background tasks disabled (isolated staging)')
     return
   }

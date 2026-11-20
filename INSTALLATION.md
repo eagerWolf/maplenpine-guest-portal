@@ -308,3 +308,7 @@ Pri posodobitvi Orchestratorja ohrani `.env`, `pending-jobs.json`, `pending-resu
 - Javna stran ne dobi vsebine: preveri `CONTENT_EXPORT_URL`, token in Cloudflare build log.
 - SumUp webhook dobi 401: manjka ali se ne ujema webhook secret/podpis.
 - Bentral webhook odpove: preveri Bentral API ključ, saj portal vsako rezervacijo ponovno preveri prek API-ja.
+
+### Odgovornost za sporočila
+
+Windows Orchestrator obdeluje izključno eKey opravila in vrača rezultat s PIN-om. Bentral ključ in neposredno pošiljanje sporočil sta odgovornost Guest Portala. Za izoliran preizkus dostave ob `PORTAL_DISABLE_BACKGROUND_TASKS=true` je mogoče izrecno nastaviti `PORTAL_INTEGRATION_OUTBOX_ENABLED=true`; s tem se vsako minuto obdeluje le integracijska vrsta, ostala opravila ostanejo izključena. `BENTRAL_GUEST_MESSAGES_ENABLED=true` dovoli gostujoča Bentral sporočila po potrjeni objavi PIN-a. V Windows `.env` Bentral ključ ni potreben.
