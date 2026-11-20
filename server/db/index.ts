@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3'
+import { fromZonedTime } from 'date-fns-tz'
 import { mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -209,7 +210,7 @@ export function today(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-// Guest portal access ends the day after checkout (date-only cutoff, ignores checkout hour)
+// Guest portal access ends at 13:00 Slovenian time on the checkout date.
 export function guestTokenExpiry(checkOut: string): string {
-  return new Date(new Date(checkOut + 'T00:00:00').getTime() + 24 * 60 * 60 * 1000).toISOString()
+  return fromZonedTime(`${checkOut} 13:00`, 'Europe/Ljubljana').toISOString()
 }

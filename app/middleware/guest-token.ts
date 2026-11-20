@@ -5,9 +5,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const guestToken = useGuestToken()
   guestToken.value = token
 
-  const { data, error } = await useFetch<{adminPreview?:boolean}>(`/api/guest/${token}`, { key: `guest-token-check-${token}` })
+  const { data, error } = await useFetch<{adminPreview?:boolean; portalExpiresAt?:string}>(`/api/guest/${token}`, { key: `guest-token-check-${token}` })
   if (error.value) {
     return navigateTo('/')
   }
   useAdminGuestPreview().value = !!data.value?.adminPreview
+  useGuestPortalExpiry().value = data.value?.portalExpiresAt ?? null
 })

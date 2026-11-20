@@ -1,4 +1,4 @@
-import { getDb, today } from '../../db/index'
+import { getDb, guestTokenExpiry } from '../../db/index'
 import type { Reservation, GuestToken } from '../../db/index'
 import { getSettings } from '../../utils/jobs'
 import { guestDetailsVisibility } from '../../utils/guestVisibility'
@@ -36,7 +36,9 @@ export default defineEventHandler(async (event) => {
   if (!adminPreview && reservation.status === 'cancelled') {
     throw createError({ statusCode: 410, statusMessage: 'Rezervacija je preklicana' })
   }
-  if (!adminPreview && reservation.check_out < today()) {
+  const portalExpiresAt = guestTokenExpiry(reservation.check_out)
+  const portalExpired = Date.now() >= Date.parse(portalExpiresAt)
+  if (!adminPreview && portalExpired) {
     throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
   }
 
@@ -48,7 +50,8 @@ export default defineEventHandler(async (event) => {
 
   return {
     ...visibility,
-    adminPreview: adminPreview && (new Date(guestToken.expires_at) < new Date() || reservation.check_out < today()),
+    portalExpiresAt,
+    adminPreview: adminPreview && (new Date(guestToken.expires_at) < new Date() || portalExpired),
     name: `${reservation.first_name} ${reservation.last_name}`,
     door: reservation.door,
     pin: visibility.detailsAvailable ? reservation.pin : null,

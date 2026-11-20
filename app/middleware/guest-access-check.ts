@@ -4,7 +4,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   useGuestToken().value = token
 
-  const { data, error } = await useFetch<{adminPreview?:boolean}>(`/api/guest/${token}`)
+  const { data, error } = await useFetch<{adminPreview?:boolean; portalExpiresAt?:string}>(`/api/guest/${token}`)
   useGuestAccessBlocked().value = !!error.value
   useAdminGuestPreview().value = !!data.value?.adminPreview
+  useGuestPortalExpiry().value = data.value?.portalExpiresAt ?? null
 })

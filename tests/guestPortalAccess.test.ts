@@ -9,7 +9,7 @@ const fixture = vi.hoisted(() => ({
   token: { reservation_id: 1, expires_at: '2026-12-04T00:00:00Z' },
 }))
 vi.mock('../server/db/index', () => ({
-  today: () => '2026-11-20',
+  guestTokenExpiry: () => '2026-12-03T12:00:00.000Z',
   getDb: () => ({ prepare: (sql: string) => ({
     get: () => sql.includes('guest_tokens') ? fixture.token : fixture.reservation,
   }) }),
@@ -45,5 +45,14 @@ it('returns PIN and contacts at exactly 72 hours before arrival', async () => {
 })
 it('still rejects a cancelled reservation', async () => {
   fixture.reservation.status = 'cancelled'
+  await expect(handler({})).rejects.toMatchObject({ statusCode: 410 })
+})
+
+it('accepts the same link immediately before 13:00 on departure day', async () => {
+  vi.setSystemTime(new Date('2026-12-03T11:59:59Z'))
+  expect((await handler({})).portalExpiresAt).toBe('2026-12-03T12:00:00.000Z')
+})
+it('rejects an old token at exactly 13:00 even when its recorded expiry is later', async () => {
+  vi.setSystemTime(new Date('2026-12-03T12:00:00Z'))
   await expect(handler({})).rejects.toMatchObject({ statusCode: 410 })
 })

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { getDb, now, today } from '../db/index'
+import { getDb, now, today, guestTokenExpiry } from '../db/index'
 import { getTwilioConfig, getWhatsAppProvider } from './whatsapp'
 import { getPaymentProvider } from './payment/index'
 import { notifyAdmins } from './notify'
@@ -298,7 +298,7 @@ export function validateGuestToken(token: string, allowExpired = false): { reser
 
   const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(gt.reservation_id) as import('../db/index').Reservation | undefined
   if (!reservation) throw createError({ statusCode: 404, statusMessage: 'Rezervacija ni najdena' })
-  if (!allowExpired && reservation.check_out < today()) throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
+  if (!allowExpired && (reservation.status === 'cancelled' || Date.now() >= Date.parse(guestTokenExpiry(reservation.check_out)))) throw createError({ statusCode: 410, statusMessage: 'Dostop po odjavi ni več mogoč' })
 
   return { reservationId: gt.reservation_id, reservation }
 }

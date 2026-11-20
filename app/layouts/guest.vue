@@ -19,6 +19,18 @@ useHead({
 const guestToken = useGuestToken()
 const accessBlocked = useGuestAccessBlocked()
 const adminPreview = useAdminGuestPreview()
+const portalExpiry = useGuestPortalExpiry()
+const portalExpired = ref(false)
+let expiryTimer: ReturnType<typeof setInterval> | undefined
+function checkPortalExpiry() {
+  portalExpired.value = !adminPreview.value && !!portalExpiry.value && Date.now() >= Date.parse(portalExpiry.value)
+  if (portalExpired.value) accessBlocked.value = true
+}
+onMounted(() => {
+  checkPortalExpiry()
+  expiryTimer = setInterval(checkPortalExpiry, 1000)
+})
+onUnmounted(() => { if (expiryTimer) clearInterval(expiryTimer) })
 const homeLink = computed(() => (guestToken.value && !accessBlocked.value) ? `/guest/${guestToken.value}` : '/')
 function infoLink(page: string) {
   return guestToken.value ? `/guest/${guestToken.value}/info/${page}` : '/'
@@ -110,7 +122,11 @@ watch(() => route.path, closeDrawer)
     </Transition>
 
     <div class="guest-main">
-      <slot />
+      <div v-if="portalExpired" class="p-8 text-center">
+        <h1>{{ t.access.expiredTitle }}</h1>
+        <p>{{ t.access.expiredMessage }}</p>
+      </div>
+      <slot v-else />
     </div>
 
     <footer class="guest-footer">
