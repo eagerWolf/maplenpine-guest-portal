@@ -4,7 +4,7 @@ import type { Reservation } from '../db/index'
 import { guestAccessMessage } from './guestAccessMessage'
 import { patchBentralEntranceCode, sendBentralGuestMessage, BentralMessageDeliveryUnknown } from './bentral'
 import { computeDisplayFrom, computeDisplayUntil, getSettings } from './jobs'
-import { notifyAdmins } from './notify'
+import { notifyAdmins, resolveNotification } from './notify'
 import { getSettingValue } from './secretSettings'
 
 export type OutboxType = 'guest_pin_email' | 'bentral_guest_message' | 'bentral_ekey' | 'admin_notification'
@@ -126,6 +126,9 @@ export async function processIntegrationOutbox(referenceTime = now(), limit = 20
       db.prepare("UPDATE integration_outbox SET status = 'completed', completed_at = ?, updated_at = ?, last_error = NULL WHERE id = ?")
         .run(ts, ts, row.id)
       summary.completed++
+      if (!db.prepare("SELECT id FROM integration_outbox WHERE type=? AND status='failed' LIMIT 1").get(row.type)) {
+        await resolveNotification('pin_send_failed', `⚠ Integracija je trajno odpovedala — ${row.type}`, `Integracija ${row.type} je ponovno uspešno zaključena.`).catch(() => {})
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const attempt = row.attempt_count + 1
