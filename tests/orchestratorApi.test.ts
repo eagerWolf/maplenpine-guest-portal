@@ -12,7 +12,8 @@ vi.mock('../server/db/index', () => ({
 vi.mock('#imports', () => ({ useRuntimeConfig: () => ({ bentralUnitIdMaple: 'maple', bentralUnitIdPine: 'pine' }) }))
 vi.mock('../server/utils/email', () => ({ getEmailConfig: vi.fn(() => ({ configured: false })), sendGuestPin: vi.fn() }))
 vi.mock('../server/utils/bentral', async importOriginal => ({ ...await importOriginal<typeof import('../server/utils/bentral')>(), patchBentralEntranceCode: vi.fn(), sendBentralGuestMessage: vi.fn().mockResolvedValue(undefined) }))
-vi.mock('../server/utils/notify', () => ({ notifyAdmins: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('../server/utils/staffNotifications', () => ({ queueReceptionChange: vi.fn() }))
+vi.mock('../server/utils/notify', () => ({ notifyAdmins: vi.fn().mockResolvedValue(undefined), resolveNotification: vi.fn().mockResolvedValue(undefined) }))
 
 vi.stubGlobal('getHeader', (event: { authorization?: string }, name: string) => name === 'authorization' ? event.authorization : undefined)
 vi.stubGlobal('readBody', async () => body)

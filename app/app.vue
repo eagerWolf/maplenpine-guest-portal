@@ -2,7 +2,9 @@
 const config = useRuntimeConfig()
 const gaId = config.public.gaId as string
 
-if (gaId) {
+// Cleaning links are capabilities; never send their URLs to analytics.
+const route = useRoute()
+if (gaId && !route.path.startsWith('/cleaning/')) {
   useHead({
     script: [
       {

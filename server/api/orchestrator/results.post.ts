@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { getDb, now, guestTokenExpiry } from '../../db/index'
 import type { Job, Reservation } from '../../db/index'
 import { updateJobResult, createJob, buildJobPayload } from '../../utils/jobs'
-import { notifyAdmins } from '../../utils/notify'
+import { notifyAdmins, resolveNotification } from '../../utils/notify'
 import { hasValidOrchestratorToken, parseOrchestratorResults } from '../../utils/orchestrator'
 import { enqueueIntegration } from '../../utils/integrationOutbox'
 import { getSettingValue } from '../../utils/secretSettings'
@@ -101,6 +101,7 @@ export default defineEventHandler(async (event) => {
     const guestName = `${reservation.first_name} ${reservation.last_name}`
 
     if (result.status === 'success') {
+      await resolveNotification('job_failed', `✗ Napaka pri jobu — ${guestName}`, `eKey opravilo za ${guestName} je uspešno zaključeno.`).catch(() => {})
       if (action === 'insert' && result.pin) {
         const doorDisplay = reservation.door === 'Maple,Pine' ? 'Maple & Pine' : reservation.door
         await notifyAdmins({

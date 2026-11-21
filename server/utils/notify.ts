@@ -14,6 +14,8 @@ export type NotificationEvent =
   | 'checkin_reminder'
   | 'orchestrator_offline'
   | 'orchestrator_recovered'
+  | 'issue_recovered'
+  | 'backup_failed'
 
 type NotificationLevel = 'none' | 'errors' | 'all'
 type ReminderEvent = 'housekeeper_reminder' | 'checkin_reminder'
@@ -27,6 +29,8 @@ const EVENT_MIN_LEVEL: Record<Exclude<NotificationEvent, ReminderEvent>, Notific
   breakfast_order: 'all',
   orchestrator_offline: 'errors',
   orchestrator_recovered: 'errors',
+  issue_recovered: 'errors',
+  backup_failed: 'errors',
 }
 
 const LEVEL_RANK: Record<NotificationLevel, number> = { none: 0, errors: 1, all: 2 }
@@ -70,6 +74,7 @@ export async function notifyAdmins(opts: {
   whatsappText: string
   requireDelivery?: boolean
 }): Promise<void> {
+  if (['pin_added','pin_updated','breakfast_order'].includes(opts.event)) return
   if (!messagingEnabled()) {
     if (opts.requireDelivery) throw new Error('Portal messaging is disabled')
     return
@@ -81,7 +86,7 @@ export async function notifyAdmins(opts: {
   const users = db.prepare(`
     SELECT id, email, notification_level, whatsapp_phone
     FROM users
-    WHERE notification_level != 'none' AND active != 0
+    WHERE role = 'admin' AND notification_level != 'none' AND active != 0
   `).all() as UserRow[]
 
   const minLevel = EVENT_MIN_LEVEL[opts.event]
@@ -89,6 +94,14 @@ export async function notifyAdmins(opts: {
     const level = u.notification_level as NotificationLevel
     return LEVEL_RANK[level] >= LEVEL_RANK[minLevel]
   })
+  const incidentKey = `${opts.event}:${opts.subject}`
+  const isIncident = ['job_failed','pin_send_failed','sync_error','backup_failed'].includes(opts.event)
+  if (isIncident) {
+    const active = db.prepare('SELECT incident_key FROM notification_incidents WHERE incident_key=? AND resolved_at IS NULL').get(incidentKey)
+    if (active) return
+    db.prepare(`INSERT INTO notification_incidents(incident_key,alerted_at,resolved_at) VALUES(?,?,NULL)
+      ON CONFLICT(incident_key) DO UPDATE SET alerted_at=excluded.alerted_at,resolved_at=NULL`).run(incidentKey,now())
+  }
   let attempted = 0
   let succeeded = 0
 
@@ -125,91 +138,18 @@ export async function notifyAdmins(opts: {
       }
     }
   }))
+  if (isIncident && succeeded === 0) db.prepare('DELETE FROM notification_incidents WHERE incident_key=?').run(incidentKey)
   if (opts.requireDelivery && (attempted === 0 || succeeded === 0)) {
     throw new Error(attempted === 0 ? 'No configured administrator notification recipient' : 'All administrator notification deliveries failed')
   }
 }
 
-export async function notifyHousekeeper(reservationId: number, door: string): Promise<void> {
-  if (!messagingEnabled()) return
+
+export async function resolveNotification(event: string, subject: string, text: string) {
   const db = getDb()
-  const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
-  const s = Object.fromEntries(settings.map(r => [r.key, r.value]))
-
-  // Build recipient list: global setting + users with notify_housekeeper=1
-  const recipients = new Set<string>()
-  if (s.housekeeper_whatsapp) recipients.add(s.housekeeper_whatsapp)
-
-  type HkUser = { id: number; email: string; whatsapp_phone: string }
-  const hkUsers = db.prepare(`
-    SELECT id, email, whatsapp_phone FROM users
-    WHERE notify_housekeeper = 1 AND whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND active != 0
-  `).all() as HkUser[]
-  for (const u of hkUsers) recipients.add(u.whatsapp_phone)
-
-  if (recipients.size === 0) return
-
-  const doorDisplay = door === 'Maple,Pine' ? 'Maple in Pine' : door
-  const message = `Jutri je menjava v ${doorDisplay}. Preverite Bentral za podrobnosti.`
-
-  for (const phone of recipients) {
-    const alreadySent = db.prepare(`
-      SELECT id FROM notification_log
-      WHERE event_type = 'housekeeper_reminder' AND reference_id = ? AND recipient = ? AND status = 'sent'
-    `).get(reservationId, phone)
-    if (alreadySent) continue
-
-    const userRow = hkUsers.find(u => u.whatsapp_phone === phone)
-    try {
-      await getWhatsAppProvider().send(phone, message)
-      logEntry({ channel: 'whatsapp', event: 'housekeeper_reminder', recipient: phone, subject: null, body: message, status: 'sent', referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
-      console.log(`[notify:housekeeper] Sent for reservation ${reservationId} (${door}) → ${phone}`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      logEntry({ channel: 'whatsapp', event: 'housekeeper_reminder', recipient: phone, subject: null, body: message, status: 'failed', error: msg, referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
-      console.error(`[notify:housekeeper] Error for reservation ${reservationId} → ${phone}:`, msg)
-    }
-  }
-}
-
-export async function notifyReception(reservationId: number, door: string): Promise<void> {
-  if (!messagingEnabled()) return
-  const db = getDb()
-  const settings = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
-  const s = Object.fromEntries(settings.map(r => [r.key, r.value]))
-
-  // Build recipient list: global setting + users with notify_checkin=1
-  const recipients = new Set<string>()
-  if (s.reception_whatsapp) recipients.add(s.reception_whatsapp)
-
-  type ReceptionUser = { id: number; email: string; whatsapp_phone: string }
-  const receptionUsers = db.prepare(`
-    SELECT id, email, whatsapp_phone FROM users
-    WHERE notify_checkin = 1 AND whatsapp_phone IS NOT NULL AND whatsapp_phone != '' AND active != 0
-  `).all() as ReceptionUser[]
-  for (const u of receptionUsers) recipients.add(u.whatsapp_phone)
-
-  if (recipients.size === 0) return
-
-  const doorDisplay = door === 'Maple,Pine' ? 'Maple in Pine' : door
-  const message = `Jutri prihaja gost v ${doorDisplay}. Preverite Bentral za podrobnosti.`
-
-  for (const phone of recipients) {
-    const alreadySent = db.prepare(`
-      SELECT id FROM notification_log
-      WHERE event_type = 'checkin_reminder' AND reference_id = ? AND recipient = ? AND status = 'sent'
-    `).get(reservationId, phone)
-    if (alreadySent) continue
-
-    const userRow = receptionUsers.find(u => u.whatsapp_phone === phone)
-    try {
-      await getWhatsAppProvider().send(phone, message)
-      logEntry({ channel: 'whatsapp', event: 'checkin_reminder', recipient: phone, subject: null, body: message, status: 'sent', referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
-      console.log(`[notify:reception] Sent for reservation ${reservationId} (${door}) → ${phone}`)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      logEntry({ channel: 'whatsapp', event: 'checkin_reminder', recipient: phone, subject: null, body: message, status: 'failed', error: msg, referenceId: reservationId, userId: userRow?.id, userEmail: userRow?.email })
-      console.error(`[notify:reception] Error for reservation ${reservationId} → ${phone}:`, msg)
-    }
-  }
+  const key = `${event}:${subject}`
+  const incident = db.prepare('SELECT incident_key FROM notification_incidents WHERE incident_key=? AND resolved_at IS NULL').get(key)
+  if (!incident) return
+  await notifyAdmins({event:'issue_recovered',subject:'✓ Težava odpravljena',emailHtml:'<p>Težava je odpravljena.</p>',whatsappText:`✓ ${text}`,requireDelivery:true})
+  db.prepare('UPDATE notification_incidents SET resolved_at=? WHERE incident_key=?').run(now(),key)
 }

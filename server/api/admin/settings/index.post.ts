@@ -44,6 +44,7 @@ const ALLOWED_KEYS = [
   'twilio_account_sid',
   'twilio_auth_token',
   'twilio_whatsapp_from',
+  'twilio_staff_content_sid',
   'sendgrid_api_key',
   'email_from',
   'ebike_enabled',
@@ -71,6 +72,7 @@ export default defineEventHandler(async (event) => {
     try { validateBentralUnitIds(effective.bentral_unit_id_maple || '', effective.bentral_unit_id_pine || '') }
     catch { throw createError({ statusCode: 400, statusMessage: 'Vnesi različna Bentral ID-ja enot za Maple in Pine.' }) }
   }
+  if (body.twilio_staff_content_sid && !/^HX[a-fA-F0-9]{32}$/.test(body.twilio_staff_content_sid)) throw createError({statusCode:400,statusMessage:'Twilio Content SID mora imeti obliko HX in 32 šestnajstiških znakov.'})
   for (const apartment of ['maple', 'pine']) {
     const token = effective[`tv_${apartment}_token`] || ''
     if (token && !/^[A-Za-z0-9_-]{32,256}$/.test(token)) {

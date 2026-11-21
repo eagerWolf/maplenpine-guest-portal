@@ -136,15 +136,15 @@ function accessPreview(time: string, offset: number): string {
     <!-- eKey offsets -->
     <div class="bg-white rounded-xl border border-stone-200 p-6">
       <h2 class="font-medium text-stone-700 mb-1">Odmik za eKey dostop</h2>
-      <p class="text-xs text-stone-400 mb-4">Gost vidi uradni čas zgoraj. eKey PIN pa velja od/do uradnega časa ± odmik.</p>
+      <p class="text-xs text-stone-400 mb-4">PIN za prihod velja od 13:00. Ta čas ne pomeni samodejne odobritve zgodnjega prihoda; sprejem počaka na potrditev čiščenja.</p>
       <div class="space-y-5">
         <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Odmik ob prijavi (min)</label>
-          <input v-model="form.checkin_offset_minutes" type="number" min="-720" max="720" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
+          <label class="block text-sm font-medium text-stone-600 mb-1">Začetek veljavnosti PIN-a</label>
+          <input value="13:00" type="time" disabled class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
           <div class="mt-2 text-xs text-stone-500 flex gap-2 items-center flex-wrap">
-            <span class="inline-flex items-center gap-1 bg-stone-100 rounded px-2 py-0.5">Gost vidi: <strong>{{ form.bentral_checkin_time || '—' }}</strong></span>
+            <span class="inline-flex items-center gap-1 bg-stone-100 rounded px-2 py-0.5">Uradni prihod: <strong>{{ form.bentral_checkin_time || '—' }}</strong></span>
             <span class="text-stone-300">→</span>
-            <span class="inline-flex items-center gap-1 bg-pine-50 text-pine-700 rounded px-2 py-0.5">eKey od: <strong>{{ form.bentral_checkin_time && form.checkin_offset_minutes ? accessPreview(form.bentral_checkin_time, parseInt(form.checkin_offset_minutes)) : '—' }}</strong></span>
+            <span class="inline-flex items-center gap-1 bg-pine-50 text-pine-700 rounded px-2 py-0.5">eKey od: <strong>13:00</strong></span>
           </div>
         </div>
         <div>

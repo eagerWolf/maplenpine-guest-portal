@@ -23,6 +23,7 @@ class TwilioProvider implements WhatsAppProvider {
     private accountSid: string,
     private authToken: string,
     private from: string,
+    private contentSid: string,
   ) {}
 
   async send(to: string, message: string): Promise<void> {
@@ -30,8 +31,19 @@ class TwilioProvider implements WhatsAppProvider {
     const body = new URLSearchParams({
       From: `whatsapp:${this.from}`,
       To: `whatsapp:${normalizePhone(to)}`,
-      Body: message,
     })
+    if (this.contentSid) {
+      const lines = message.split('\n').filter(Boolean)
+      const link = lines.find(line => /^https?:\/\//.test(line)) || String(useRuntimeConfig().public.baseUrl)
+      body.set('ContentSid',this.contentSid)
+      body.set('ContentVariables',JSON.stringify({
+        '1':lines[0] || 'Obvestilo',
+        '2':lines.slice(1).filter(line => line !== link).join(' · ') || 'Preverite portal za podrobnosti.',
+        '3':link,
+      }))
+    } else {
+      throw new Error('Za samodejna WhatsApp obvestila nastavite odobreni Twilio Content SID.')
+    }
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -39,6 +51,7 @@ class TwilioProvider implements WhatsAppProvider {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body,
+      signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) {
       const text = await res.text()
@@ -55,6 +68,7 @@ class WebhookProvider implements WhatsAppProvider {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to: normalizePhone(to), message }),
+      signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) {
       throw new Error(`Webhook error ${res.status}: ${await res.text()}`)
@@ -67,7 +81,7 @@ export function getWhatsAppProvider(): WhatsAppProvider {
   const twilio = getTwilioConfig()
 
   if (twilio.configured) {
-    return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom)
+    return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom, twilio.staffContentSid)
   }
 
   const config = useRuntimeConfig()
@@ -84,13 +98,14 @@ export function getTwilioConfig(): {
   authToken: string
   whatsappFrom: string
   configured: boolean
+  staffContentSid: string
 } {
-  if (!messagingEnabled()) return { accountSid: '', authToken: '', whatsappFrom: '', configured: false }
+  if (!messagingEnabled()) return { accountSid: '', authToken: '', whatsappFrom: '', configured: false, staffContentSid: '' }
   const config = useRuntimeConfig()
 
   const db = getDb()
   const rows = db.prepare(
-    `SELECT key, value FROM app_settings WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from')`,
+    `SELECT key, value FROM app_settings WHERE key IN ('twilio_account_sid', 'twilio_auth_token', 'twilio_whatsapp_from', 'twilio_staff_content_sid')`,
   ).all() as Array<{ key: string; value: string }>
   const dbSettings = Object.fromEntries(rows.map(r => [r.key, decodeSetting(r.key, r.value)]))
 
@@ -102,6 +117,7 @@ export function getTwilioConfig(): {
     accountSid,
     authToken,
     whatsappFrom,
+    staffContentSid: dbSettings.twilio_staff_content_sid || '',
     configured: Boolean(accountSid && authToken && whatsappFrom),
   }
 }

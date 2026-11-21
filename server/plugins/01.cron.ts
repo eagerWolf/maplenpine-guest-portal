@@ -1,55 +1,21 @@
 import cron from 'node-cron'
 import { syncBentral } from '../utils/sync'
-import { notifyHousekeeper, notifyReception } from '../utils/notify'
+import { queueStaffReminders, processStaffNotifications } from '../utils/staffNotifications'
 import { getDb } from '../db/index'
 import { useRuntimeConfig } from '#imports'
 import { queueExpiredManagedCodeCleanup } from '../utils/jobs'
 import { processIntegrationOutbox } from '../utils/integrationOutbox'
 import { checkOrchestratorHealth } from '../utils/orchestratorHealth'
+import { notifyAdmins, resolveNotification } from '../utils/notify'
 import { backupDatabase } from '../utils/dbBackup'
 import { triggerWebsitePublish } from '../utils/websiteContent'
 
-function addDays(date: Date, days: number): string {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
-async function runHousekeeperReminders(): Promise<void> {
-  const db = getDb()
-  const tomorrow = addDays(new Date(), 1)
-  const checkouts = db.prepare(`
-    SELECT id, door FROM reservations
-    WHERE check_out = ? AND status = 'active'
-  `).all(tomorrow) as Array<{ id: number; door: string }>
-
-  for (const res of checkouts) {
-    await notifyHousekeeper(res.id, res.door).catch(err =>
-      console.error('[cron:housekeeper]', err),
-    )
-  }
-
-  if (checkouts.length) {
-    console.log(`[cron:housekeeper] Processed ${checkouts.length} checkout(s) for ${tomorrow}`)
-  }
-}
-
-async function runReceptionReminders(): Promise<void> {
-  const db = getDb()
-  const tomorrow = addDays(new Date(), 1)
-  const arrivals = db.prepare(`
-    SELECT id, door FROM reservations
-    WHERE check_in = ? AND status = 'active'
-  `).all(tomorrow) as Array<{ id: number; door: string }>
-
-  for (const res of arrivals) {
-    await notifyReception(res.id, res.door).catch(err =>
-      console.error('[cron:reception]', err),
-    )
-  }
-
-  if (arrivals.length) {
-    console.log(`[cron:reception] Processed ${arrivals.length} arrival(s) for ${tomorrow}`)
+async function runBackup() {
+  try {
+    await backupDatabase()
+    await resolveNotification('backup_failed','Napaka varnostne kopije','Varnostna kopija je ponovno uspešno pripravljena.')
+  } catch {
+    await notifyAdmins({event:'backup_failed',subject:'Napaka varnostne kopije',emailHtml:'<p>Preverite varnostno kopiranje.</p>',whatsappText:'Varnostna kopija portala ni uspela. Preverite strežnik in prostor na disku.'})
   }
 }
 
@@ -59,6 +25,7 @@ export default defineNitroPlugin(() => {
     // notifications and website publishing remain paused.
     if (process.env.PORTAL_INTEGRATION_OUTBOX_ENABLED === 'true') {
       cron.schedule('* * * * *', () => {
+        processStaffNotifications().catch(err => console.error('[cron:staff-notifications]', err))
         processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox]', err))
       })
       console.log('[cron] Integration outbox enabled; other background tasks remain disabled')
@@ -72,7 +39,7 @@ export default defineNitroPlugin(() => {
   const hotExpr = config.bentralHotCron || '*/30 * * * *'
   const warmExpr = config.bentralWarmCron || '0 */5 * * *'
   const coldExpr = config.bentralColdCron || '0 3 * * *'
-  const hkExpr = config.housekeeperCron || '0 10 * * *'
+  const hkExpr = '*/5 * * * *'
   const ekeyCleanupExpr = '15 3 * * *'
   const outboxExpr = '* * * * *'
   const orchestratorHealthExpr = '*/5 * * * *'
@@ -101,8 +68,7 @@ export default defineNitroPlugin(() => {
   })
 
   cron.schedule(hkExpr, () => {
-    runHousekeeperReminders().catch(err => console.error('[cron:housekeeper]', err))
-    runReceptionReminders().catch(err => console.error('[cron:reception]', err))
+    try { queueStaffReminders() } catch (err) { console.error('[cron:staff-reminders]', err) }
   })
 
   cron.schedule(ekeyCleanupExpr, () => {
@@ -115,6 +81,7 @@ export default defineNitroPlugin(() => {
   })
 
   cron.schedule(outboxExpr, () => {
+    processStaffNotifications().catch(err => console.error('[cron:staff-notifications]', err))
     processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox]', err))
   })
 
@@ -123,7 +90,7 @@ export default defineNitroPlugin(() => {
   })
 
   cron.schedule(backupExpr, () => {
-    backupDatabase().then(path => console.log('[cron:backup]', path)).catch(err => console.error('[cron:backup]', err))
+    runBackup().catch(err => console.error('[cron:backup]', err))
   })
 
   cron.schedule(websitePublishExpr, () => {
@@ -136,7 +103,7 @@ export default defineNitroPlugin(() => {
   setImmediate(() => {
     if (isSyncEnabled()) syncBentral('hot').catch(err => console.error('[cron:startup]', err))
     processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox:startup]', err))
-    backupDatabase().catch(err => console.error('[cron:backup:startup]', err))
+    runBackup().catch(err => console.error('[cron:backup:startup]', err))
     try {
       const queued = queueExpiredManagedCodeCleanup()
       if (queued) console.log(`[cron:ekey-cleanup:startup] Queued ${queued} managed code deletion(s)`)

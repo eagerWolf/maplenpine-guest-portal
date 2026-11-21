@@ -270,13 +270,7 @@ function applyOffset(dateStr: string, timeStr: string, offsetMin: number): strin
  * If admin has manually adjusted the access time, shows the adjusted value directly.
  */
 export function computeDisplayFrom(reservation: Reservation, settings: Record<string, string>): string {
-  const arrival = reservation.bentral_arrival ?? reservation.check_in
-  const departure = reservation.bentral_departure ?? reservation.check_out
-  const standard = buildAccessTimes(arrival, departure, settings)
-  if (!reservation.access_valid_from || reservation.access_valid_from === standard.validFrom) {
-    return `${arrival} ${settings.bentral_checkin_time || '15:00'}`
-  }
-  return reservation.access_valid_from
+  return reservation.access_valid_from || `${reservation.bentral_arrival ?? reservation.check_in} 13:00`
 }
 
 export function computeDisplayUntil(reservation: Reservation, settings: Record<string, string>): string {
@@ -290,12 +284,10 @@ export function computeDisplayUntil(reservation: Reservation, settings: Record<s
 }
 
 export function buildAccessTimes(arrival: string, departure: string, settings: Record<string, string>) {
-  const checkinTime = settings.bentral_checkin_time || '15:00'
   const checkoutTime = settings.bentral_checkout_time || '11:00'
-  const checkinOffset = parseInt(settings.checkin_offset_minutes || '-120', 10)
   const checkoutOffset = parseInt(settings.checkout_offset_minutes || '30', 10)
   return {
-    validFrom: applyOffset(arrival, checkinTime, checkinOffset),
+    validFrom: `${arrival} 13:00`,
     validUntil: applyOffset(departure, checkoutTime, checkoutOffset),
   }
 }

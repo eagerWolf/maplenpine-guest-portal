@@ -42,6 +42,15 @@ watch([filterEvent, filterChannel, filterStatus], () => { page.value = 0 })
 
 function eventLabel(e: string) {
   return ({
+    arrival_today: 'Današnji prihod',
+    reservation_changed: 'Sprememba rezervacije',
+    reservation_cancelled: 'Odpoved rezervacije',
+    cleaning_reminder: 'Opomnik za čiščenje',
+    cleaning_completed: 'Čiščenje potrjeno',
+    backup_failed: 'Napaka varnostne kopije',
+    issue_recovered: 'Težava odpravljena',
+    orchestrator_offline: 'Worker ni dosegljiv',
+    orchestrator_recovered: 'Worker ponovno povezan',
     job_failed: 'Napaka joba',
     pin_send_failed: 'Napaka pošiljanja',
     sync_error: 'Bentral sync napaka',
@@ -88,6 +97,11 @@ function fmtDate(iso: string) {
         class="px-3 py-1.5 border border-stone-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pine-500"
       >
         <option value="">Vsi dogodki</option>
+        <option value="arrival_today">Današnji prihod</option>
+        <option value="reservation_changed">Sprememba rezervacije</option>
+        <option value="reservation_cancelled">Odpoved rezervacije</option>
+        <option value="cleaning_reminder">Opomnik za čiščenje</option>
+        <option value="cleaning_completed">Čiščenje potrjeno</option>
         <option value="job_failed">Napaka joba</option>
         <option value="pin_send_failed">Napaka pošiljanja</option>
         <option value="sync_error">Bentral sync napaka</option>

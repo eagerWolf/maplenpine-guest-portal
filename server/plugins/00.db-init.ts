@@ -1,3 +1,4 @@
+import { migrateStaffNotifications } from '../utils/staffNotifications'
 import { getDb } from '../db/index'
 import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -705,5 +706,11 @@ export default defineNitroPlugin(() => {
     VALUES (1, 'legacy-schema-baseline', datetime('now'))
   `).run()
 
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version=2').get()) {
+    db.transaction(() => {
+      migrateStaffNotifications()
+      db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(2,?,?)').run('staff-notifications-and-cleaning',new Date().toISOString())
+    })()
+  }
   console.log('[db] Schema ready')
 })

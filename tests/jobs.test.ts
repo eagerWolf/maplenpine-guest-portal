@@ -25,7 +25,7 @@ describe('eKey opravila', () => {
     const reservation = { bentral_reservation_id: 'R1', first_name: 'Ana', last_name: 'Novak', door: 'Maple', access_valid_from: '2026-01-01 15:00', access_valid_until: '2026-01-03 11:00' } as Reservation
     expect(buildJobPayload(reservation, 'insert')).toMatchObject({ jobId: 'R1', action: 'insert', firstName: 'Ana', lastName: 'Novak', door: 'Maple' })
   })
-  it('pravilno prestavi dostop čez polnoč', () => {
-    expect(buildAccessTimes('2026-01-10', '2026-01-12', { bentral_checkin_time: '00:30', bentral_checkout_time: '23:30', checkin_offset_minutes: '-60', checkout_offset_minutes: '60' })).toEqual({ validFrom: '2026-01-09 23:30', validUntil: '2026-01-13 00:30' })
+  it('vedno začne PIN ob 13:00, odhodni zamik pa ohrani', () => {
+    expect(buildAccessTimes('2026-01-10', '2026-01-12', { bentral_checkin_time: '00:30', bentral_checkout_time: '23:30', checkin_offset_minutes: '-60', checkout_offset_minutes: '60' })).toEqual({ validFrom: '2026-01-10 13:00', validUntil: '2026-01-13 00:30' })
   })
 })

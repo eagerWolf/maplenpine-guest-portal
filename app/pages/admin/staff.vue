@@ -319,7 +319,7 @@ function levelClass(level: string) {
               >
                 <option value="none">Brez obvestil</option>
                 <option value="errors">Samo napake (job_failed, pin_send_failed, sync_error)</option>
-                <option value="all">Vsa obvestila (vključno z PIN dodan/posodobljen)</option>
+                <option value="all">Tehnična opozorila in potrditve čiščenja (administrator)</option>
               </select>
             </div>
             <div>
@@ -343,7 +343,7 @@ function levelClass(level: string) {
                 </div>
                 <span class="text-sm font-medium text-stone-700">Opomnik za čiščenje</span>
               </label>
-              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp 24h pred odjavo gosta. Zahteva WhatsApp številko.</p>
+              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp dan pred odhodom ob 10:00, s povezavo za potrditev čiščenja. Zahteva WhatsApp številko.</p>
             </div>
             <div>
               <label class="flex items-center gap-3 cursor-pointer select-none">
@@ -356,7 +356,7 @@ function levelClass(level: string) {
                 </div>
                 <span class="text-sm font-medium text-stone-700">Opomnik za sprejem</span>
               </label>
-              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp 24h pred prihodom gosta. Zahteva WhatsApp številko.</p>
+              <p class="text-xs text-stone-400 mt-1 ml-14">WhatsApp na dan prihoda ob 9:00, ob pomembni spremembi ali odpovedi ter ob potrjenem čiščenju. Zahteva WhatsApp številko.</p>
             </div>
           </div>
 

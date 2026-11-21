@@ -3,7 +3,8 @@ import type { Reservation } from '../db/index'
 import { fetchBentralReservations, parseName } from './bentral'
 import type { BentralReservation } from './bentral'
 import { buildAccessTimes, buildJobPayload, createJob, getSettings } from './jobs'
-import { notifyAdmins } from './notify'
+import { queueReceptionChange } from './staffNotifications'
+import { notifyAdmins, resolveNotification } from './notify'
 import { useRuntimeConfig } from '#imports'
 import { getSettingValue } from './secretSettings'
 import { resolveBentralDoor, validateBentralUnitIds } from './bentralUnits'
@@ -77,6 +78,8 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
     }).catch(() => {})
     return
   }
+
+  await resolveNotification('sync_error', `⚠ Bentral sync napaka — ${tier}`, `Bentral sinhronizacija (${tier}) ponovno deluje.`).catch(() => {})
 
   let inserted = 0
   let updated = 0
@@ -166,6 +169,8 @@ async function processReservation(
   const effectiveUpdated = pairedRes && pairedRes.updated > br.updated ? pairedRes.updated : br.updated
 
   if (existing && existing.door !== door) {
+    queueReceptionChange(existing,{...existing,door,updated_at:effectiveUpdated})
+    await notifyAdmins({event:'sync_error',subject:`Neskladje apartmaja rezervacije ${existing.id}`,emailHtml:'<p>Preverite apartma in eKey dostop.</p>',whatsappText:`Rezervacija ${existing.id}: Bentral navaja ${door}, shranjeni dostop pa ${existing.door}. Potreben je ročni pregled dostopa.`}).catch(() => {})
     throw new Error('Reservation apartment differs from its saved eKey access. Reconcile the access before syncing this reservation.')
   }
 
@@ -223,6 +228,7 @@ async function processReservation(
 
   const dateChanged = existing.bentral_arrival !== bentralArrival || existing.bentral_departure !== bentralDeparture
   const statusChanged = existing.bentral_status !== bentralStatus
+  const countChanged = br.persons !== undefined && existing.guest_count !== br.persons
   const isCancelled = bentralStatus === 'canceled'
 
   db.prepare(`
@@ -247,8 +253,11 @@ async function processReservation(
     db.prepare('DELETE FROM guest_tokens WHERE reservation_id = ?').run(existing.id)
     const payload = buildJobPayload(existing, 'cancel')
     createJob(existing.id, 'cancel', payload, 'bentral_sync')
+    queueReceptionChange(existing, { ...existing, status: 'cancelled', updated_at: effectiveUpdated })
     return 'cancel'
   }
+
+  if (countChanged && !isCancelled) db.prepare('UPDATE reservations SET guest_count=? WHERE id=?').run(br.persons,existing.id)
 
   if (dateChanged && !isCancelled) {
     const { validFrom: newFrom, validUntil: newUntil } = buildAccessTimes(bentralArrival, bentralDeparture, settings)
@@ -260,9 +269,11 @@ async function processReservation(
     const updatedRes = { ...existing, door, access_valid_from: newFrom, access_valid_until: newUntil }
     const payload = buildJobPayload(updatedRes, 'update')
     createJob(existing.id, 'update', payload, 'bentral_sync')
+    queueReceptionChange(existing, { ...existing, check_in: bentralArrival, check_out: bentralDeparture, guest_count: br.persons ?? existing.guest_count, updated_at: effectiveUpdated })
     return 'update'
   }
 
+  if (countChanged && !isCancelled) queueReceptionChange(existing, { ...existing, guest_count: br.persons!, updated_at: effectiveUpdated })
   return 'skip'
 }
 

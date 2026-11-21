@@ -1,0 +1,25 @@
+import { afterEach, expect, it, vi } from 'vitest'
+const sid='HX'+'a'.repeat(32)
+const values=vi.hoisted(()=>new Map<string,string>())
+vi.mock('#imports',()=>({useRuntimeConfig:()=>({public:{baseUrl:'https://portal.test'}})}))
+vi.mock('../server/db/index',()=>({getDb:()=>({prepare:()=>({all:()=>[...values].map(([key,value])=>({key,value}))})})}))
+vi.mock('../server/utils/secretSettings',()=>({decodeSetting:(_key:string,value:string)=>value}))
+const {getWhatsAppProvider}=await import('../server/utils/whatsapp')
+afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();values.clear()})
+it('uses approved template fields instead of free-form Body and retains the cleaner link',async()=>{
+  vi.stubEnv('PORTAL_WHATSAPP_ENABLED','true')
+  values.set('twilio_account_sid','ACtest');values.set('twilio_auth_token','secret');values.set('twilio_whatsapp_from','+10000000000');values.set('twilio_staff_content_sid',sid)
+  const fetch=vi.fn().mockResolvedValue({ok:true});vi.stubGlobal('fetch',fetch)
+  await getWhatsAppProvider().send('+38640111111','Čiščenje\nJutri Pine\nhttps://portal.test/cleaning/test-link')
+  const params=fetch.mock.calls[0]?.[1].body as URLSearchParams
+  expect(params.get('ContentSid')).toBe(sid)
+  expect(params.has('Body')).toBe(false)
+  expect(JSON.parse(params.get('ContentVariables')!)).toEqual({'1':'Čiščenje','2':'Jutri Pine','3':'https://portal.test/cleaning/test-link'})
+})
+it('does not attempt a send without an approved template',async()=>{
+  vi.stubEnv('PORTAL_WHATSAPP_ENABLED','true')
+  values.set('twilio_account_sid','ACtest');values.set('twilio_auth_token','secret');values.set('twilio_whatsapp_from','+10000000000')
+  const fetch=vi.fn();vi.stubGlobal('fetch',fetch)
+  await expect(getWhatsAppProvider().send('+38640111111','Obvestilo')).rejects.toThrow('Content SID')
+  expect(fetch).not.toHaveBeenCalled()
+})

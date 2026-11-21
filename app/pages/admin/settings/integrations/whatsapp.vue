@@ -7,6 +7,7 @@ const form = reactive({
   twilio_account_sid: '',
   twilio_auth_token: '',
   twilio_whatsapp_from: '',
+  twilio_staff_content_sid: '',
 })
 
 watch(settings, (s) => {
@@ -14,9 +15,10 @@ watch(settings, (s) => {
   form.twilio_account_sid = s.twilio_account_sid ?? ''
   form.twilio_auth_token = s.twilio_auth_token ?? ''
   form.twilio_whatsapp_from = s.twilio_whatsapp_from ?? ''
+  form.twilio_staff_content_sid = s.twilio_staff_content_sid ?? ''
 }, { immediate: true })
 
-const configured = computed(() => !!(form.twilio_account_sid && form.twilio_auth_token && form.twilio_whatsapp_from))
+const configured = computed(() => !!(form.twilio_account_sid && form.twilio_auth_token && form.twilio_whatsapp_from && form.twilio_staff_content_sid))
 
 const saving = ref(false)
 const saved = ref(false)
@@ -69,6 +71,11 @@ async function save() {
           <label class="block text-sm font-medium text-stone-600 mb-1">WhatsApp številka (Twilio sender)</label>
           <input v-model="form.twilio_whatsapp_from" type="tel" placeholder="+14155238886" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500 font-mono" />
           <p class="text-xs text-stone-400 mt-1">Twilio WhatsApp-enabled številka, brez predpone "whatsapp:"</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-600 mb-1">Odobrena predloga za obvestila (Content SID)</label>
+          <input v-model="form.twilio_staff_content_sid" placeholder="HX…" class="w-full px-3 py-2 border rounded-lg font-mono text-sm" />
+          <p v-pre class="text-xs text-stone-400 mt-1">Predloga: Maple &amp; Pine — obvestilo: {{1}}. Podrobnosti: {{2}}. Povezava: {{3}}. Pred uporabo mora biti odobrena v Twiliu/WhatsAppu.</p>
         </div>
       </div>
     </div>
