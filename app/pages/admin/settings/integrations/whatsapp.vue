@@ -112,6 +112,28 @@ async function save() {
       </label>
       <textarea v-model="templates[selected]" rows="6" class="w-full border rounded-lg p-2 font-mono text-sm" aria-label="Predloga obvestila" />
       <p class="text-xs text-stone-500">Ohranite {title} (naslov), {details} (podatki) in {link} (povezava). Okoli njih lahko dodate svoje besedilo. Največ 1500 znakov.</p>
+      <details class="rounded-lg border border-stone-200 p-3 text-sm text-stone-600">
+        <summary class="cursor-pointer font-medium">Kako oblikujem WhatsApp sporočilo?</summary>
+        <div class="mt-3 space-y-3">
+          <p>Oznake vnesite neposredno v besedilo. WhatsApp podpira poudarke in emojije, ne podpira pa CSS, izbire pisave, velikosti ali barv.</p>
+          <ul class="space-y-1">
+            <li><code>*krepko*</code> → <strong>krepko</strong></li>
+            <li><code>_ležeče_</code> → <em>ležeče</em></li>
+            <li><code>~prečrtano~</code> → <s>prečrtano</s></li>
+            <li><code>```enaka širina znakov```</code> → <span class="font-mono">enaka širina znakov</span></li>
+          </ul>
+          <p>Primer z vsemi obveznimi spremenljivkami:</p>
+          <pre class="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 font-mono text-xs">🧹 *{title}*
+
+{details}
+
+Povezava:
+{link}
+
+_Maple &amp; Pine_</pre>
+          <p>Predogled spodaj prikazuje izvorno besedilo z oznakami. Končni videz preverite z ročnim testom na svoji številki. Trenutna Twilio predloga podrobnosti združi v eno vrstico; prazne vrstice iz urejevalnika se zato ne ohranijo v celoti. Za drugačno razporeditev je treba prilagoditi in ponovno odobriti Twilio predlogo.</p>
+        </div>
+      </details>
       <pre class="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 text-sm">{{ preview }}</pre>
       <p class="text-xs text-stone-500">Na WhatsAppu bo vsebina vstavljena v odobreno predlogo »Maple &amp; Pine — obvestilo / Podrobnosti / Povezava«. Testna povezava za čiščenje ne omogoča potrditve.</p>
       <button :disabled="testing || saving || !testPhone" class="bg-pine-600 text-white rounded-lg px-4 py-2 disabled:opacity-50" @click="sendTest">{{ testing ? 'Pošiljam…' : 'Shrani in pošlji ta test meni' }}</button>
