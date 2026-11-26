@@ -15,3 +15,5 @@ Preizkus 26. novembra 2026: obe kopiji sta bili zagnani z ustrezno obstoječo `.
 Pri dejanski obnovi najprej ustavimo ustrezen PM2 proces, ohranimo poškodovano stanje za pregled ter obnovimo bazo, datoteke in točno pripadajočo konfiguracijo. `.env` ne generiramo znova, saj bi izgubili možnost dešifriranja nastavitev. Uporabimo združljivo ohranjeno izdajo iz `/home/deploy/releases/`, preverimo portal in šele nato vključimo worker ter integracije. Preverimo tudi čakajoče rezultate workerja, da se fizična opravila ne ponovijo.
 
 Te kopije so na istem VPS-ju. Niso nadomestilo za ločeno, preverjeno zunanjo kopijo oziroma ponudnikove varnostne kopije.
+
+Hetzner Console je bila 26.11.2026 preverjena: ponudnikove samodejne varnostne kopije so vključene (gumb »Disable Backups«), na voljo je šest kopij z dne 20.–25.11.2026; zadnja 25.11. ob 14:57:14 UTC. Obnova celotnega VPS-ja iz Hetzner kopije ni bila izvedena; zgornji dejanski preizkus se nanaša na aplikacijski kopiji.
