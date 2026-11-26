@@ -1,19 +1,11 @@
-# WhatsApp predloge – 26. november 2026
+# Skupna WhatsApp predloga – 26. november 2026
 
-Splošna predloga `maplenpine_staff_notice_v2` je še v pregledu in razvrščena kot Marketing. Za operativna obvestila je bilo oddanih 12 ločenih predlog Utility, vsaka s stalnim opisom namena (prihod, sprememba, odpoved, čiščenje ali konkretna tehnična napaka).
+Vsa WhatsApp obvestila in ročni testi uporabljajo izključno nastavitev `twilio_staff_content_sid` za `maplenpine_staff_notice_v2` (Content SID `HXa858f0f648e8f32b0ece06b10b6f490e`). Spremenljivke so 1 = naslov, 2 = podrobnosti, 3 = povezava. Besedila posameznih obvestil ostajajo nastavljiva.
 
-Definicije in izmišljeni vzorci: `scripts/whatsapp-utility-templates.json`.
+Stari ključi `twilio_content_sid_<event>` se pri pošiljanju ne berejo in jih ni več mogoče urejati. Ob manjkajoči skupni predlogi pošiljanje javi napako; ne uporabi stare predloge ali prostega besedila.
 
-Operaterska skripta `register-whatsapp-utility-templates.mjs` iz imenika portala:
+Dvanajst ločenih predlog pri Twiliu ni več potrebnih in jih portal ne uporablja. Operaterska skripta in definicije za njihovo oddajo so odstranjene. Oddaljene predloge niso izbrisane.
 
-- Brez argumentov: samo izpis priprave, brez uporabe poverilnic.
-- `node --env-file=.env scripts/register-whatsapp-utility-templates.mjs --status`: bralni pregled.
-- `--submit`: ustvari manjkajoče predloge in jih odda v odobritev. Obstoječih predlog z drugačnim besedilom ne prepisuje.
+Meta je skupno predlogo razvrstila v Marketing; 26. novembra je bila uspešno oddana zahteva za pregled kategorije Utility. Odobritev še ni potrjena. Ta sprememba kode ne vklopi pošiljanja ali produkcijskih avtomatizacij.
 
-Skript uporablja obstoječe poverilnice na VPS-ju, izključno za uradni Twilio Content API. Poverilnic, zasebnih podatkov gostov in PIN-ov ne izpisuje. Skript ne pošilja WhatsApp sporočil in ne spreminja produkcijskih nastavitev. Rezultat shrani v zaščiteno datoteko `data/whatsapp-utility-template-registry.json`.
-
-Po oddaji je bil enkrat preverjen status vseh 12 predlog: `pending`, kategorija `UTILITY`. To še ni odobritev. Meta lahko kategorijo naknadno spremeni.
-
-Portal podpira `twilio_content_sid_<event>` za vsako vrsto obvestila. Če ločen SID ni nastavljen, se ohrani skupna predloga. Ročni preizkus ostaja omejen na trenutno prijavljenega administratorja z veljavno številko. Pred dejanskimi preizkusi se nastavi odobrene SID-je in omogoči pošiljanje samo na testnem portalu; produkcija ostane izklopljena.
-
-Viri: https://www.twilio.com/docs/content/content-api-resources in https://www.twilio.com/docs/whatsapp/tutorial/message-template-approvals-statuses
+Ročni testi se še vedno pošiljajo samo trenutno prijavljenemu administratorju z veljavno WhatsApp številko.

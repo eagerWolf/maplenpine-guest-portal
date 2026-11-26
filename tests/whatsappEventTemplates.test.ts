@@ -4,6 +4,7 @@ let db:Database.Database
 vi.mock('#imports',()=>({useRuntimeConfig:()=>({public:{baseUrl:'https://guesttest.maplenpine.com'}})}))
 vi.mock('../server/db/index',()=>({getDb:()=>db}))
 vi.mock('../server/utils/secretSettings',()=>({decodeSetting:(_key:string,value:string)=>value}))
+import { notificationEvents } from '../shared/notificationTemplates'
 const {getWhatsAppProvider}=await import('../server/utils/whatsapp')
 beforeEach(()=>{
  vi.stubEnv('PORTAL_WHATSAPP_ENABLED','true')
@@ -14,16 +15,20 @@ beforeEach(()=>{
  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true}))
 })
 afterEach(()=>{db.close();vi.unstubAllEnvs();vi.unstubAllGlobals()})
-it('uses an event-specific template while preserving staff-only content variables',async()=>{
- await getWhatsAppProvider('cleaning_reminder').send('+38640111111','TEST\nPine\nhttps://guesttest.maplenpine.com/cleaning/test-preview')
+it.each(Object.keys(notificationEvents))('uses the shared template for %s despite legacy overrides',async(event)=>{
+ db.prepare('INSERT OR REPLACE INTO app_settings VALUES(?,?)').run(`twilio_content_sid_${event}`,'HX'+'3'.repeat(32))
+ await getWhatsAppProvider().send('+38640111111','TEST\nPine\nhttps://guesttest.maplenpine.com/cleaning/test-preview')
  const body=(vi.mocked(fetch).mock.calls[0]![1]!.body as URLSearchParams)
- expect(body.get('ContentSid')).toBe('HX'+'3'.repeat(32))
+ expect(body.get('ContentSid')).toBe('HX'+'2'.repeat(32))
  expect(JSON.parse(body.get('ContentVariables')!)).toEqual({'1':'TEST','2':'Pine','3':'https://guesttest.maplenpine.com/cleaning/test-preview'})
 })
-it('falls back for unset or unknown events and never sends when delivery is disabled',async()=>{
- await getWhatsAppProvider('unknown').send('+38640111111','Test')
- expect((vi.mocked(fetch).mock.calls[0]![1]!.body as URLSearchParams).get('ContentSid')).toBe('HX'+'2'.repeat(32))
+it('never uses a legacy event template when the shared SID is missing',async()=>{
+ db.prepare("DELETE FROM app_settings WHERE key='twilio_staff_content_sid'").run()
+ await expect(getWhatsAppProvider().send('+38640111111','Test')).rejects.toThrow('Content SID')
+ expect(fetch).not.toHaveBeenCalled()
+})
+it('never sends when delivery is disabled',async()=>{
  vi.stubEnv('PORTAL_WHATSAPP_ENABLED','false')
- await expect(getWhatsAppProvider('cleaning_reminder').send('+38640111111','Test')).rejects.toThrow('disabled')
- expect(fetch).toHaveBeenCalledTimes(1)
+ await expect(getWhatsAppProvider().send('+38640111111','Test')).rejects.toThrow('disabled')
+ expect(fetch).not.toHaveBeenCalled()
 })

@@ -2,7 +2,6 @@
 import { notificationEvents, notificationSamples, defaultNotificationTemplate, renderNotificationTemplate, type EditableNotificationEvent } from '#shared/notificationTemplates'
 const selected = ref<EditableNotificationEvent>('arrival_today')
 const templates = reactive<Record<string,string>>({})
-const contentSids = reactive<Record<string,string>>({})
 const { data: testRecipient } = await useFetch<{recipient:string,valid:boolean}>('/api/admin/whatsapp/recipient')
 const testStatus = ref('')
 const testing = ref(false)
@@ -34,7 +33,6 @@ watch(settings, (s) => {
   if (!s) return
   for (const name of Object.keys(notificationEvents)) {
     templates[name] = s[`notification_template_${name}`] || defaultNotificationTemplate
-    contentSids[name] = s[`twilio_content_sid_${name}`] || ''
   }
   form.twilio_account_sid = s.twilio_account_sid ?? ''
   form.twilio_auth_token = s.twilio_auth_token ?? ''
@@ -42,7 +40,7 @@ watch(settings, (s) => {
   form.twilio_staff_content_sid = s.twilio_staff_content_sid ?? ''
 }, { immediate: true })
 
-const configured = computed(() => !!(form.twilio_account_sid && form.twilio_auth_token && form.twilio_whatsapp_from && (form.twilio_staff_content_sid || Object.values(contentSids).some(Boolean))))
+const configured = computed(() => !!(form.twilio_account_sid && form.twilio_auth_token && form.twilio_whatsapp_from && form.twilio_staff_content_sid))
 
 const saving = ref(false)
 const saved = ref(false)
@@ -53,7 +51,7 @@ async function save() {
   saved.value = false
   error.value = ''
   try {
-    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form, ...Object.fromEntries(Object.entries(contentSids).map(([key,value])=>[`twilio_content_sid_${key}`,value])), ...Object.fromEntries(Object.entries(templates).map(([key,value])=>[`notification_template_${key}`,value])) } })
+    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form, ...Object.fromEntries(Object.entries(templates).map(([key,value])=>[`notification_template_${key}`,value])) } })
     saved.value = true
     await refresh()
     setTimeout(() => { saved.value = false }, 3000)
@@ -97,9 +95,9 @@ async function save() {
           <p class="text-xs text-stone-400 mt-1">Twilio WhatsApp-enabled številka, brez predpone "whatsapp:"</p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Odobrena predloga za obvestila (Content SID)</label>
+          <label class="block text-sm font-medium text-stone-600 mb-1">Skupna predloga staff_notice_v2 (Content SID)</label>
           <input v-model="form.twilio_staff_content_sid" placeholder="HX…" class="w-full px-3 py-2 border rounded-lg font-mono text-sm" />
-          <p v-pre class="text-xs text-stone-400 mt-1">Predloga: Maple &amp; Pine — obvestilo: {{1}}. Podrobnosti: {{2}}. Povezava: {{3}}. Pred uporabo mora biti odobrena v Twiliu/WhatsAppu.</p>
+          <p v-pre class="text-xs text-stone-400 mt-1">Vsa obvestila uporabljajo staff_notice_v2. Predloga: Maple &amp; Pine — obvestilo: {{1}}. Podrobnosti: {{2}}. Povezava: {{3}}. Pred uporabo mora biti odobrena v Twiliu/WhatsAppu.</p>
         </div>
       </div>
     </div>
@@ -114,10 +112,6 @@ async function save() {
       <label class="block text-sm">Vrsta obvestila
         <select v-model="selected" class="w-full border rounded-lg p-2"><option v-for="(label,key) in notificationEvents" :key="key" :value="key">{{ label }}</option></select>
       </label>
-      <label class="block text-sm">Odobreni Twilio Content SID za to vrsto obvestila
-        <input v-model="contentSids[selected]" placeholder="HX… (prazno: skupna predloga)" class="w-full border rounded-lg p-2 font-mono text-sm" />
-      </label>
-      <p class="text-xs text-stone-500">Vsaka vrsta lahko uporablja svojo operativno predlogo. Vnesite SID, ko je predloga odobrena; pošiljanje ostaja odvisno od nastavitev okolja.</p>
       <textarea v-model="templates[selected]" rows="6" class="w-full border rounded-lg p-2 font-mono text-sm" aria-label="Predloga obvestila" />
       <p class="text-xs text-stone-500">Ohranite {title} (naslov), {details} (podatki) in {link} (povezava). Okoli njih lahko dodate svoje besedilo. Največ 1500 znakov.</p>
       <details class="rounded-lg border border-stone-200 p-3 text-sm text-stone-600">
@@ -143,7 +137,7 @@ _Maple &amp; Pine_</pre>
         </div>
       </details>
       <pre class="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 text-sm">{{ preview }}</pre>
-      <p class="text-xs text-stone-500">Na WhatsAppu bo vsebina vstavljena v izbrano odobreno Twilio predlogo (oziroma skupno predlogo, če posebna ni nastavljena). Testna povezava za čiščenje ne omogoča potrditve.</p>
+      <p class="text-xs text-stone-500">Na WhatsAppu bo vsebina vseh vrst obvestil vstavljena v skupno predlogo staff_notice_v2. Testna povezava za čiščenje ne omogoča potrditve.</p>
       <button :disabled="testing || saving || !testRecipient?.valid" class="bg-pine-600 text-white rounded-lg px-4 py-2 disabled:opacity-50" @click="sendTest">{{ testing ? 'Pošiljam…' : 'Shrani in pošlji ta test meni' }}</button>
       <p role="status" class="text-sm">{{ testStatus }}</p>
     </section>

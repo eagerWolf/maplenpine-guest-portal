@@ -129,7 +129,7 @@ export async function notifyAdmins(opts: {
     if (user.whatsapp_phone) {
       attempted++
       try {
-        await getWhatsAppProvider(opts.event).send(user.whatsapp_phone, formatStaffNotification(opts.event, opts.whatsappText))
+        await getWhatsAppProvider().send(user.whatsapp_phone, formatStaffNotification(opts.event, opts.whatsappText))
         logEntry({ channel: 'whatsapp', event: opts.event, recipient: user.whatsapp_phone, subject: null, body: opts.whatsappText, status: 'sent', userId: user.id, userEmail: user.email })
         succeeded++
       } catch (err) {

@@ -149,7 +149,7 @@ export async function processStaffNotifications(reference = new Date()) {
       if (!db.prepare("UPDATE staff_notifications SET status='sending' WHERE id=? AND status='pending'").run(row.id).changes) continue
       try {
         const prefix = process.env.PORTAL_ENVIRONMENT === 'test' || String(useRuntimeConfig().public.baseUrl).includes('guesttest.') ? '[TEST] ' : ''
-        await getWhatsAppProvider(row.event).send(row.recipient,prefix+row.body)
+        await getWhatsAppProvider().send(row.recipient,prefix+row.body)
         db.prepare("UPDATE staff_notifications SET status='sent',sent_at=?,attempts=attempts+1 WHERE id=?").run(now(),row.id)
         logStaffDelivery(row,'sent')
       } catch (error) {
