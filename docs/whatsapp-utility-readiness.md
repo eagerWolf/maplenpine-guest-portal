@@ -4,8 +4,10 @@ Vsa WhatsApp obvestila in ročni testi uporabljajo izključno nastavitev `twilio
 
 Stari ključi `twilio_content_sid_<event>` se pri pošiljanju ne berejo in jih ni več mogoče urejati. Ob manjkajoči skupni predlogi pošiljanje javi napako; ne uporabi stare predloge ali prostega besedila.
 
-Dvanajst ločenih predlog pri Twiliu ni več potrebnih in jih portal ne uporablja. Operaterska skripta in definicije za njihovo oddajo so odstranjene. Oddaljene predloge niso izbrisane.
+Dvanajst ločenih predlog pri Twiliu ni več potrebnih in jih portal ne uporablja. Operaterska skripta in definicije za njihovo oddajo so odstranjene. Na izrecno zahtevo uporabnika je bilo vseh 12 ločenih predlog odstranjenih s Twilio Content API (`deleteInWaba=true`). Ponovni pregled seznama je potrdil, da je ostala samo `maplenpine_staff_notice_v2`.
 
 Meta je skupno predlogo razvrstila v Marketing; 26. novembra je bila uspešno oddana zahteva za pregled kategorije Utility. Odobritev še ni potrjena. Ta sprememba kode ne vklopi pošiljanja ali produkcijskih avtomatizacij.
 
 Ročni testi se še vedno pošiljajo samo trenutno prijavljenemu administratorju z veljavno WhatsApp številko.
+
+Sprememba `6de0215` je nameščena na testnem portalu po uspešnem ARM buildu. PM2 proces je online in `/login` vrne HTTP 200. Prejšnji build je shranjen za povrnitev. Lokalno: 153 testov in TypeScript uspešno. Produkcijska namestitev in zastavice pošiljanja niso bile spremenjene.
