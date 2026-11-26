@@ -1,3 +1,4 @@
+import { parseNewsTags } from '../../../../shared/news'
 import { getDb, now } from '../../../db/index'
 import type { News } from '../../../db/index'
 import { parseLocalizedText } from '../../../utils/localized'
@@ -12,10 +13,13 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<any>(event)
   const title = body.title === undefined ? JSON.parse(item.title) : parseLocalizedText(body.title, 'Naslov')
   const content = body.content === undefined ? JSON.parse(item.content) : parseLocalizedText(body.content, 'Vsebina')
+  let tags
+  try { tags = parseNewsTags(body.tags === undefined ? JSON.parse(item.tags) : body.tags) }
+  catch { throw createError({statusCode:400,statusMessage:'Izberite veljavne oznake novic.'}) }
   const recurring = body.recurring === undefined ? !!item.recurring : !!body.recurring
   const dates = validateContentDates('valid_from' in body ? body.valid_from : item.valid_from, 'valid_to' in body ? body.valid_to : item.valid_to, recurring)
-  db.prepare(`UPDATE news SET title_sl=?,title_en=?,content_sl=?,content_en=?,title=?,content=?,recurring=?,active=?,valid_from=?,valid_to=?,updated_at=? WHERE id=?`).run(
+  db.prepare(`UPDATE news SET title_sl=?,title_en=?,content_sl=?,content_en=?,title=?,content=?,recurring=?,active=?,valid_from=?,valid_to=?,updated_at=?,tags=? WHERE id=?`).run(
     title.sl,title.en,content.sl,content.en,JSON.stringify(title),JSON.stringify(content),recurring?1:0,
-    body.active === undefined ? item.active : (body.active ? 1 : 0),dates.validFrom,dates.validTo,now(),id)
+    body.active === undefined ? item.active : (body.active ? 1 : 0),dates.validFrom,dates.validTo,now(),JSON.stringify(tags),id)
   return { success: true }
 })

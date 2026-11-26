@@ -89,6 +89,7 @@ export interface AppSetting {
 }
 
 export interface News {
+  tags: string
   id: number
   title_sl: string
   title_en: string

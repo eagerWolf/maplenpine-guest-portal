@@ -1,3 +1,4 @@
+import { initialNewsTags } from '../../shared/news'
 import { migrateStaffNotifications } from '../utils/staffNotifications'
 import { getDb } from '../db/index'
 import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
@@ -595,6 +596,11 @@ export default defineNitroPlugin(() => {
   if (!newsCols.some(c => c.name === 'title')) db.exec("ALTER TABLE news ADD COLUMN title TEXT")
   if (!newsCols.some(c => c.name === 'content')) db.exec("ALTER TABLE news ADD COLUMN content TEXT")
   if (!newsCols.some(c => c.name === 'recurring')) db.exec("ALTER TABLE news ADD COLUMN recurring INTEGER NOT NULL DEFAULT 0")
+  if (!newsCols.some(c => c.name === 'tags')) {
+    db.exec("ALTER TABLE news ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+    const setTags = db.prepare('UPDATE news SET tags=? WHERE id=?')
+    for (const n of db.prepare('SELECT id,title_sl FROM news').all() as {id:number;title_sl:string}[]) setTags.run(JSON.stringify(initialNewsTags(n.title_sl)),n.id)
+  }
   const emptyTranslations = JSON.stringify({ de: '', hr: '', sr: '' })
   db.prepare(`UPDATE news SET title = json_patch(?, json_object('sl', title_sl, 'en', title_en)) WHERE title IS NULL`).run(emptyTranslations)
   db.prepare(`UPDATE news SET content = json_patch(?, json_object('sl', content_sl, 'en', content_en)) WHERE content IS NULL`).run(emptyTranslations)

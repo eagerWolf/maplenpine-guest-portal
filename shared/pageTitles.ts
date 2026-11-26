@@ -5,6 +5,7 @@ const adminTitles:Record<string,string>={
  '/login':'Prijava','/activate':'Aktivacija računa','/forgot-password':'Pozabil sem geslo','/reset-password':'Novo geslo',
 }
 const guestTitles:Record<string,string[]>={
+ news:['Novice','News','Neuigkeiten','Novosti','Novosti'],
  home:['Vaše bivanje','Your stay','Ihr Aufenthalt','Vaš boravak','Vaš boravak'],
  restaurants:['Restavracije','Restaurants','Restaurants','Restorani','Restorani'],
  suggestions:['Izleti in doživetja','Things to do','Ausflüge und Aktivitäten','Izleti i doživljaji','Izleti i aktivnosti'],

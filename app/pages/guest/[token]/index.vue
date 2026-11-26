@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { newsCopy, type GuestNewsItem } from '#shared/news'
 definePageMeta({ layout: 'guest', middleware: 'guest-access-check' })
 
 const route = useRoute()
@@ -16,19 +17,10 @@ const accessBlocked = useGuestAccessBlocked()
 accessBlocked.value = !!error.value
 const isExpired = computed(() => (error.value as any)?.statusCode === 410)
 
-interface NewsItem {
-  id: number
-  title: Record<string, string>
-  content: Record<string, string>
-  createdAt: string
-}
-const { data: newsData } = await useFetch<NewsItem[]>('/api/guest/news', { query: { token } })
-const news = computed(() => newsData.value ?? [])
+const { data: newsData } = await useFetch<GuestNewsItem[]>('/api/guest/news', { query: { token } })
+const news = computed(() => (newsData.value ?? []).slice(0, 5))
 const { data: houseRuleData } = await useFetch<any[]>('/api/guest/house-rules', { query: { token } })
 const houseRules = computed(() => (houseRuleData.value ?? []).map(r => r.text[locale.value] || r.text.en))
-function newsTitle(item: NewsItem) { return item.title[locale.value] || item.title.en }
-function newsContent(item: NewsItem) { return item.content[locale.value] || item.content.en }
-
 // Restore browser preference before applying the reservation's default language.
 onMounted(() => {
   watch(() => (data.value as any)?.lang, (lang) => {
@@ -235,11 +227,9 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
       <div v-if="news.length" class="news-panel">
         <p class="guest-kicker">{{ t.news.kicker }}</p>
         <div class="news-list">
-          <div v-for="item in news" :key="item.id" class="news-item">
-            <h3 class="news-item__title">{{ newsTitle(item) }}</h3>
-            <p class="news-item__content">{{ newsContent(item) }}</p>
-          </div>
+          <GuestNewsCard v-for="item in news" :key="item.id" :item="item" compact />
         </div>
+        <NuxtLink :to="`/guest/${token}/news`" class="news-more">{{ newsCopy[locale].more }} →</NuxtLink>
       </div>
 
       <!-- Weather -->
@@ -542,10 +532,7 @@ function formatDt(dt: string | null, opts?: { short?: boolean }) {
   margin: 0 0 18px;
 }
 .news-list { display: flex; flex-direction: column; gap: 16px; }
-.news-item { padding: 14px 0 0; border-top: 1px solid #eee8de; }
-.news-item:first-child { padding-top: 0; border-top: none; }
-.news-item__title { margin: 0 0 6px; color: #1a2036; font-size: 1rem; font-weight: 700; }
-.news-item__content { margin: 0; color: #1c2541; font-size: 0.92rem; line-height: 1.65; white-space: pre-wrap; }
+.news-more { display: inline-flex; margin-top: 18px; color: #16614e; font-weight: 700; text-decoration: underline; }
 
 /* ── Info panels (parking, house rules) ── */
 .info-panel {
