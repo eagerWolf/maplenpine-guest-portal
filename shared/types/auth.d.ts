@@ -3,6 +3,7 @@ declare module '#auth-utils' {
     id: number
     email: string
     role: 'admin' | 'staff'
+    passwordVersion?: number
   }
 }
 

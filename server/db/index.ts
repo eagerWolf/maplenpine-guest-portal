@@ -55,6 +55,7 @@ export interface DbUser {
   email: string
   role: string
   password_hash: string | null
+  password_version: number
   notification_level: string
   whatsapp_phone: string | null
   notify_housekeeper: number

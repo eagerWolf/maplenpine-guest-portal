@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await setUserSession(event, {
-    user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff' },
+    user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff', passwordVersion: user.password_version || 0 },
   })
 
   return { success: true, role: user.role }

@@ -13,9 +13,10 @@ export function getEmailConfig(): { apiKey: string; from: string; configured: bo
   return { apiKey, from, configured: Boolean(apiKey && from) }
 }
 
-export async function sendEmail(opts: { apiKey: string; from: string; to: string; subject: string; html: string }): Promise<void> {
+export async function sendEmail(opts: { apiKey: string; from: string; to: string; subject: string; html: string; timeoutMs?: number }): Promise<void> {
   if (!emailEnabled()) throw new Error('Portal messaging is disabled')
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    signal: AbortSignal.timeout(opts.timeoutMs || 30_000),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${opts.apiKey}`,

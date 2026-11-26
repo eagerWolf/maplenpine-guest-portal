@@ -80,6 +80,7 @@ async function submitLogin() {
         <button type="submit" class="login-btn" :disabled="loading">
           {{ loading ? 'Prijavljam…' : 'Prijava' }}
         </button>
+        <NuxtLink to="/forgot-password" class="text-center text-sm text-pine-700 underline">Pozabil sem geslo</NuxtLink>
       </form>
   </div>
 </template>

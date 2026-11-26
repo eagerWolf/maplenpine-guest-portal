@@ -90,6 +90,14 @@ export default defineNitroPlugin(() => {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT NOT NULL,
+      used INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL,
@@ -471,6 +479,9 @@ export default defineNitroPlugin(() => {
     db.exec("ALTER TABLE jobs ADD COLUMN lease_expires_at TEXT")
   }
   const userCols = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>
+  if (!userCols.some(c => c.name === 'password_version')) {
+    db.exec('ALTER TABLE users ADD COLUMN password_version INTEGER NOT NULL DEFAULT 0')
+  }
   if (!userCols.some(c => c.name === 'password_hash')) {
     db.exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
   }
