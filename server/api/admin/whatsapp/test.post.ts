@@ -11,8 +11,9 @@ export default defineEventHandler(async (event) => {
   if (!Object.hasOwn(notificationEvents,type)) throw createError({statusCode:400,statusMessage:'Neznana vrsta obvestila'})
   const db = getDb()
   const value = (key:string) => (db.prepare('SELECT value FROM app_settings WHERE key=?').get(key) as {value:string}|undefined)?.value || ''
-  const recipient = value('notification_test_phone')
-  if (!/^\+[1-9]\d{7,14}$/.test(recipient)) throw createError({statusCode:400,statusMessage:'Najprej shranite svojo testno številko.'})
+  const user = db.prepare('SELECT whatsapp_phone FROM users WHERE id=? AND active != 0 AND role=\'admin\'').get(session.user.id) as {whatsapp_phone:string|null}|undefined
+  const recipient = user?.whatsapp_phone?.trim() || ''
+  if (!/^\+[1-9]\d{7,14}$/.test(recipient)) throw createError({statusCode:400,statusMessage:'V svojem uporabniškem profilu najprej izpolnite veljavno WhatsApp številko (+386…). '})
   const base = new URL(String(useRuntimeConfig().public.baseUrl)).origin
   // No real cleaning token or guest data: this URL cannot confirm a cleaning task.
   const link = base + (type === 'cleaning_reminder' ? '/cleaning/test-preview' : '/admin')

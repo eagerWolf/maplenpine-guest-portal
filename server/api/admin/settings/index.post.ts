@@ -7,7 +7,6 @@ import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
 const ALLOWED_KEYS = [
   ...recommendationKeys,
   ...Object.keys(notificationEvents).map(key => `notification_template_${key}`),
-  'notification_test_phone',
   'tv_maple_token', 'tv_pine_token',
   'tv_maple_wifi_ssid', 'tv_maple_wifi_password',
   'tv_pine_wifi_ssid', 'tv_pine_wifi_password',
@@ -70,7 +69,6 @@ export default defineEventHandler(async (event) => {
     const value = body[`notification_template_${name}`]
     if (value !== undefined && !validateNotificationTemplate(value)) throw createError({statusCode:400,statusMessage:'Predloga mora vsebovati {title}, {details} in {link}, največ 1500 znakov.'})
   }
-  if (body.notification_test_phone && !/^\+[1-9]\d{7,14}$/.test(body.notification_test_phone)) throw createError({statusCode:400,statusMessage:'Testna številka mora biti v mednarodni obliki, npr. +386…'})
   const db = getDb()
   const ts = now()
 

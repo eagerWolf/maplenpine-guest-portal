@@ -2,7 +2,7 @@
 import { notificationEvents, notificationSamples, defaultNotificationTemplate, renderNotificationTemplate, type EditableNotificationEvent } from '#shared/notificationTemplates'
 const selected = ref<EditableNotificationEvent>('arrival_today')
 const templates = reactive<Record<string,string>>({})
-const testPhone = ref('')
+const { data: testRecipient } = await useFetch<{recipient:string,valid:boolean}>('/api/admin/whatsapp/recipient')
 const testStatus = ref('')
 const testing = ref(false)
 const base = useRuntimeConfig().public.baseUrl as string
@@ -31,7 +31,6 @@ const form = reactive({
 
 watch(settings, (s) => {
   if (!s) return
-  testPhone.value = s.notification_test_phone || ''
   for (const name of Object.keys(notificationEvents)) templates[name] = s[`notification_template_${name}`] || defaultNotificationTemplate
   form.twilio_account_sid = s.twilio_account_sid ?? ''
   form.twilio_auth_token = s.twilio_auth_token ?? ''
@@ -50,7 +49,7 @@ async function save() {
   saved.value = false
   error.value = ''
   try {
-    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form, notification_test_phone:testPhone.value, ...Object.fromEntries(Object.entries(templates).map(([key,value])=>[`notification_template_${key}`,value])) } })
+    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form, ...Object.fromEntries(Object.entries(templates).map(([key,value])=>[`notification_template_${key}`,value])) } })
     saved.value = true
     await refresh()
     setTimeout(() => { saved.value = false }, 3000)
@@ -103,10 +102,11 @@ async function save() {
 
     <section class="bg-white rounded-xl border border-stone-200 p-6 space-y-4">
       <h2 class="font-medium">Besedila obvestil in preizkus</h2>
-      <p class="text-sm text-stone-500">Urejate vsebino spremenljivk odobrene Twilio predloge. Njenega zunanjega besedila s tem ne spreminjate. Vsa testna sporočila gredo samo na spodnjo številko in vsebujejo izmišljene podatke.</p>
-      <label class="block text-sm">Moja testna številka
-        <input v-model="testPhone" type="tel" placeholder="+386…" class="w-full border rounded-lg p-2" />
-      </label>
+      <p class="text-sm text-stone-500">Urejate vsebino spremenljivk odobrene Twilio predloge. Njenega zunanjega besedila s tem ne spreminjate. Test vsebuje izmišljene podatke in se vedno pošlje samo trenutno prijavljenemu administratorju.</p>
+      <div class="rounded-lg bg-stone-50 p-3 text-sm">
+        <p>Moja WhatsApp številka: <strong>{{ testRecipient?.recipient || 'Ni izpolnjena' }}</strong></p>
+        <p v-if="!testRecipient?.valid" class="mt-1 text-maple-600">Pred preizkusom v nastavitvah uporabnikov pri svojem računu izpolnite WhatsApp številko v mednarodni obliki (+386…).</p>
+      </div>
       <label class="block text-sm">Vrsta obvestila
         <select v-model="selected" class="w-full border rounded-lg p-2"><option v-for="(label,key) in notificationEvents" :key="key" :value="key">{{ label }}</option></select>
       </label>
@@ -136,7 +136,7 @@ _Maple &amp; Pine_</pre>
       </details>
       <pre class="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 text-sm">{{ preview }}</pre>
       <p class="text-xs text-stone-500">Na WhatsAppu bo vsebina vstavljena v odobreno predlogo »Maple &amp; Pine — obvestilo / Podrobnosti / Povezava«. Testna povezava za čiščenje ne omogoča potrditve.</p>
-      <button :disabled="testing || saving || !testPhone" class="bg-pine-600 text-white rounded-lg px-4 py-2 disabled:opacity-50" @click="sendTest">{{ testing ? 'Pošiljam…' : 'Shrani in pošlji ta test meni' }}</button>
+      <button :disabled="testing || saving || !testRecipient?.valid" class="bg-pine-600 text-white rounded-lg px-4 py-2 disabled:opacity-50" @click="sendTest">{{ testing ? 'Pošiljam…' : 'Shrani in pošlji ta test meni' }}</button>
       <p role="status" class="text-sm">{{ testStatus }}</p>
     </section>
 
