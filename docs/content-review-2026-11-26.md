@@ -18,7 +18,7 @@ Datumi so ponavljajoča se obdobja prikaza priporočil. Niso obljuba odprtosti. 
 
 ## Preverjene povezave
 
-Samodejno preverjenih 41 zunanjih spletnih povezav: 39 uspešnih; SŽ in SPAR zavrneta avtomatski HTTP odjemalec s 403, njuni uradni strani sta posebej preverjeni z bralnikom spletnih strani. Zemljevidi so preverjeni kot lokacijske povezave, ne kot navigacijske poti. Interni PDF pečice se preveri na portalu.
+Samodejno preverjenih 42 zunanjih spletnih povezav: 40 uspešnih; SŽ in SPAR zavrneta avtomatski HTTP odjemalec s 403, njuni uradni strani sta posebej preverjeni z bralnikom spletnih strani. Zemljevidi so preverjeni kot lokacijske povezave, ne kot navigacijske poti. Interni PDF pečice se preveri na portalu.
 
 ## Varna uporaba
 
