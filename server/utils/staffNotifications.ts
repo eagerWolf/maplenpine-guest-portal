@@ -1,3 +1,4 @@
+import { formatStaffNotification } from './notificationTemplates'
 import { randomBytes, createHash } from 'node:crypto'
 import { formatInTimeZone } from 'date-fns-tz'
 import { getDb, now, type Reservation } from '../db/index'
@@ -61,7 +62,7 @@ export function queueStaffMessage(event: StaffEvent, key: string, reservation: R
     const uniqueKey = createHash('sha256').update(`${event}:${key}:${recipient}`).digest('hex')
     queued += db.prepare(`INSERT OR IGNORE INTO staff_notifications
       (unique_key,event,reservation_id,recipient,body,expected_arrival,expected_departure,expected_status,next_attempt_at,created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`).run(uniqueKey,event,reservation.id,recipient,body,reservation.check_in,reservation.check_out,reservation.status,now(),now()).changes
+      VALUES (?,?,?,?,?,?,?,?,?,?)`).run(uniqueKey,event,reservation.id,recipient,formatStaffNotification(event,body),reservation.check_in,reservation.check_out,reservation.status,now(),now()).changes
   }
   return queued
 }

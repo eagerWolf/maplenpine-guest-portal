@@ -1,4 +1,23 @@
 <script setup lang="ts">
+import { notificationEvents, notificationSamples, defaultNotificationTemplate, renderNotificationTemplate, type EditableNotificationEvent } from '#shared/notificationTemplates'
+const selected = ref<EditableNotificationEvent>('arrival_today')
+const templates = reactive<Record<string,string>>({})
+const testPhone = ref('')
+const testStatus = ref('')
+const testing = ref(false)
+const base = useRuntimeConfig().public.baseUrl as string
+const preview = computed(() => '[TEST] ' + renderNotificationTemplate(templates[selected.value] || defaultNotificationTemplate, notificationSamples[selected.value] + '\n' + base + (selected.value === 'cleaning_reminder' ? '/cleaning/test-preview' : '/admin'),base))
+async function sendTest() {
+  testing.value = true; testStatus.value = ''
+  try {
+    await save()
+    if (error.value) return
+    await $fetch('/api/admin/whatsapp/test', {method:'POST',body:{type:selected.value}})
+    testStatus.value = 'Test sprejet pri ponudniku. Preverite svoj WhatsApp.'
+  } catch (err:any) { testStatus.value = err?.data?.statusMessage || 'Pošiljanje ni uspelo.' }
+  finally { testing.value = false }
+}
+
 definePageMeta({ middleware: ['auth', 'admin'] })
 
 const { data: settings, refresh } = await useFetch<Record<string, string>>('/api/admin/settings')
@@ -12,6 +31,8 @@ const form = reactive({
 
 watch(settings, (s) => {
   if (!s) return
+  testPhone.value = s.notification_test_phone || ''
+  for (const name of Object.keys(notificationEvents)) templates[name] = s[`notification_template_${name}`] || defaultNotificationTemplate
   form.twilio_account_sid = s.twilio_account_sid ?? ''
   form.twilio_auth_token = s.twilio_auth_token ?? ''
   form.twilio_whatsapp_from = s.twilio_whatsapp_from ?? ''
@@ -29,7 +50,7 @@ async function save() {
   saved.value = false
   error.value = ''
   try {
-    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form } })
+    await $fetch('/api/admin/settings', { method: 'POST', body: { ...form, notification_test_phone:testPhone.value, ...Object.fromEntries(Object.entries(templates).map(([key,value])=>[`notification_template_${key}`,value])) } })
     saved.value = true
     await refresh()
     setTimeout(() => { saved.value = false }, 3000)
@@ -79,6 +100,23 @@ async function save() {
         </div>
       </div>
     </div>
+
+    <section class="bg-white rounded-xl border border-stone-200 p-6 space-y-4">
+      <h2 class="font-medium">Besedila obvestil in preizkus</h2>
+      <p class="text-sm text-stone-500">Urejate vsebino spremenljivk odobrene Twilio predloge. Njenega zunanjega besedila s tem ne spreminjate. Vsa testna sporočila gredo samo na spodnjo številko in vsebujejo izmišljene podatke.</p>
+      <label class="block text-sm">Moja testna številka
+        <input v-model="testPhone" type="tel" placeholder="+386…" class="w-full border rounded-lg p-2" />
+      </label>
+      <label class="block text-sm">Vrsta obvestila
+        <select v-model="selected" class="w-full border rounded-lg p-2"><option v-for="(label,key) in notificationEvents" :key="key" :value="key">{{ label }}</option></select>
+      </label>
+      <textarea v-model="templates[selected]" rows="6" class="w-full border rounded-lg p-2 font-mono text-sm" aria-label="Predloga obvestila" />
+      <p class="text-xs text-stone-500">Ohranite {title} (naslov), {details} (podatki) in {link} (povezava). Okoli njih lahko dodate svoje besedilo. Največ 1500 znakov.</p>
+      <pre class="whitespace-pre-wrap rounded-lg bg-stone-50 p-3 text-sm">{{ preview }}</pre>
+      <p class="text-xs text-stone-500">Na WhatsAppu bo vsebina vstavljena v odobreno predlogo »Maple &amp; Pine — obvestilo / Podrobnosti / Povezava«. Testna povezava za čiščenje ne omogoča potrditve.</p>
+      <button :disabled="testing || saving || !testPhone" class="bg-pine-600 text-white rounded-lg px-4 py-2 disabled:opacity-50" @click="sendTest">{{ testing ? 'Pošiljam…' : 'Shrani in pošlji ta test meni' }}</button>
+      <p role="status" class="text-sm">{{ testStatus }}</p>
+    </section>
 
     <div v-if="error" class="text-sm text-maple-600 bg-maple-50 rounded-lg px-4 py-3">{{ error }}</div>
     <div v-if="saved" class="text-sm text-pine-700 bg-pine-50 rounded-lg px-4 py-3">✓ Nastavitve shranjene</div>

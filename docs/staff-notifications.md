@@ -36,3 +36,11 @@ Spremenljivke so naslov, podrobnosti v eni vrstici in povezava. Pri čiščenju 
 Nejasen izid dostave ali prekinitev med pošiljanjem se označi kot neuspeh za ročni pregled. Pred ponovnim pošiljanjem preverimo ponudnikov dnevnik, da se izognemo dvojnikom. Napaka dostave opozori lastnika, če njegov WhatsApp kanal deluje. Popoln izpad WhatsAppa ne more biti sporočen po istem nedelujočem kanalu. Zunanji nadzor celotnega izpada VPS je ločena, še nenastavljena storitev.
 
 Schema migration 2 doda cleaning_tasks, staff_notifications in notification_incidents. Obstoječi podatki ostanejo. Pred namestitvijo naredimo varnostno kopijo baze. Pošiljanje ostane izklopljeno, dokler ne preverimo predloge in prejemnikov.
+
+## Urejanje predlog in ročni preizkusi
+
+V Nastavitve → Integracije → WhatsApp uredimo vseh 12 vrst internih obvestil in svojo testno številko v mednarodnem formatu. Predloga mora obdržati `{title}`, `{details}` in `{link}`. Besedilo se uporabi za nova obvestila; že pripravljena sporočila v čakalni vrsti se ne prepisujejo. Twilio odobrena zunanja predloga ostaja nespremenjena; urejamo vsebino njenih spremenljivk. Twilio podrobnosti združi v eno vrstico.
+
+Gumb za posamezni test uporabi izmišljene primere, oznako `[TEST]` in izključno shranjeno testno številko. Vhodni zahtevek ne more določiti drugega prejemnika. Test čiščenja vsebuje neveljavno demonstracijsko povezavo; ne ustvari ali potrdi čiščenja. Ne prevzema eKey opravil, ne spreminja rezervacij in ne kliče Bentrala. Dostava je zapisana v dnevnik. Pošiljanje ostaja omejeno z `PORTAL_WHATSAPP_ENABLED`; ne obide izklopljenega kanala. Potrebna sta potrjen pošiljatelj in odobren Content SID. Dostava se ne ponavlja samodejno.
+
+Shranjena testna številka velja samo za ročne teste. Redni opomniki še vedno sledijo nastavitvam prejemnikov. Pred vklopom rednega pošiljanja preverimo vse prejemnike posebej.
