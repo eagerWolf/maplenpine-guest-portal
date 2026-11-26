@@ -666,21 +666,19 @@
         "website": "https://central-bled.com/",
         "recurring": 0,
         "valid_from": null,
-        "valid_to": null,
-        "active": 1
+        "valid_to": null
       },
       "changes": {
         "description": "{\"sl\":\"Central Bled je naveden na naslovu Ulica narodnih herojev 3. Pred obiskom preverite, ali restavracija obratuje, in aktualni delovni čas; prejšnja spletna povezava ni potrjena.\",\"en\":\"Central Bled is listed at Ulica narodnih herojev 3. Confirm that the restaurant is operating and check current hours before visiting; its previous website could not be verified.\",\"de\":\"Central Bled ist unter Ulica narodnih herojev 3 verzeichnet. Betrieb und aktuelle Öffnungszeiten vor einem Besuch bestätigen; die bisherige Website konnte nicht bestätigt werden.\",\"hr\":\"Central Bled naveden je na adresi Ulica narodnih herojev 3. Prije posjeta provjerite radi li restoran i aktualno radno vrijeme; prethodna stranica nije potvrđena.\",\"sr\":\"Central Bled je naveden na adresi Ulica narodnih herojev 3. Pre posete proverite da li restoran radi i aktuelno radno vreme; prethodni sajt nije potvrđen.\"}",
         "website": null,
         "recurring": 1,
         "valid_from": "01-01",
-        "valid_to": "12-31",
-        "active": 0
+        "valid_to": "12-31"
       },
       "sources": [
         "https://centralburgerhouse.si/wp-content/uploads/2024/05/Central-Burger-House-Meni.pdf"
       ],
-      "note": "Začasno skrito: uradno zaprto (Julijana) oziroma sedanjega obratovanja ni mogoče potrditi (Central). Podatki ostanejo shranjeni za ponovni pregled, datumi odprtja niso izmišljeni."
+      "note": "Začasno skrito: uradno zaprto (Julijana) oziroma sedanjega obratovanja ni mogoče potrditi (Central). Podatki ostanejo shranjeni za ponovni pregled, datumi odprtja niso izmišljeni. Poznejša ročna sprememba vidnosti (26.11.2026 ob 09:33 UTC) je ohranjena."
     },
     {
       "table": "restaurants",

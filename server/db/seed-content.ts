@@ -220,7 +220,7 @@ export const SEED_RESTAURANTS: SeedRestaurant[] = [
     "recurring": true,
     "validFrom": "01-01",
     "validTo": "12-31",
-    "active": 0,
+    "active": 1,
     "location": {
       "name": "Central Bled",
       "address": "Ulica narodnih herojev 3, 4260 Bled",

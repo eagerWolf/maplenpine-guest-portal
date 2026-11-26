@@ -8,7 +8,7 @@ Obseg: 19 predlogov, 10 restavracij, 13 FAQ, 13 navodil in 6 pravil. Novic v pre
 - Google Maps povezave so lokacijska iskanja z imenom in preverjenim naslovom, brez prednastavljene poti. Koordinate oziroma Google Place ID niso izmišljeni.
 - Popravljene zamaknjene URL oznake vseh 19 predlogov. Staro dodeljevanje po `sort_order` je odstranjeno. Napačno dodeljeni video Life Adventure pri pletni je odstranjen.
 - Julijana: skrita zaradi prenove hotela (uradna stran predvideva ponovno odprtje jeseni 2027).
-- Central Bled: skrit do potrditve obratovanja; stara domena ne deluje. Podatki iz starega jedilnika niso dokaz sedanjega obratovanja.
+- Central Bled: poznejša ročna sprememba vidnosti v portalu je ohranjena; stara domena ne deluje in je odstranjena. Podatki iz starega jedilnika niso dokaz sedanjega obratovanja.
 - Zajtrk vodi neposredno na Bled Breakfast; kolesa in e-kolesa na A&B Bike, z vprašanjem za dostavo do apartmaja.
 - Navodila za apartma ohranjajo gostiteljeve podatke. Opreme, postopkov in odpiralnih časov ne ugibamo.
 
