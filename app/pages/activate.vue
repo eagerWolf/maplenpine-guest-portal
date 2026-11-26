@@ -6,7 +6,11 @@ const confirmation = ref('')
 const loading = ref(false)
 const error = ref('')
 
-async function activate() {
+async function activate(event: SubmitEvent) {
+  if (loading.value) return
+  const fields = new FormData(event.currentTarget as HTMLFormElement)
+  password.value = String(fields.get('password') || '')
+  confirmation.value = String(fields.get('confirm-password') || '')
   error.value = ''
   if (!token) error.value = 'Aktivacijska povezava ni veljavna.'
   else if (password.value.length < 10) error.value = 'Geslo mora imeti vsaj 10 znakov.'
@@ -27,11 +31,11 @@ async function activate() {
     <img src="/logo-text-only.webp" alt="Maple & Pine" class="mx-auto mb-6 h-12" />
     <h1 class="mb-2 text-xl font-semibold text-stone-800">Aktivacija računa</h1>
     <p class="mb-5 text-sm text-stone-500">Izberite geslo za administracijo.</p>
-    <form class="space-y-4" @submit.prevent="activate">
-      <input v-model="password" type="password" minlength="10" autocomplete="new-password" placeholder="Novo geslo (vsaj 10 znakov)" class="w-full rounded-lg border p-3" required />
-      <input v-model="confirmation" type="password" minlength="10" autocomplete="new-password" placeholder="Ponovite geslo" class="w-full rounded-lg border p-3" required />
+    <form id="activate-form" action="/api/auth/activate" method="post" autocomplete="on" class="space-y-4" @submit.prevent="activate">
+      <input id="new-password" name="password" v-model="password" type="password" minlength="10" autocomplete="new-password" placeholder="Novo geslo (vsaj 10 znakov)" class="w-full rounded-lg border p-3" required />
+      <input id="confirm-password" name="confirm-password" v-model="confirmation" type="password" minlength="10" autocomplete="new-password" placeholder="Ponovite geslo" class="w-full rounded-lg border p-3" required />
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-      <button class="w-full rounded-lg bg-pine-600 p-3 font-medium text-white disabled:opacity-50" :disabled="loading">{{ loading ? 'Aktiviram…' : 'Aktiviraj račun' }}</button>
+      <button type="submit" class="w-full rounded-lg bg-pine-600 p-3 font-medium text-white disabled:opacity-50" :disabled="loading">{{ loading ? 'Aktiviram…' : 'Aktiviraj račun' }}</button>
     </form>
   </div>
 </template>

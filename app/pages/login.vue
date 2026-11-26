@@ -7,7 +7,19 @@ const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-async function submitLogin() {
+function submitFromPassword(event: KeyboardEvent) {
+  if (event.isComposing || loading.value) return
+  event.preventDefault()
+  const input = event.currentTarget as HTMLInputElement
+  input.form?.requestSubmit()
+}
+
+async function submitLogin(event: SubmitEvent) {
+  if (loading.value) return
+  // Read actual form values too: password managers can fill inputs without updating Vue's model.
+  const fields = new FormData(event.currentTarget as HTMLFormElement)
+  email.value = String(fields.get('email') || '').trim()
+  password.value = String(fields.get('password') || '')
   error.value = ''
   if (!email.value || !password.value) {
     error.value = 'Vnesi email in geslo.'
@@ -20,7 +32,8 @@ async function submitLogin() {
       body: { email: email.value, password: password.value },
     })
     if (res.success) {
-      await navigateTo('/admin')
+      // A document navigation also makes a successful sign-in clear to password managers.
+      window.location.assign('/admin')
     }
   } catch (err: any) {
     error.value = err?.data?.statusMessage ?? 'Napaka pri prijavi.'
@@ -39,14 +52,15 @@ async function submitLogin() {
     </div>
 
     <!-- Step 1: Login -->
-      <form class="login-form" @submit.prevent="submitLogin">
+      <form id="login-form" action="/api/auth/login" method="post" autocomplete="on" class="login-form" @submit.prevent="submitLogin">
         <div class="login-form__field">
           <label for="email">E-poštni naslov</label>
           <input
             id="email"
+            name="email"
             v-model="email"
             type="email"
-            autocomplete="email"
+            autocomplete="username"
             required
             placeholder="ime@primer.si"
           />
@@ -57,9 +71,12 @@ async function submitLogin() {
           <div class="login-form__password-wrap">
             <input
               id="password"
+              name="password"
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
               autocomplete="current-password"
+              enterkeyhint="go"
+              @keydown.enter="submitFromPassword"
               required
               placeholder="••••••••"
             />
