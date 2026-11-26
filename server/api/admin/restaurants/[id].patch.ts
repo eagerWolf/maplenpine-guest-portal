@@ -1,3 +1,4 @@
+import { optionalContentText, optionalContentUrl } from '../../../utils/contentFields'
 import { getDb, now } from '../../../db/index'
 import type { RestaurantRow } from '../../../db/index'
 import { parseLocalizedText } from '../../../utils/localized'
@@ -27,12 +28,12 @@ export default defineEventHandler(async (event) => {
     active?: boolean
     sort_order?: number
     recurring?: boolean; valid_from?: string | null; valid_to?: string | null
-    website_slug?: string
+    website_slug?: string | null
   }>(event)
 
   const name = body.name?.trim() ?? item.name
   const type = body.type !== undefined ? (ALLOWED_TYPES.includes(body.type) ? body.type : item.type) : item.type
-  const website = 'website' in body ? (body.website?.trim() || null) : item.website
+  const website = 'website' in body ? (optionalContentUrl(body.website, 'Spletna stran')) : item.website
   const locationId = 'location_id' in body ? (body.location_id || null) : (item as any).location_id
   const description = body.description !== undefined ? parseLocalizedText(body.description, 'Opis') : JSON.parse(item.description)
   const active = body.active ?? !!item.active
@@ -47,7 +48,7 @@ export default defineEventHandler(async (event) => {
   db.prepare(`
     UPDATE restaurants SET name = ?, type = ?, website = ?, location_id = ?, description = ?, active = ?, sort_order = ?, recurring=?, valid_from=?, valid_to=?, website_slug=?, updated_at = ?
     WHERE id = ?
-  `).run(name, type, website, locationId, JSON.stringify(description), active ? 1 : 0, sort_order, recurring?1:0, dates.validFrom, dates.validTo, body.website_slug !== undefined ? body.website_slug.trim() || null : item.website_slug, now(), id)
+  `).run(name, type, website, locationId, JSON.stringify(description), active ? 1 : 0, sort_order, recurring?1:0, dates.validFrom, dates.validTo, body.website_slug !== undefined ? optionalContentText(body.website_slug, 'URL oznaka', 150) : item.website_slug, now(), id)
 
   return { success: true }
 })

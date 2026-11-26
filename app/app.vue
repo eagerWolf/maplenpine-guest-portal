@@ -1,9 +1,15 @@
 <script setup lang="ts">
+import { portalPageTitle } from '#shared/pageTitles'
 const config = useRuntimeConfig()
 const gaId = config.public.gaId as string
 
 // Cleaning links are capabilities; never send their URLs to analytics.
 const route = useRoute()
+const { locale } = useLocale()
+useHead(() => ({
+  title: portalPageTitle(route.path, locale.value, String(config.public.baseUrl)),
+  meta: [{name:'robots',content:'noindex, nofollow'}],
+}))
 if (gaId && !route.path.startsWith('/cleaning/')) {
   useHead({
     script: [

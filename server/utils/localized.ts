@@ -32,6 +32,11 @@ export function parseLocalizedLinks(value: unknown, fieldLabel: string) {
   if(!Array.isArray(value)) throw createError({statusCode:400,statusMessage:`${fieldLabel}: napačen zapis`})
   return value.map((item:any,index)=>{
     if(!item||typeof item!=='object'||typeof item.href!=='string'||!item.href.trim()) throw createError({statusCode:400,statusMessage:`${fieldLabel} #${index+1}: povezava je obvezna`})
-    return {label:parseLocalizedText(item.label,`${fieldLabel} #${index+1}`),href:item.href.trim(),...(item.target?{target:String(item.target)}:{})}
+    const href=item.href.trim()
+    const internal=href.startsWith('/') && !href.startsWith('//') && !href.includes('\\')
+    let valid=internal
+    try {if(!internal)valid=['https:','http:','tel:','mailto:'].includes(new URL(href).protocol)} catch { valid=false }
+    if(!valid || /[\r\n]/.test(href))throw createError({statusCode:400,statusMessage:`${fieldLabel} #${index+1}: uporabite spletno povezavo, tel:, mailto: ali pot v portalu.`})
+    return {label:parseLocalizedText(item.label,`${fieldLabel} #${index+1}`),href,...(item.target?{target:String(item.target)}:{})}
   })
 }

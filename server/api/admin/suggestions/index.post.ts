@@ -1,3 +1,4 @@
+import { optionalContentText, optionalContentUrl } from '../../../utils/contentFields'
 import { getDb, now } from '../../../db/index'
 import { parseLocalizedText, parseLocalizedLinks } from '../../../utils/localized'
 import { validateSuggestionDates } from '../../../utils/dateRange'
@@ -17,8 +18,8 @@ export default defineEventHandler(async (event) => {
     valid_to?: string | null
     active?: boolean
     sort_order?: number
-    website_slug?: string
-    youtube_url?: string
+    website_slug?: string | null
+    youtube_url?: string | null
   }>(event)
 
   const title = parseLocalizedText(body.title, 'Naslov')
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     JSON.stringify(title), JSON.stringify(description), buttons.length ? JSON.stringify(buttons) : null,
-    recurring ? 1 : 0, validFrom, validTo, body.active === false ? 0 : 1, body.sort_order ?? 0, body.website_slug?.trim() || null, body.youtube_url?.trim() || null, ts, ts,
+    recurring ? 1 : 0, validFrom, validTo, body.active === false ? 0 : 1, body.sort_order ?? 0, optionalContentText(body.website_slug, 'URL oznaka', 150), optionalContentUrl(body.youtube_url, 'YouTube URL'), ts, ts,
   )
 
   db.prepare(`

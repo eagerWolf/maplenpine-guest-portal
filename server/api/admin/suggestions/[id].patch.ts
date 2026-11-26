@@ -1,3 +1,4 @@
+import { optionalContentText, optionalContentUrl } from '../../../utils/contentFields'
 import { getDb, now } from '../../../db/index'
 import type { SuggestionRow } from '../../../db/index'
 import { parseLocalizedText, parseLocalizedLinks } from '../../../utils/localized'
@@ -25,8 +26,8 @@ export default defineEventHandler(async (event) => {
     valid_to?: string | null
     active?: boolean
     sort_order?: number
-    website_slug?: string
-    youtube_url?: string
+    website_slug?: string | null
+    youtube_url?: string | null
   }>(event)
 
   const title = body.title !== undefined ? parseLocalizedText(body.title, 'Naslov') : JSON.parse(item.title)
@@ -46,8 +47,8 @@ export default defineEventHandler(async (event) => {
   `).run(
     JSON.stringify(title), JSON.stringify(description), buttons?.length ? JSON.stringify(buttons) : null,
     recurring ? 1 : 0, validFrom, validTo, active ? 1 : 0, sort_order,
-    body.website_slug !== undefined ? body.website_slug.trim() || null : item.website_slug,
-    body.youtube_url !== undefined ? body.youtube_url.trim() || null : item.youtube_url,
+    body.website_slug !== undefined ? optionalContentText(body.website_slug, 'URL oznaka', 150) : item.website_slug,
+    body.youtube_url !== undefined ? optionalContentUrl(body.youtube_url, 'YouTube URL') : item.youtube_url,
     now(), id,
   )
 

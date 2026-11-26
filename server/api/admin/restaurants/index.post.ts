@@ -1,3 +1,4 @@
+import { optionalContentText, optionalContentUrl } from '../../../utils/contentFields'
 import { getDb, now } from '../../../db/index'
 import { parseLocalizedText } from '../../../utils/localized'
 import { validateContentDates } from '../../../utils/dateRange'
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
     active?: boolean
     sort_order?: number
     recurring?: boolean; valid_from?: string | null; valid_to?: string | null
-    website_slug?: string
+    website_slug?: string | null
   }>(event)
 
   if (!body.name?.trim()) {
@@ -35,7 +36,7 @@ export default defineEventHandler(async (event) => {
   const result = db.prepare(`
     INSERT INTO restaurants (name, type, website, location_id, description, active, sort_order, recurring, valid_from, valid_to, website_slug, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(body.name.trim(), type, body.website?.trim() || null, body.location_id || null, JSON.stringify(description), body.active === false ? 0 : 1, body.sort_order ?? 0, recurring?1:0, dates.validFrom, dates.validTo, body.website_slug?.trim() || null, ts, ts)
+  `).run(body.name.trim(), type, optionalContentUrl(body.website, 'Spletna stran'), body.location_id || null, JSON.stringify(description), body.active === false ? 0 : 1, body.sort_order ?? 0, recurring?1:0, dates.validFrom, dates.validTo, optionalContentText(body.website_slug, 'URL oznaka', 150), ts, ts)
 
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)

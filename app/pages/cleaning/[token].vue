@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
-useHead({ title: 'Potrditev čiščenja · Maple & Pine', meta: [{name:'robots',content:'noindex, nofollow'},{name:'referrer',content:'no-referrer'}] })
+useHead({ meta: [{name:'robots',content:'noindex, nofollow'},{name:'referrer',content:'no-referrer'}] })
 const token = String(useRoute().params.token)
 const {data,error,refresh} = await useFetch(`/api/cleaning/${token}`)
 const saving = ref(false)
