@@ -1,0 +1,146 @@
+[
+  {
+    "event": "arrival_today",
+    "friendly_name": "maplenpine_arrival_today_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Današnji prihod*\n\nSprejem obveščamo o današnjem prihodu gostov v rezervirani apartma.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Današnji prihod",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "reservation_changed",
+    "friendly_name": "maplenpine_reservation_changed_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Sprememba rezervacije*\n\nPodatki obstoječe rezervacije apartmaja so se spremenili. Sprejem naj preveri navedene spremembe.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Sprememba rezervacije",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "reservation_cancelled",
+    "friendly_name": "maplenpine_reservation_cancelled_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Odpoved rezervacije*\n\nObstoječa rezervacija apartmaja je odpovedana. Sprejem naj posodobi načrt prihodov.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Odpoved rezervacije",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "cleaning_reminder",
+    "friendly_name": "maplenpine_cleaning_reminder_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Opomnik za čiščenje*\n\nZa jutri je načrtovano čiščenje apartmaja po odhodu gostov. Po opravljenem čiščenju odprite povezavo in potrdite, da je apartma pripravljen.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Opomnik za čiščenje",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "cleaning_completed",
+    "friendly_name": "maplenpine_cleaning_completed_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Čiščenje potrjeno*\n\nČiščenje apartmaja je potrjeno. To interno obvestilo je namenjeno gostitelju in sprejemu za pripravo prihoda gostov.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Čiščenje potrjeno",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "job_failed",
+    "friendly_name": "maplenpine_job_failed_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Napaka eKey opravila*\n\nOpravilo upravljanja dostopa do apartmaja ni uspelo. Administrator naj preveri napako in stanje dostopa v portalu.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Napaka eKey opravila",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "pin_send_failed",
+    "friendly_name": "maplenpine_pin_send_failed_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Napaka dostave sporočila*\n\nDostava sporočila za obstoječo rezervacijo ni uspela. Administrator naj preveri dnevnik dostave v portalu.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Napaka dostave sporočila",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "sync_error",
+    "friendly_name": "maplenpine_sync_error_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Napaka sinhronizacije rezervacij*\n\nSinhronizacija rezervacij med Bentralom in portalom ni uspela. Administrator naj preveri povezavo in dnevnik.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Napaka sinhronizacije rezervacij",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "orchestrator_offline",
+    "friendly_name": "maplenpine_orchestrator_offline_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Windows worker ni dosegljiv*\n\nPovezava z Windows workerjem za upravljanje dostopov ni dosegljiva. Administrator naj preveri računalnik in stanje opravil.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Windows worker ni dosegljiv",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "orchestrator_recovered",
+    "friendly_name": "maplenpine_orchestrator_recovered_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Windows worker ponovno deluje*\n\nPovezava z Windows workerjem za upravljanje dostopov je obnovljena. Administrator lahko preveri trenutno stanje v portalu.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Windows worker ponovno deluje",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "issue_recovered",
+    "friendly_name": "maplenpine_issue_recovered_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Težava integracije odpravljena*\n\nPrej zaznana težava povezane integracije portala je odpravljena. Administrator lahko preveri trenutno stanje v dnevniku.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Težava integracije odpravljena",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  },
+  {
+    "event": "backup_failed",
+    "friendly_name": "maplenpine_backup_failed_v1",
+    "language": "sl",
+    "category": "UTILITY",
+    "body": "*Maple & Pine — Napaka varnostne kopije*\n\nIzdelava varnostne kopije portala ni uspela. Administrator naj preveri prostor, zadnjo uspešno kopijo in dnevnik kopiranja.\n\nObvestilo: {{1}}\nPodrobnosti: {{2}}\nPovezava do portala: {{3}}\n\n_Interno operativno obvestilo Maple & Pine._",
+    "variables": {
+      "1": "Napaka varnostne kopije",
+      "2": "TEST: Pine; preverjanje obvestila brez spremembe rezervacije ali dostopa.",
+      "3": "https://guesttest.maplenpine.com/admin"
+    }
+  }
+]

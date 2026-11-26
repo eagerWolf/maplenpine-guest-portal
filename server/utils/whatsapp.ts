@@ -1,3 +1,4 @@
+import { notificationEvents } from '../../shared/notificationTemplates'
 import { messagingEnabled } from './servicePolicy'
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
@@ -76,12 +77,14 @@ class WebhookProvider implements WhatsAppProvider {
   }
 }
 
-export function getWhatsAppProvider(): WhatsAppProvider {
+export function getWhatsAppProvider(eventType?: string): WhatsAppProvider {
   if (!messagingEnabled()) return new StubProvider()
   const twilio = getTwilioConfig()
 
   if (twilio.configured) {
-    return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom, twilio.staffContentSid)
+    const eventSid = eventType && Object.hasOwn(notificationEvents,eventType)
+      ? (getDb().prepare('SELECT value FROM app_settings WHERE key=?').get(`twilio_content_sid_${eventType}`) as {value:string}|undefined)?.value || '' : ''
+    return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom, /^HX[a-fA-F0-9]{32}$/.test(eventSid) ? eventSid : twilio.staffContentSid)
   }
 
   const config = useRuntimeConfig()

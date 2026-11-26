@@ -7,6 +7,7 @@ import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
 const ALLOWED_KEYS = [
   ...recommendationKeys,
   ...Object.keys(notificationEvents).map(key => `notification_template_${key}`),
+  ...Object.keys(notificationEvents).map(key => `twilio_content_sid_${key}`),
   'tv_maple_token', 'tv_pine_token',
   'tv_maple_wifi_ssid', 'tv_maple_wifi_password',
   'tv_pine_wifi_ssid', 'tv_pine_wifi_password',
@@ -66,6 +67,8 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<Record<string, string>>(event)
   for (const name of Object.keys(notificationEvents)) {
+    const sid = body[`twilio_content_sid_${name}`]
+    if (sid !== undefined && (typeof sid !== 'string' || (sid && !/^HX[a-fA-F0-9]{32}$/.test(sid)))) throw createError({statusCode:400,statusMessage:'Twilio Content SID mora imeti obliko HX in 32 šestnajstiških znakov.'})
     const value = body[`notification_template_${name}`]
     if (value !== undefined && !validateNotificationTemplate(value)) throw createError({statusCode:400,statusMessage:'Predloga mora vsebovati {title}, {details} in {link}, največ 1500 znakov.'})
   }
