@@ -11,3 +11,5 @@ Meta je skupno predlogo razvrstila v Marketing; 26. novembra je bila uspešno od
 Ročni testi se še vedno pošiljajo samo trenutno prijavljenemu administratorju z veljavno WhatsApp številko.
 
 Sprememba `6de0215` je nameščena na testnem portalu po uspešnem ARM buildu. PM2 proces je online in `/login` vrne HTTP 200. Prejšnji build je shranjen za povrnitev. Lokalno: 153 testov in TypeScript uspešno. Produkcijska namestitev in zastavice pošiljanja niso bile spremenjene.
+
+Na nadaljnjo izrecno zahtevo je isti ARM build `6de0215` nameščen tudi na produkciji (PM2 online, `/login` HTTP 200). Skupni SID je nastavljen tudi v produkcijski bazi. Pred namestitvijo so shranjeni prejšnji build, konfiguracija in SQLite kopija v `~/backups/prod-shared-template-6de0215/`. WhatsApp ostaja `false`, opravila v ozadju onemogočena in Bentral sporočila `false`. Neposreden pregled Mete potrjuje samo eno predlogo (1 od 250): staff_notice_v2, Marketing, In review.
