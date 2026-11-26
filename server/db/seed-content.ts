@@ -313,7 +313,7 @@ export const SEED_SUGGESTIONS: SeedSuggestion[] = [
   },
   {
     image: '/suggestions/horseriding.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Horseback riding near Bled', sl: 'Blejske konjeniške pustolovščine: Vožnja skozi naravno lepoto', de: 'Bled Reitabenteuer: Eine Reise durch die Naturschönheit', hr: 'Blejske konjičke avanture: Jahanje kroz prirodnu ljepotu', sr: 'Blejske konjičke avanture: Jahanje kroz prirodnu lepotu' },
+    title: { en: 'Horseback riding near Bled', sl: 'Blejske konjeniške pustolovščine: Jahanje v naravi', de: 'Bled Reitabenteuer: Eine Reise durch die Naturschönheit', hr: 'Blejske konjičke avanture: Jahanje kroz prirodnu ljepotu', sr: 'Blejske konjičke avanture: Jahanje kroz prirodnu lepotu' },
     description: {
       en: 'Local horseback rides are available near Bled and can suit different experience levels. Contact the provider directly for timing, availability and route details.',
       sl: 'Doživite osupljivo pokrajino Bleda med jahalno pustolovščino, primerno za turiste vseh ravni jahanja. Naši angleško govoreči vodniki vas bodo peljali skozi nekatere od najslikovitejših lokacij.',
