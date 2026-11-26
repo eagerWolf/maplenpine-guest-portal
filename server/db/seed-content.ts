@@ -1,16 +1,23 @@
 import type { LocalizedText } from './index'
 
 export interface SeedRestaurant {
+  websiteSlug: string
   name: string
   type: 'fineDining' | 'traditional' | 'casual'
-  website: string
+  website: string | null
   description: LocalizedText
+  active?: number
+  recurring: boolean
+  validFrom: string | null
+  validTo: string | null
+  location?: {name:string;address:string;google_maps_url:string}
   image: string // source path under public/, copied into data/uploads/restaurants/ on seed
 }
 
-export interface SeedButton { label: string; href: string; target?: string }
+export interface SeedButton { label: string | LocalizedText; href: string; target?: string }
 
 export interface SeedSuggestion {
+  websiteSlug: string
   title: LocalizedText
   description: LocalizedText
   buttons?: SeedButton[]
@@ -20,692 +27,1923 @@ export interface SeedSuggestion {
   validTo: string | null
 }
 
-export interface SeedLink { label: string; href: string }
+export interface SeedLink { label: string | LocalizedText; href: string }
 
 export interface SeedFaq {
+  recurring: boolean
+  validFrom: string | null
+  validTo: string | null
   title: LocalizedText
   description: LocalizedText
   links?: SeedLink[]
 }
 
 export interface SeedHowto {
+  recurring: boolean
+  validFrom: string | null
+  validTo: string | null
   title: LocalizedText
   description: LocalizedText
   image?: string // source path under public/, copied into data/uploads/howto/ on seed
   links?: SeedLink[]
 }
 
+// Reviewed 26 November 2026. Existing installations are updated only by the explicit review script.
 export const SEED_RESTAURANTS: SeedRestaurant[] = [
   {
-    name: 'Old Cellar Lake View', type: 'fineDining', website: 'https://www.oldcellarbled.com/en/', image: '/restaurants/oldcellarlakeview.webp',
-    description: {
-      en: 'A polished choice for a special meal in Bled, with seasonal Slovenian dishes, local ingredients, a good wine list and lake views.',
-      sl: 'Uglajena izbira za posebno kosilo ali večerjo v Bledu, s sezonskimi slovenskimi jedmi, lokalnimi sestavinami, dobro vinsko karto in razgledom na jezero.',
-      de: 'Eine stilvolle Wahl für ein besonderes Essen in Bled, mit saisonaler slowenischer Küche, lokalen Zutaten, guter Weinauswahl und Blick auf den See.',
-      hr: 'Uređen izbor za poseban ručak ili večeru u Bledu, sa sezonskim slovenskim jelima, lokalnim namirnicama, dobrom vinskom kartom i pogledom na jezero.',
-      sr: 'Uređen izbor za poseban ručak ili večeru u Bledu, sa sezonskim slovenačkim jelima, lokalnim namirnicama, dobrom vinskom kartom i pogledom na jezero.',
+    "name": "Old Cellar Lake View",
+    "type": "fineDining",
+    "website": "https://www.oldcellarbled.com/en/",
+    "image": "/restaurants/oldcellarlakeview.webp",
+    "description": {
+      "sl": "Restavracija ob jezeru s sezonskimi jedmi in slovenskimi sestavinami. Pred obiskom preverite aktualni jedilnik in rezervirajte mizo.",
+      "en": "A lakeside restaurant serving seasonal dishes with Slovenian ingredients. Check the current menu and reserve a table before visiting.",
+      "de": "Restaurant am See mit saisonalen Gerichten und slowenischen Zutaten. Aktuelle Speisekarte prüfen und vorab einen Tisch reservieren.",
+      "hr": "Restoran uz jezero sa sezonskim jelima i slovenskim namirnicama. Provjerite aktualni jelovnik i rezervirajte stol.",
+      "sr": "Restoran uz jezero sa sezonskim jelima i slovenačkim namirnicama. Proverite aktuelni jelovnik i rezervišite sto."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Old Cellar Lake View",
+      "address": "Cesta svobode 12, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Old%20Cellar%20Lake%20View%20Cesta%20svobode%2012%2C%204260%20Bled"
+    },
+    "websiteSlug": "old-cellar"
   },
   {
-    name: 'Pri Planincu', type: 'traditional', website: 'https://www.pri-planincu.com/', image: '/restaurants/planinc.webp',
-    description: {
-      en: 'A family-run restaurant in a restored 19th-century building, known for traditional local dishes and a long Bled history.',
-      sl: 'Družinska restavracija v prenovljeni stavbi iz 19. stoletja, znana po tradicionalnih lokalnih jedeh in dolgi blejski zgodbi.',
-      de: 'Ein familiengeführtes Restaurant in einem restaurierten Gebäude aus dem 19. Jahrhundert, bekannt für traditionelle lokale Gerichte und eine lange Geschichte in Bled.',
-      hr: 'Obiteljski restoran u obnovljenoj zgradi iz 19. stoljeća, poznat po tradicionalnim lokalnim jelima i dugoj blejskoj povijesti.',
-      sr: 'Porodični restoran u obnovljenoj zgradi iz 19. veka, poznat po tradicionalnim lokalnim jelima i dugoj blejskoj istoriji.',
+    "name": "Pri Planincu",
+    "type": "traditional",
+    "website": "https://www.pri-planincu.com/",
+    "image": "/restaurants/planinc.webp",
+    "description": {
+      "sl": "Gostilna s tradicionalnimi slovenskimi jedmi na Grajski cesti. Pred obiskom preverite delovni čas in razpoložljivost miz.",
+      "en": "An inn serving traditional Slovenian dishes on Grajska cesta. Check opening hours and table availability before visiting.",
+      "de": "Gasthaus mit traditionellen slowenischen Gerichten an der Grajska cesta. Öffnungszeiten und Tischverfügbarkeit vorab prüfen.",
+      "hr": "Gostionica s tradicionalnim slovenskim jelima u Grajskoj cesti. Prije posjeta provjerite radno vrijeme i slobodne stolove.",
+      "sr": "Gostionica sa tradicionalnim slovenačkim jelima u Grajskoj cesti. Pre posete proverite radno vreme i slobodne stolove."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Pri Planincu",
+      "address": "Grajska cesta 8, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Pri%20Planincu%20Grajska%20cesta%208%2C%204260%20Bled"
+    },
+    "websiteSlug": "planinc"
   },
   {
-    name: 'Blejska Hiša', type: 'traditional', website: 'https://blejskahisa.si', image: '/restaurants/blejska-hisa.webp',
-    description: {
-      en: 'A popular restaurant in Bled known for traditional Slovenian cuisine and generous portions of homemade dishes. The menu features meat specialties and Slovenian classics prepared with a modern touch in a cozy alpine atmosphere.',
-      sl: 'Priljubljena restavracija v Bledu, znana po tradicionalni slovenski kuhinji in izdatnih obrokih domače hrane. Jedilnik ponuja mesne specialitete in slovensko klasiko s sodobnim pridihom v prijetnem alpskem vzdušju.',
-      de: 'Ein beliebtes Restaurant in Bled, bekannt für traditionelle slowenische Küche und großzügige Portionen hausgemachter Gerichte. Die Speisekarte bietet Fleischspezialitäten und slowenische Klassiker mit modernem Touch in gemütlicher Alpenatmosphäre.',
-      hr: 'Popularan restoran u Bledu poznat po tradicionalnoj slovenačkoj kuhinji i izdašnim obrocima domaće hrane. Jelovnik nudi mesne specijalitete i slovenačke klasike s modernim prizvukom u ugodnoj alpskoj atmosferi.',
-      sr: 'Popularan restoran u Bledu poznat po tradicionalnoj slovenačkoj kuhinji i izdašnim obrocima domaće hrane. Jelovnik nudi mesne specijalitete i slovenačke klasike sa modernim prizvukom u ugodnoj alpskoj atmosferi.',
+    "name": "Blejska Hiša",
+    "type": "traditional",
+    "website": "https://blejskahisa.si/",
+    "image": "/restaurants/blejska-hisa.webp",
+    "description": {
+      "sl": "Blejska hiša ponuja slovenske jedi, jedi z žara in druge jedi po naročilu. Jedilnik, delovni čas in rezervacije preverite pri restavraciji.",
+      "en": "Blejska hiša offers Slovenian dishes, grilled food and other à la carte meals. Check the menu, opening hours and reservations with the restaurant.",
+      "de": "Blejska hiša bietet slowenische Gerichte, Grillspezialitäten und weitere À-la-carte-Speisen. Speisekarte, Öffnungszeiten und Reservierungen beim Restaurant prüfen.",
+      "hr": "Blejska hiša nudi slovenska jela, jela s roštilja i druga jela po narudžbi. Jelovnik, radno vrijeme i rezervacije provjerite u restoranu.",
+      "sr": "Blejska hiša nudi slovenačka jela, jela sa roštilja i druga jela po porudžbini. Jelovnik, radno vreme i rezervacije proverite u restoranu."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Blejska Hiša",
+      "address": "Ljubljanska cesta 13a, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Blejska%20Hi%C5%A1a%20Ljubljanska%20cesta%2013a%2C%204260%20Bled"
+    },
+    "websiteSlug": "blejska-hisa"
   },
   {
-    name: 'Al Fresco', type: 'casual', website: 'https://al-fresco.si', image: '/restaurants/al-fresco.webp',
-    description: {
-      en: 'A modern restaurant serving breakfast, lunch and dinner in a relaxed atmosphere. The kitchen focuses on fresh ingredients and a contemporary European approach. Guests can enjoy meals on the pleasant outdoor terrace during warmer months.',
-      sl: 'Moderna restavracija, ki v sproščenem vzdušju streže zajtrk, kosilo in večerjo. Kuhinja se osredotoča na sveže sestavine in sodobni evropski pristop. V toplejših mesecih je na voljo prijetna zunanja terasa.',
-      de: 'Ein modernes Restaurant, das in entspannter Atmosphäre Frühstück, Mittagessen und Abendessen serviert. Die Küche setzt auf frische Zutaten und einen zeitgemäßen europäischen Ansatz. In wärmeren Monaten ist eine angenehme Außenterrasse verfügbar.',
-      hr: 'Moderan restoran koji u opuštenom ozračju poslužuje doručak, ručak i večeru. Kuhinja se fokusira na svježe namirnice i suvremeni europski pristup. U toplijim mjesecima dostupna je ugodna vanjska terasa.',
-      sr: 'Moderan restoran koji u opuštenoj atmosferi poslužuje doručak, ručak i večeru. Kuhinja se fokusira na sveže namirnice i savremeni evropski pristup. U toplijim mesecima dostupna je ugodna spoljna terasa.',
+    "name": "Al Fresco",
+    "type": "casual",
+    "website": "https://al-fresco.si/en/",
+    "image": "/restaurants/al-fresco.webp",
+    "description": {
+      "sl": "Al Fresco na Ljubljanski cesti ponuja zajtrke, pice, testenine in druge jedi. Pred obiskom preverite ponudbo in delovni čas.",
+      "en": "Al Fresco on Ljubljanska cesta serves breakfast, pizza, pasta and other dishes. Check the current menu and opening hours before visiting.",
+      "de": "Al Fresco an der Ljubljanska cesta serviert Frühstück, Pizza, Pasta und weitere Gerichte. Aktuelles Angebot und Öffnungszeiten vorab prüfen.",
+      "hr": "Al Fresco u Ljubljanskoj cesti nudi doručak, pizze, tjesteninu i druga jela. Prije posjeta provjerite ponudu i radno vrijeme.",
+      "sr": "Al Fresco u Ljubljanskoj cesti nudi doručak, pice, testeninu i druga jela. Pre posete proverite ponudu i radno vreme."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Al Fresco",
+      "address": "Ljubljanska cesta 26, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Al%20Fresco%20Ljubljanska%20cesta%2026%2C%204260%20Bled"
+    },
+    "websiteSlug": "al-fresco"
   },
   {
-    name: 'Restaurant Julijana', type: 'fineDining', website: 'https://www.sava-hotels-resorts.com/en/sava-hotels-bled/services-and-experiences/gastronomy/restaurant-julijana/', image: '/restaurants/julijana.webp',
-    description: {
-      en: 'Located in Grand Hotel Toplice, Julijana is one of Bled\'s refined dining options, with seasonal tasting menus, local ingredients and lake views.',
-      sl: 'V Grand Hotelu Toplice je to ena najprestižnejših restavracij v Bledu. Ponuja sezonske degustacijske menije z močnim poudarkom na lokalnih sestavinah in čudovit razgled na Blejsko jezero.',
-      de: 'Im Grand Hotel Toplice gelegen, ist dies eine der renommiertesten Gaststätten in Bled. Es bietet saisonale Degustationsmenüs mit Fokus auf lokale Zutaten und einen schönen Blick auf den Bleder See.',
-      hr: 'Smješten u Grand Hotelu Toplice, ovo je jedno od najprestižnijih mjesta za objedovanje u Bledu. Nudi sezonske degustacijske menije s naglaskom na lokalne namirnice i prekrasan pogled na Blejsko jezero.',
-      sr: 'Smešten u Grand Hotelu Toplice, ovo je jedno od najprestižnijih mesta za obedovanje u Bledu. Nudi sezonske degustacijske menije s naglaskom na lokalne namirnice i prekrasan pogled na Blejsko jezero.',
+    "name": "Restaurant Julijana",
+    "type": "fineDining",
+    "website": "https://www.sava-hotels-resorts.com/en/sava-hotels-bled/services-and-experiences/gastronomy/restaurant-julijana/",
+    "image": "/restaurants/julijana.webp",
+    "description": {
+      "sl": "Restavracija Julijana je v Grand Hotelu Toplice. Uradna stran trenutno navaja, da je zaprta; pred načrtovanjem obiska pri hotelu preverite ponovno odprtje in rezervacije.",
+      "en": "Restaurant Julijana is in Grand Hotel Toplice. The official website currently lists it as closed; contact the hotel about reopening and reservations before planning a visit.",
+      "de": "Das Restaurant Julijana befindet sich im Grand Hotel Toplice. Die offizielle Website nennt es derzeit geschlossen; Wiedereröffnung und Reservierungen direkt beim Hotel erfragen.",
+      "hr": "Restoran Julijana nalazi se u Grand Hotelu Toplice. Službena stranica trenutačno navodi da je zatvoren; prije posjeta provjerite ponovno otvaranje i rezervacije kod hotela.",
+      "sr": "Restoran Julijana je u Grand Hotelu Toplice. Zvanični sajt trenutno navodi da je zatvoren; pre posete proverite ponovno otvaranje i rezervacije kod hotela."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "active": 0,
+    "location": {
+      "name": "Restaurant Julijana",
+      "address": "Cesta svobode 12, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Restaurant%20Julijana%20Cesta%20svobode%2012%2C%204260%20Bled"
+    },
+    "websiteSlug": "julijana"
   },
   {
-    name: 'Restaurant Sova', type: 'fineDining', website: 'https://www.restavracija-sova-bled.si/', image: '/restaurants/sova.webp',
-    description: {
-      en: 'A well-known lakeside restaurant suitable for a special dinner or a relaxed lunch by the water. The menu combines Slovenian and international influences, with fish, meat and seasonal dishes in a polished but welcoming atmosphere.',
-      sl: 'Znana restavracija ob jezeru, primerna za posebno večerjo ali sproščeno kosilo ob vodi. Jedilnik združuje slovensko in mednarodno kuhinjo z ribami, mesom in sezonskimi jedmi v uglajeni a domači atmosferi.',
-      de: 'Ein bekanntes Restaurant am Seeufer, geeignet für ein besonderes Abendessen oder ein entspanntes Mittagessen am Wasser. Die Speisekarte kombiniert slowenische und internationale Einflüsse mit Fisch, Fleisch und saisonalen Gerichten.',
-      hr: 'Poznati restoran na obali jezera, prikladan za posebnu večeru ili opušteni ručak uz vodu. Jelovnik kombinira slovenačke i međunarodne utjecaje s ribom, mesom i sezonskim jelima u uglednoj, ali ugodnoj atmosferi.',
-      sr: 'Poznat restoran na obali jezera, prikladan za posebnu večeru ili opušteni ručak uz vodu. Jelovnik kombinuje slovenačke i međunarodne uticaje sa ribom, mesom i sezonskim jelima u uglednoj, ali ugodnoj atmosferi.',
+    "name": "Restaurant Sova",
+    "type": "fineDining",
+    "website": "https://www.restavracija-sova.com/en/contact/",
+    "image": "/restaurants/sova.webp",
+    "description": {
+      "sl": "Restavracija Sova je na Ljubljanski cesti 8. Ponuja sezonske jedi; pred obiskom preverite jedilnik in rezervirajte mizo.",
+      "en": "Restaurant Sova is at Ljubljanska cesta 8. It serves seasonal dishes; check the menu and reserve a table before visiting.",
+      "de": "Das Restaurant Sova liegt an der Ljubljanska cesta 8. Es bietet saisonale Gerichte; Speisekarte prüfen und einen Tisch reservieren.",
+      "hr": "Restoran Sova nalazi se u Ljubljanskoj cesti 8. Nudi sezonska jela; prije posjeta provjerite jelovnik i rezervirajte stol.",
+      "sr": "Restoran Sova je u Ljubljanskoj cesti 8. Nudi sezonska jela; pre posete proverite jelovnik i rezervišite sto."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Restaurant Sova",
+      "address": "Ljubljanska cesta 8, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Restaurant%20Sova%20Ljubljanska%20cesta%208%2C%204260%20Bled"
+    },
+    "websiteSlug": "sova"
   },
   {
-    name: 'Špica', type: 'casual', website: 'https://www.spica-bled.si/', image: '/restaurants/spica.webp',
-    description: {
-      en: 'A relaxed restaurant close to the lake and the centre of Bled. A practical choice for families, casual lunches and easy evening meals after a day outdoors, with a broad menu and a lively local atmosphere.',
-      sl: 'Sproščena restavracija blizu jezera in centra Bleda. Praktična izbira za družine, priložnostna kosila in preprosto večerjo po dnevu v naravi, s pestrim jedilnikom in živahno lokalno vzdušje.',
-      de: 'Ein entspanntes Restaurant nahe dem See und dem Zentrum von Bled. Eine praktische Wahl für Familien, ungezwungene Mittagessen und unkomplizierte Abendessen nach einem Tag draußen, mit breitem Angebot.',
-      hr: 'Opušteni restoran blizu jezera i centra Bleda. Praktičan izbor za obitelji, neformalne ručkove i jednostavne večere nakon dana u prirodi, s raznolikom ponudom i živahnom lokalnom atmosferom.',
-      sr: 'Opušten restoran blizu jezera i centra Bleda. Praktičan izbor za porodice, neformalne ručkove i jednostavne večere nakon dana u prirodi, s raznovrsnom ponudom i živahnom lokalnom atmosferom.',
+    "name": "Špica",
+    "type": "casual",
+    "website": "https://restavracija-spica.si/",
+    "image": "/restaurants/spica.webp",
+    "description": {
+      "sl": "Špica na Cesti svobode ponuja pice, jedi po naročilu in pijačo. Pred obiskom preverite delovni čas kuhinje in aktualno ponudbo.",
+      "en": "Špica on Cesta svobode serves pizza, à la carte dishes and drinks. Check kitchen hours and the current menu before visiting.",
+      "de": "Špica an der Cesta svobode bietet Pizza, À-la-carte-Gerichte und Getränke. Küchenzeiten und aktuelles Angebot vorab prüfen.",
+      "hr": "Špica u Cesti svobode nudi pizze, jela po narudžbi i pića. Prije posjeta provjerite radno vrijeme kuhinje i ponudu.",
+      "sr": "Špica u Cesti svobode nudi pice, jela po porudžbini i pića. Pre posete proverite radno vreme kuhinje i ponudu."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Špica",
+      "address": "Cesta svobode 9, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=%C5%A0pica%20Cesta%20svobode%209%2C%204260%20Bled"
+    },
+    "websiteSlug": "spica"
   },
   {
-    name: 'Central Bled', type: 'casual', website: 'https://central-bled.com/', image: '/restaurants/central.webp',
-    description: {
-      en: 'A convenient casual stop in the centre of Bled for coffee, brunch, lunch or a simple dinner. Works well for guests who want an easy, central option before or after exploring the lake, shops and town centre.',
-      sl: 'Priročna priložnostna postaja v centru Bleda za kavo, brunch, kosilo ali preprosto večerjo. Dobro deluje za goste, ki iščejo enostavno in centralno možnost pred ali po ogledu jezera in mesta.',
-      de: 'Eine praktische Anlaufstelle im Zentrum von Bled für Kaffee, Brunch, Mittagessen oder ein einfaches Abendessen. Gut geeignet für Gäste, die eine unkomplizierte, zentrale Option vor oder nach dem Erkunden des Sees wünschen.',
-      hr: 'Praktična neformalna postaja u centru Bleda za kavu, brunch, ručak ili jednostavnu večeru. Dobro funkcionira za goste koji žele laganu, centralnu opciju prije ili nakon istraživanja jezera i centra.',
-      sr: 'Praktična neformalna stanica u centru Bleda za kafu, brunch, ručak ili jednostavnu večeru. Dobro funkcioniše za goste koji žele laganu, centralnu opciju pre ili posle istraživanja jezera i centra.',
+    "name": "Central Bled",
+    "type": "casual",
+    "website": null,
+    "image": "/restaurants/central.webp",
+    "description": {
+      "sl": "Central Bled je naveden na naslovu Ulica narodnih herojev 3. Pred obiskom preverite, ali restavracija obratuje, in aktualni delovni čas; prejšnja spletna povezava ni potrjena.",
+      "en": "Central Bled is listed at Ulica narodnih herojev 3. Confirm that the restaurant is operating and check current hours before visiting; its previous website could not be verified.",
+      "de": "Central Bled ist unter Ulica narodnih herojev 3 verzeichnet. Betrieb und aktuelle Öffnungszeiten vor einem Besuch bestätigen; die bisherige Website konnte nicht bestätigt werden.",
+      "hr": "Central Bled naveden je na adresi Ulica narodnih herojev 3. Prije posjeta provjerite radi li restoran i aktualno radno vrijeme; prethodna stranica nije potvrđena.",
+      "sr": "Central Bled je naveden na adresi Ulica narodnih herojev 3. Pre posete proverite da li restoran radi i aktuelno radno vreme; prethodni sajt nije potvrđen."
     },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "active": 0,
+    "location": {
+      "name": "Central Bled",
+      "address": "Ulica narodnih herojev 3, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Central%20Bled%20Ulica%20narodnih%20herojev%203%2C%204260%20Bled"
+    },
+    "websiteSlug": "central"
   },
   {
-    name: 'Grajska Plaža', type: 'casual', website: 'https://www.grajska-plaza.com/', image: '/restaurants/grajska-plaza.webp',
-    description: {
-      en: 'A seasonal outdoor restaurant and lakeside spot by the castle bathing area, best suited for warm-weather lunches and drinks by the water. Open only during the season — check opening times before your visit.',
-      sl: 'Sezonska zunanja restavracija in točka ob jezeru pri gradu, primerna za kosilo in pijačo ob vodi v toplem vremenu. Odprta samo v sezoni — pred obiskom preverite delovni čas.',
-      de: 'Ein saisonales Außenrestaurant am Seeufer beim Burgebadebereich, ideal für Mittagessen und Getränke am Wasser bei warmem Wetter. Nur in der Saison geöffnet — Öffnungszeiten vor dem Besuch prüfen.',
-      hr: 'Sezonski vanjski restoran i točka uz jezero kod kupališta dvorca, najprikladniji za ručak i piće uz vodu po lijepom vremenu. Otvoren samo sezonski — provjerite radno vrijeme prije posjeta.',
-      sr: 'Sezonski spoljni restoran i tačka uz jezero kod kupačkog mesta dvorca, najprikladniji za ručak i piće uz vodu po lepom vremenu. Otvoren samo sezonski — proverite radno vreme pre posete.',
+    "name": "Grajska Plaža",
+    "type": "casual",
+    "website": "https://www.grajska-plaza.com/",
+    "image": "/restaurants/grajska-plaza.webp",
+    "description": {
+      "sl": "Restavracija na prostem pod Blejskim gradom. Objavljena sezona je od 20. aprila do 1. novembra; pred obiskom preverite odprtost, saj je ponudba odvisna tudi od vremena.",
+      "en": "An outdoor restaurant below Bled Castle. The published season runs from 20 April to 1 November; check opening before visiting, as service also depends on weather.",
+      "de": "Freiluftrestaurant unterhalb der Bleder Burg. Die veröffentlichte Saison läuft vom 20. April bis 1. November; Öffnung vorab prüfen, da der Betrieb auch wetterabhängig ist.",
+      "hr": "Restoran na otvorenom pod Bledskim dvorcem. Objavljena sezona traje od 20. travnja do 1. studenoga; prije posjeta provjerite otvorenost jer ovisi i o vremenu.",
+      "sr": "Restoran na otvorenom ispod Bledskog zamka. Objavljena sezona traje od 20. aprila do 1. novembra; pre posete proverite otvorenost jer zavisi i od vremena."
     },
+    "recurring": true,
+    "validFrom": "04-20",
+    "validTo": "11-01",
+    "location": {
+      "name": "Grajska Plaža",
+      "address": "Veslaška promenada 11, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Grajska%20Pla%C5%BEa%20Vesla%C5%A1ka%20promenada%2011%2C%204260%20Bled"
+    },
+    "websiteSlug": "grajska-plaza"
   },
   {
-    name: 'Mega Burger', type: 'casual', website: 'https://www.mega-burger.si/', image: '/restaurants/mega-burger.webp',
-    description: {
-      en: 'A casual choice for burgers, quick lunches and relaxed meals after a day at the lake or outdoors. A practical option for families who want something simple, filling and informal.',
-      sl: 'Priložnostna izbira v Bledu za hamburgerje, hitra kosila in sproščene obroke po dnevu ob jezeru ali v naravi. Praktična možnost za družine, ki iščejo preprosto, sito in neformalno.',
-      de: 'Eine legere Wahl in Bled für Burger, schnelle Mittagessen und entspannte Mahlzeiten nach einem Tag am See oder in der Natur. Praktisch für Familien, die etwas Einfaches und Sättigendes suchen.',
-      hr: 'Neformalan izbor u Bledu za burgere, brze ručkove i opuštene obroke nakon dana uz jezero ili u prirodi. Praktična opcija za obitelji koje žele nešto jednostavno, hranjivo i neformalno.',
-      sr: 'Neformalan izbor u Bledu za burgere, brze ručkove i opuštene obroke nakon dana uz jezero ili u prirodi. Praktična opcija za porodice koje žele nešto jednostavno, hranjivo i neformalno.',
+    "name": "Mega Burger",
+    "type": "casual",
+    "website": "https://www.mega-burger.si/",
+    "image": "/restaurants/mega-burger.webp",
+    "description": {
+      "sl": "Mega Burger pri glavni avtobusni postaji ponuja burgerje in druge hitre obroke. Aktualni jedilnik, delovni čas in morebitno dostavo preverite neposredno pri ponudniku.",
+      "en": "Mega Burger near the main bus station serves burgers and other quick meals. Check the current menu, hours and delivery options directly with the provider.",
+      "de": "Mega Burger am Hauptbusbahnhof bietet Burger und weitere schnelle Gerichte. Aktuelle Speisekarte, Öffnungszeiten und Liefermöglichkeiten direkt beim Anbieter prüfen.",
+      "hr": "Mega Burger kod glavnog autobusnog kolodvora nudi burgere i druge brze obroke. Aktualni jelovnik, radno vrijeme i dostavu provjerite izravno kod ponuditelja.",
+      "sr": "Mega Burger kod glavne autobuske stanice nudi burgere i druge brze obroke. Aktuelni jelovnik, radno vreme i dostavu proverite direktno kod prodavca."
     },
-  },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "location": {
+      "name": "Mega Burger",
+      "address": "Cesta svobode 4a, 4260 Bled",
+      "google_maps_url": "https://www.google.com/maps/search/?api=1&query=Mega%20Burger%20Cesta%20svobode%204a%2C%204260%20Bled"
+    },
+    "websiteSlug": "mega-burger"
+  }
 ]
 
 export const SEED_SUGGESTIONS: SeedSuggestion[] = [
   {
-    image: '/suggestions/pletna.webp', recurring: true, validFrom: '04-01', validTo: '10-31',
-    title: { en: 'Pletna boat to Bled Island', sl: 'Vožnja s \'Pletno\' na Blejski otok', de: '"Pletna" Fahrt zur Insel Bled', hr: '"Pletna" putovanje na Blejski otok', sr: '"Pletna" putovanje na Blejsko ostrvo' },
-    description: {
-      en: 'A traditional Pletna boat is a relaxed way to reach Bled Island. You will find the wooden boats at several points along the lakeshore.',
-      sl: 'Tradicionalna pletna je sproščen način za obisk Blejskega otoka. Lesene čolne najdete na več mestih ob obali jezera.',
-      de: 'Ein traditionelles Pletna-Boot ist eine entspannte Art, die Insel Bled zu erreichen. Die Holzboote finden Sie an mehreren Stellen am Seeufer.',
-      hr: 'Tradicionalna pletna opušten je način za odlazak na Blejski otok. Drvene čamce naći ćete na nekoliko mjesta uz obalu jezera.',
-      sr: 'Tradicionalna pletna je opušten način da stignete do Blejskog ostrva. Drvene čamce naći ćete na nekoliko mesta uz obalu jezera.',
+    "image": "/suggestions/pletna.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "S pletno na Blejski otok",
+      "en": "Pletna boat to Bled Island",
+      "de": "Mit der Pletna zur Bleder Insel",
+      "hr": "Pletnom do Bledskog otoka",
+      "sr": "Pletnom do Bledskog ostrva"
     },
-  },
-  {
-    image: '/suggestions/carriage.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Horse-drawn carriages in Bled', sl: 'Spoznajte center Bleda z vožnjo s kočijo', de: 'Bled-Zentrum mit Pferdekutschen erkunden', hr: 'Istražite centar Bleda u konjskim kočijama', sr: 'Istražite centar Bleda u konjskim kočijama' },
-    description: {
-      en: 'Horse-drawn carriages are usually available in the centre of Bled and offer an easy, traditional ride around town or by the lake.',
-      sl: 'Kočije so običajno na voljo v središču Bleda in so prijeten, tradicionalen način za krajšo vožnjo po mestu ali ob jezeru.',
-      de: 'Pferdekutschen stehen meist im Zentrum von Bled bereit und bieten eine einfache, traditionelle Fahrt durch den Ort oder am See entlang.',
-      hr: 'Kočije su obično dostupne u centru Bleda i nude jednostavnu, tradicionalnu vožnju po mjestu ili uz jezero.',
-      sr: 'Kočije su obično dostupne u centru Bleda i nude jednostavnu, tradicionalnu vožnju kroz mesto ili pored jezera.',
+    "description": {
+      "sl": "Tradicionalna pletna vozi na Blejski otok tudi pozimi, z omejenim urnikom. Pred odhodom preverite vozni red in vreme pri čolnarju.",
+      "en": "Traditional pletna boats also serve Bled Island in winter, with shorter hours. Check departures and weather with the boat operator.",
+      "de": "Traditionelle Pletna-Boote fahren auch im Winter zur Insel, mit kürzeren Betriebszeiten. Abfahrten und Wetter beim Bootsführer prüfen.",
+      "hr": "Tradicionalne pletne voze do otoka i zimi, uz kraće radno vrijeme. Provjerite polaske i vrijeme kod čamčara.",
+      "sr": "Tradicionalne pletne plove do ostrva i zimi, uz kraće radno vreme. Proverite polaske i vremenske uslove kod čamdžije."
     },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/YBuBG9FsBG3fTn8k6' }],
-  },
-  {
-    image: '/suggestions/ojstrica.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Ojstrica viewpoint', sl: 'Ojstrica: Obvezno za lepe razglede na Bled', de: 'Ojstrica: Ein Muss für atemberaubende Bled-Aussichten', hr: 'Ojstrica: Obavezna destinacija za zadivljujuće poglede na Bled', sr: 'Ojstrica: Obavezna destinacija za zadivljujuće poglede na Bled' },
-    description: {
-      en: 'Ojstrica is one of the classic viewpoints above Lake Bled. The walk is short but steep in places, and the light is often especially good early in the morning.',
-      sl: 'Ojstrica je ena klasičnih razglednih točk nad Blejskim jezerom. Pot je kratka, a ponekod strma; zgodaj zjutraj je svetloba pogosto najlepša.',
-      de: 'Ojstrica ist einer der klassischen Aussichtspunkte über dem Bleder See. Der Weg ist kurz, stellenweise aber steil; früh am Morgen ist das Licht oft besonders schön.',
-      hr: 'Ojstrica je jedan od klasičnih vidikovaca iznad Blejskog jezera. Staza je kratka, ali mjestimice strma; rano ujutro svjetlo je često najljepše.',
-      sr: 'Ojstrica je jedan od klasičnih vidikovaca iznad Blejskog jezera. Staza je kratka, ali mestimično strma; rano ujutru svetlo je često najlepše.',
-    },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/eZ2eKdY8VvwFyCtMA' }],
-  },
-  {
-    image: '/suggestions/skiing.webp', recurring: true, validFrom: '11-01', validTo: '03-31',
-    title: { en: 'Skiing near Bled', sl: 'Smučarske avanture v alpski veličini okoli Bleda', de: 'Skiabenteuer im alpinen Glanz rund um Bled', hr: 'Skijaške avanture u alpskom sjaju oko Bleda', sr: 'Skijaške avanture u alpskom sjaju oko Bleda' },
-    description: {
-      en: 'In winter, Bled is within reach of several ski areas. Straža Bled is close and simple, while Kranjska Gora, Vogel, Krvavec and Pokljuka offer more options for a day on the snow.',
-      sl: 'Prepustite se zimskemu čaru okolice Bleda, kjer Julijske Alpe postavljajo oder za razburljive smučarske izkušnje, primerne za vse ravni. Bled ponuja različne smučarske destinacije, od blagih pobočij Straže Bled do obsežnih terenov Kranjske Gore in Vogla.',
-      de: 'Genießen Sie den Winterzauber rund um Bled, wo die Julischen Alpen die Bühne für aufregende Skierlebnisse bieten, die für alle Levels geeignet sind. Bled bietet verschiedene Ski-Destinationen, von den sanften Hängen der Straža Bled bis zu den weitläufigen Geländen der Kranjska Gora und Vogel.',
-      hr: 'Prepustite se zimskoj čaroliji oko Bleda, gdje Julijske Alpe postavljaju pozornicu za uzbudljiva skijaška iskustva pogodna za sve razine. Bled nudi razne skijaške destinacije, od blagih padina Straže Bled do prostrana terena Kranjske Gore i Vogela.',
-      sr: 'Prepustite se zimskoj čaroliji oko Bleda, gde Julijske Alpe postavljaju pozornicu za uzbudljiva skijaška iskustva pogodna za sve nivoe. Bled nudi razne skijaške destinacije, od blagih padina Straže Bled do prostornih terena Kranjske Gore i Vogela.',
-    },
-    buttons: [
-      { label: 'Straža Bled', href: 'https://www.straza-bled.si/sl/Zima' },
-      { label: 'Kranjska Gora', href: 'https://kranjska-gora.si/en/activities/skiing' },
-      { label: 'Vogel', href: 'http://www.vogel.si/winter' },
-      { label: 'Jelka family center', href: 'https://www.druzinskicenter-pokljuka.si/' },
-      { label: 'Krvavec', href: 'https://www.rtc-krvavec.si/krvavec-winter' },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/en/what-to-see-do/attractions/38/1/"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Pletna%20Mlino%20Bled%20Slovenia"
+      }
     ],
+    "websiteSlug": "pletna-island"
   },
   {
-    image: '/suggestions/sledding.webp', recurring: true, validFrom: '11-01', validTo: '03-31',
-    title: { en: 'Sledding near Bled', sl: 'Sankaška sreča v zimski pravljici Bleda', de: 'Schlittenspaß im Winterwunderland Bled', hr: 'Sanjkanje u zimskoj bajci Bleda', sr: 'Sanjkanje u zimskoj bajci Bleda' },
-    description: {
-      en: 'Straža Bled is a convenient nearby option for family sledding when conditions allow. Kranjska Gora and Vogel are also worth checking for winter activities.',
-      sl: 'Začutite hladen zimski zrak na obrazu, ko se drvite po pobočjih Straže Bled – popolno mesto za družine in začetnike, ki iščejo sankaški adrenalin. Za tiste, ki hrepenite po večjem vznemirjenju, raziščite vznemirljive spuste v Kranjski Gori ali na Voglu.',
-      de: 'Spüren Sie die frische Winterluft im Gesicht, während Sie die Hänge der Straža Bled hinunterrasen – ein perfekter Ort für Familien und Anfänger. Für mehr Aufregung erkunden Sie die aufregenden Abfahrten in Kranjska Gora oder Vogel.',
-      hr: 'Osjetite svježi zimski zrak na licu dok jurite niz padine Straže Bled – savršeno mjesto za obitelji i početnike. Za više uzbuđenja, istražite uzbudljive spuste u Kranjskoj Gori ili Vogelu.',
-      sr: 'Osetite svež zimski vazduh na licu dok jurite niz padine Straže Bled – savršeno mesto za porodice i početnike. Za više uzbuđenja, istražite uzbudljive spuste u Kranjskoj Gori ili Vogelu.',
+    "image": "/suggestions/carriage.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Vožnja s kočijo po Bledu",
+      "en": "Horse-drawn carriage rides in Bled",
+      "de": "Kutschfahrt in Bled",
+      "hr": "Vožnja kočijom po Bledu",
+      "sr": "Vožnja kočijom po Bledu"
     },
-    buttons: [
-      { label: 'Straža Bled', href: 'https://www.straza-bled.si/sl/Zima' },
-      { label: 'Kranjska Gora', href: 'https://kranjska-gora.si/en/activities/skiing' },
-      { label: 'Vogel', href: 'http://www.vogel.si/winter' },
-      { label: 'Jelka family center', href: 'https://www.druzinskicenter-pokljuka.si/' },
+    "description": {
+      "sl": "Blejski fijakarji ponujajo vožnje s kočijo. Pozimi je ponudba omejena; za termin, ceno in pot se dogovorite neposredno s kočijažem.",
+      "en": "Bled coachmen offer horse-drawn carriage rides. Winter service is limited; agree on the departure, price and route directly with the driver.",
+      "de": "Bleder Kutscher bieten Kutschfahrten an. Im Winter ist das Angebot eingeschränkt; Abfahrt, Preis und Strecke direkt vereinbaren.",
+      "hr": "Blejski fijakeri nude vožnje kočijom. Zimi je ponuda ograničena; termin, cijenu i rutu dogovorite izravno s kočijašem.",
+      "sr": "Blejski fijakeri nude vožnje kočijom. Zimi je ponuda ograničena; termin, cenu i rutu dogovorite direktno sa kočijašem."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Fijaker%20Bled%20Festival%20Hall%20Cesta%20svobode"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/en/information/getting-around-bled/"
+      }
     ],
+    "websiteSlug": "horse-carriages"
   },
   {
-    image: '/suggestions/vintgar.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Vintgar Gorge', sl: 'Odkrijte Vintgarsko sotesko: Naravni čudež blizu Bleda', de: 'Entdecken Sie die Vintgar-Schlucht: Ein Naturwunder bei Bled', hr: 'Otkrijte Vintgarsku klanac: Prirodno čudo Bleda', sr: 'Otkrijte Vintgarsku klisuru: Prirodno čudo Bleda' },
-    description: {
-      en: 'Vintgar Gorge is a beautiful walk through the Radovna River gorge, a short trip from Bled. A taxi to the entrance is often the simplest option.',
-      sl: 'Vintgarska soteska, ki jo je izoblikovala reka Radovna, je lep naravni fenomen le kratek odmik od Bleda. Za udobje razmislite o vožnji s taksijem do vhoda.',
-      de: 'Die Vintgar-Schlucht, geformt durch den Fluss Radovna, ist ein faszinierendes Naturwunder in kurzer Entfernung von Bled. Für mehr Komfort empfiehlt sich eine Taxifahrt zum Eingang.',
-      hr: 'Vintgarska klisura, oblikovana rijekom Radovnom, je zadivljujuće prirodno čudo na kratkoj udaljenosti od Bleda. Za veće udobje, razmotrite taksi vožnju do ulaza.',
-      sr: 'Vintgarska klisura, oblikovana rekom Radovnom, je zadivljujuće prirodno čudo na kratkoj udaljenosti od Bleda. Za veće udobje, razmotrite taksi vožnju do ulaza.',
+    "image": "/suggestions/ojstrica.webp",
+    "recurring": true,
+    "validFrom": "04-01",
+    "validTo": "10-31",
+    "title": {
+      "sl": "Ojstrica: razgled na Blejsko jezero",
+      "en": "Ojstrica: views over Lake Bled",
+      "de": "Ojstrica: Blick auf den Bleder See",
+      "hr": "Ojstrica: pogled na Bledsko jezero",
+      "sr": "Ojstrica: pogled na Bledsko jezero"
     },
-    buttons: [
-      { label: 'See location', href: 'https://goo.gl/maps/zA1mbXGZPHma1p639' },
-      { label: 'Vintgar website', href: 'https://vintgar.si/' },
+    "description": {
+      "sl": "Kratek, mestoma strm vzpon iz Velike Zake vodi do razgleda na jezero. Izberite suho vreme in primerno obutev; v snegu ali ledu obisk ni običajen sprehod.",
+      "en": "A short, sometimes steep climb from Velika Zaka leads to lake views. Choose dry conditions and suitable footwear; snow and ice require a different level of preparation.",
+      "de": "Ein kurzer, teils steiler Aufstieg ab Velika Zaka führt zum Seeblick. Trockene Bedingungen und passende Schuhe wählen; Schnee und Eis erfordern besondere Vorbereitung.",
+      "hr": "Kratak, mjestimice strm uspon iz Velike Zake vodi do pogleda na jezero. Odaberite suho vrijeme i odgovarajuću obuću; snijeg i led zahtijevaju posebnu pripremu.",
+      "sr": "Kratak, mestimično strm uspon iz Velike Zake vodi do pogleda na jezero. Birajte suvo vreme i odgovarajuću obuću; sneg i led zahtevaju posebnu pripremu."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Ojstrica%20viewpoint%20Bled%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/sl/kaj-videti-poceti/znamenitosti/4/ojstrica/"
+      }
     ],
+    "websiteSlug": "ojstrica"
   },
   {
-    image: '/suggestions/pokluska-soteska.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Pokljuka Gorge', sl: 'Odkrijte Pokljuško sotesko: Ledeniški čudež', de: 'Entdecken Sie die Pokljuka-Schlucht: Ein Gletscherwunder', hr: 'Otkrijte Pokljušku klanac: Ledenjačko čudo', sr: 'Otkrijte Pokljušku klisuru: Lednjačko čudo' },
-    description: {
-      en: 'Pokljuka Gorge is a quieter nature trip with impressive rock formations and forest paths. You can reach it by car, taxi or bike if you are comfortable with the distance.',
-      sl: 'Pokljuška soteska je mirnejši izlet v naravo z zanimivimi skalnimi oblikami in gozdnimi potmi. Do nje lahko pridete z avtomobilom, taksijem ali kolesom, če vam razdalja ustreza.',
-      de: 'Entdecken Sie die Wunder der Pokljuka-Schlucht, ein Zeugnis der Naturkunst, geformt durch den beständigen Fluss von Gletscherwässern. Erreichbar mit Fahrrad, Auto oder Taxi.',
-      hr: 'Otkrijte čuda Pokljuške klisure, prekrasnog svjedočanstva prirodne umjetnosti oblikovanog stalnim tokom ledenjačkih voda. Dostupna biciklom, automobilom ili taksijem.',
-      sr: 'Otkrijte čuda Pokljuške klisure, prelekog svedočanstva prirodne umetnosti oblikovanog stalnim tokom lednjačkih voda. Dostupna biciklom, automobilom ili taksijem.',
+    "image": "/suggestions/skiing.webp",
+    "recurring": true,
+    "validFrom": "12-01",
+    "validTo": "03-31",
+    "title": {
+      "sl": "Smučanje v okolici Bleda",
+      "en": "Skiing near Bled",
+      "de": "Skifahren rund um Bled",
+      "hr": "Skijanje u okolici Bleda",
+      "sr": "Skijanje u okolini Bleda"
     },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/7XM67f7YJF4PEQfB7' }],
-  },
-  {
-    image: '/suggestions/radovna.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Radovna Valley', sl: 'Dolina Radovne: Hladen poletni pobeg', de: 'Radovna-Tal: Eine kühle Sommerauszeit', hr: 'Dolina Radovne: Hladan ljetni bijeg', sr: 'Dolina Radovne: Hladan letnji odmor' },
-    description: {
-      en: 'Radovna Valley is a peaceful drive from Bled and a good choice on warm days, with cooler air, quiet roads and mountain scenery.',
-      sl: 'V srcu poletja Dolina Radovne nudi mirno zatočišče, kjer se lahko prepustite neokrnjeni naravi in uživate v osvežujočem gorskem zraku. Prijetna vožnja z avtomobilom vas bo pripeljala do tega idiličnega umika.',
-      de: 'Im Herzen des Sommers bietet das Radovna-Tal eine ruhige Zuflucht, wo Sie die unberührte Natur genießen können. Eine bequeme Fahrt mit dem Auto führt Sie zu diesem stillen Versteck.',
-      hr: 'Usred ljeta, Dolina Radovne nudi mirno utočište gdje možete uživati u neokrnjenoj prirodi i osvježavajućem planinskom zraku. Ugodna vožnja automobilom odvest će vas do ovog tihog skrovišta.',
-      sr: 'Usred leta, Dolina Radovne nudi mirno utočište gde možete uživati u neokrnjenoj prirodi i osvežavajućem planinskom vazduhu. Ugodna vožnja automobilom odvešće vas do ovog tihog skrovišta.',
+    "description": {
+      "sl": "Za smučanje preverite Kranjsko Goro, Vogel ali Krvavec. Sezona je odvisna od snega; pred odhodom preverite odprte proge in naprave pri upravljavcu.",
+      "en": "For skiing, consider Kranjska Gora, Vogel or Krvavec. The season depends on snow; check open slopes and lifts with the operator before travelling.",
+      "de": "Zum Skifahren kommen Kranjska Gora, Vogel oder Krvavec infrage. Die Saison hängt vom Schnee ab; offene Pisten und Lifte vor der Anreise prüfen.",
+      "hr": "Za skijanje razmotrite Kranjsku Goru, Vogel ili Krvavec. Sezona ovisi o snijegu; prije polaska provjerite otvorene staze i žičare.",
+      "sr": "Za skijanje razmotrite Kranjsku Goru, Vogel ili Krvavec. Sezona zavisi od snega; pre polaska proverite otvorene staze i žičare."
     },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/vFJ5mQt98UzTsYyV7' }],
-  },
-  {
-    image: '/suggestions/soca.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Soča River day trip', sl: 'Reka Soča: Potovanje skozi lepoto in zgodovino', de: 'Soča-Fluss: Eine Reise durch Schönheit und Geschichte', hr: 'Rijeka Soča: Putovanje kroz ljepotu i povijest', sr: 'Reka Soča: Putovanje kroz lepotu i istoriju' },
-    description: {
-      en: 'The Soča Valley is a longer but rewarding day trip, known for emerald water, mountain views and stops around Trenta, Bovec and Kobarid.',
-      sl: 'Odpravite se na očarljivo potovanje vzdolž reke Soče, alpskega dragulja, ki ga je proslavila pojavitev v Narniji: Princ Kaspian. Reka, ki se razteza 137 km, izvira iz skrivnostnega kraškega vira v Trenti in je znana po osupljivih smaragdnih vodah.',
-      de: 'Begeben Sie sich auf eine faszinierende Reise entlang der Soča, einem alpinen Juwel, das durch seine Erscheinung in \'Narnia: Prinz Kaspian\' berühmt wurde. Der 137 km lange Fluss ist für seine smaragdgrünen Gewässer bekannt.',
-      hr: 'Krenite na zadivljujuće putovanje uz rijeku Soču, alpinski dragulj poznat po pojavi u \'Narniji: Princ Kaspian.\' Rijeka dugačka 137 km poznata je po svom upadljivom smaragdnom vodi.',
-      sr: 'Krenite na zadivljujuće putovanje uz reku Soču, alpinski dragulj poznat po pojavi u \'Narniji: Princ Kaspian.\' Reka dugačka 137 km poznata je po svom upadljivom smaragdnom vodi.',
-    },
-    buttons: [{ label: 'Open roadmap', href: 'https://maps.app.goo.gl/wF97AUE6c4DLzQft8' }],
-  },
-  {
-    image: '/suggestions/zelenci.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Zelenci Springs', sl: 'Zelenci', de: 'Zelenci: Natures aquatisches Meisterwerk', hr: 'Zelenci: Prirodno vodeno remek-djelo', sr: 'Zelenci: Prirodno vodno remek-delo' },
-    description: {
-      en: 'Zelenci Springs are an easy stop near Kranjska Gora. The short walk leads to clear green water and views toward the mountains.',
-      sl: 'Zelenški izviri, skriti v očarljivi pokrajini Slovenije, so lep prikaz naravne umetnosti. Izviri blizu Kranjske Gore ustvarjajo osupljiv vizualni spektakel z živahnimi odtenki turkizne in smaragdne barve.',
-      de: 'Die Zelenci-Quellen, eingebettet in die angenehmen Landschaften Sloweniens, sind ein fesselndes Zeugnis der Naturkunst. In der Nähe von Kranjska Gora gelegen, erzeugen diese Quellen ein atemberaubendes visuelles Spektakel.',
-      hr: 'Zelenački izviri, smješteni u lijepim predjelima Slovenije, zadivljujući su prikaz prirodne umjetnosti. Blizu Kranjske Gore, ovi izviri stvaraju zapanjujući vizualni spektakl sa živim nijansama tirkizne i smaragdne.',
-      sr: 'Zelenački izvori, smešteni u lepim predelima Slovenije, zadivljujući su prikaz prirodne umetnosti. Blizu Kranjske Gore, ovi izvori stvaraju zapanjujući vizualni spektakl sa živim nijansama tirkizne i smaragdne.',
-    },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/D3qZ2gi2jhoq4APAA' }],
-  },
-  {
-    image: '/suggestions/bohinj.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Lake Bohinj', sl: 'Bohinjsko jezero: Slovensko naravno čudo', de: 'Wocheiner See: Sloweniens Naturwunder', hr: 'Bohinjsko jezero: Slovensko prirodno čudo', sr: 'Bohinjsko jezero: Slovensko prirodno čudo' },
-    description: {
-      en: 'Lake Bohinj is quieter and wilder than Bled, with swimming spots, walking paths and easy access to the Julian Alps. Parking can be busy in summer, so check options before you go.',
-      sl: 'Gnezdeno v objemu štiriindvajsetih lepih vasic, je Bohinjsko jezero največji in najbolj očarljivi naravni zaklad Slovenije. To osupljivo jezero ponuja neskončne možnosti za ljubitelje narave.',
-      de: 'Eingebettet in den Armen von vierundzwanzig charmanten Dörfern, ist der Wocheiner See Sloweniens größter natürlicher Schatz. Dieser wunderschöne See bietet unendliche Möglichkeiten für Naturbegeisterte.',
-      hr: 'Smješteno u naručju dvadesetičetiri šarmantna sela, Bohinjsko jezero je najveće i najzanimljivije prirodno blago Slovenije. Ovo prekrasno jezero nudi beskrajne mogućnosti za ljubitelje prirode.',
-      sr: 'Smešteno u naručju dvadesetičetiri šarmantna sela, Bohinjsko jezero je najveće i najzanimljivije prirodno blago Slovenije. Ovo prelepo jezero nudi beskrajne mogućnosti za ljubitelje prirode.',
-    },
-    buttons: [
-      { label: 'See location', href: 'https://goo.gl/maps/KZXyR5hVFPiLdNbV9' },
-      { label: 'Car parking', href: 'https://www.bohinj.si/en/information/parking-and-public-transport/' },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Kranjska Gora",
+          "en": "Kranjska Gora",
+          "de": "Kranjska Gora",
+          "hr": "Kranjska Gora",
+          "sr": "Kranjska Gora"
+        },
+        "href": "https://kranjska-gora.si/"
+      },
+      {
+        "label": {
+          "sl": "Vogel",
+          "en": "Vogel",
+          "de": "Vogel",
+          "hr": "Vogel",
+          "sr": "Vogel"
+        },
+        "href": "https://vogel.si/"
+      },
+      {
+        "label": {
+          "sl": "Krvavec",
+          "en": "Krvavec",
+          "de": "Krvavec",
+          "hr": "Krvavec",
+          "sr": "Krvavec"
+        },
+        "href": "https://www.rtc-krvavec.si/"
+      }
     ],
+    "websiteSlug": "skiing"
   },
   {
-    image: '/suggestions/radovljica.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Radovljica, Begunje and Kropa', sl: 'Radovljica, Begunje & Kropa: Potovanje skozi čas', de: 'Radovljica, Begunje & Kropa: Zeitreise durch charmante Städtchen', hr: 'Radovljica, Begunje & Kropa: Putovanje kroz šarmantne gradiće', sr: 'Radovljica, Begunje & Kropa: Putovanje kroz šarmantne gradiće' },
-    description: {
-      en: 'These nearby towns are good for a slower half-day trip, with old centres, local museums, craft heritage and places for coffee or lunch.',
-      sl: 'Odpravite se na potovanje skozi čas v majhnih mestecih Radovljica, Begunje in Kropa, kjer preteklost oživi v lepem srečanju.',
-      de: 'Begeben Sie sich auf eine Zeitreise durch die kleinen Städte Radovljica, Begunje und Kropa, wo die Vergangenheit lebendig wird.',
-      hr: 'Krenite na putovanje kroz vrijeme u malim gradićima Radovljica, Begunje i Kropa, gdje prošlost oživi u čarobnom susretu.',
-      sr: 'Krenite na putovanje kroz vreme u malim gradićima Radovljica, Begunje i Kropa, gde prošlost oživljava u čarobnom susretu.',
+    "image": "/suggestions/sledding.webp",
+    "recurring": true,
+    "validFrom": "12-01",
+    "validTo": "03-31",
+    "title": {
+      "sl": "Sankanje na urejenih sankališčih",
+      "en": "Sledding on designated runs",
+      "de": "Rodeln auf ausgewiesenen Bahnen",
+      "hr": "Sanjkanje na uređenim stazama",
+      "sr": "Sankanje na uređenim stazama"
     },
-    buttons: [{ label: 'Read more', href: 'https://www.radolca.si/en' }],
-  },
-  {
-    image: '/suggestions/predjama.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Postojna Cave and Predjama Castle', sl: 'Postojnska jama & Predjamski grad: Potovanje v čudežno deželo', de: 'Höhle von Postojna & Burg Predjama: Eine Reise ins Wunderland', hr: 'Postojnska jama & Predjamski dvorac: Putovanje u čudesnu zemlju', sr: 'Postojnska jama & Predjamski dvorac: Putovanje u čudesnu zemlju' },
-    description: {
-      en: 'Postojna Cave and Predjama Castle make a full and easy day trip by car. The cave visit includes an underground train, so booking ahead is recommended in busy periods.',
-      sl: 'Začnite dan s lepim obiskom Postojnske jame, ki velja za \'kraljico podzemnega sveta.\' Po eni uri vožnje boste prispeli do jame in se podali na nepozabno vožnjo s podzemnim vlakom skozi lepe komore.',
-      de: 'Beginnen Sie Ihren Tag mit einem wunderbaren Ausflug in die Höhle von Postojna, die als "Königin der Unterwelt" gilt. Nach einer malerischen Stunde Fahrt erwartet Sie eine unvergessliche Fahrt mit dem Höhlenzug.',
-      hr: 'Počnite dan čudesnim posjetom Postojnskoj jami, nazvanoj "Kraljicom podzemnog svijeta." Nakon sat vremena vožnje, polazite na nezaboravnu vožnju podzemnim vlakom kroz prekrasne dvorane.',
-      sr: 'Počnite dan čudesnom posetom Postojnskoj jami, nazvanoj "Kraljicom podzemnog sveta." Nakon sat vremena vožnje, polazite na nezaboravnu vožnju podzemnim vozom kroz prelepe dvorane.',
+    "description": {
+      "sl": "Za družinsko sankanje preverite ponudbo Zatrnika. Obratovanje je odvisno od snega in termina; uporabite le odprto, za sankanje namenjeno progo.",
+      "en": "For family sledding, check Zatrnik. Availability depends on snow and operating dates; use only an open, designated sledding run.",
+      "de": "Für Familienrodeln das Angebot in Zatrnik prüfen. Betrieb je nach Schnee und Termin; nur geöffnete, ausgewiesene Rodelbahnen nutzen.",
+      "hr": "Za obiteljsko sanjkanje provjerite Zatrnik. Rad ovisi o snijegu i terminu; koristite samo otvorenu stazu namijenjenu sanjkanju.",
+      "sr": "Za porodično sankanje proverite Zatrnik. Rad zavisi od snega i termina; koristite samo otvorenu stazu namenjenu sankanju."
     },
-    buttons: [{ label: 'See location', href: 'https://goo.gl/maps/jRkjNKLfF5ZA94jR9' }],
-  },
-  {
-    image: '/suggestions/horseriding.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Horseback riding near Bled', sl: 'Blejske konjeniške pustolovščine: Jahanje v naravi', de: 'Bled Reitabenteuer: Eine Reise durch die Naturschönheit', hr: 'Blejske konjičke avanture: Jahanje kroz prirodnu ljepotu', sr: 'Blejske konjičke avanture: Jahanje kroz prirodnu lepotu' },
-    description: {
-      en: 'Local horseback rides are available near Bled and can suit different experience levels. Contact the provider directly for timing, availability and route details.',
-      sl: 'Doživite osupljivo pokrajino Bleda med jahalno pustolovščino, primerno za turiste vseh ravni jahanja. Naši angleško govoreči vodniki vas bodo peljali skozi nekatere od najslikovitejših lokacij.',
-      de: 'Erleben Sie das wunderschöne Gelände von Bled auf einem Reiterabenteuer, geeignet für Touristen aller Reitstufen. Englischsprachige Guides führen Sie durch malerische Orte.',
-      hr: 'Doživite prekrasan teren Bleda na konjičkoj avanturi, pogodnoj za turiste svih razina jahanja. Naši vodiči govore engleski i provest će vas kroz slikovite lokacije.',
-      sr: 'Doživite predivan teren Bleda na konjičkoj avanturi, pogodnoj za turiste svih nivoa jahanja. Naši vodiči govore engleski i provešće vas kroz slikovite lokacije.',
-    },
-    buttons: [{ label: '+386 40 887 486', href: 'tel:0038640887486', target: '_self' }],
-  },
-  {
-    image: '/suggestions/ljubljana.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Ljubljana day trip', sl: 'Odkrijte Ljubljano: Prestolnica zgodovine in lepote', de: 'Entdecken Sie Ljubljana: Eine Hauptstadt der Geschichte und Schönheit', hr: 'Otkrijte Ljubljanu: Prijestolnica povijesti i ljepote', sr: 'Otkrijte Ljubljanu: Prestonica istorije i lepote' },
-    description: {
-      en: 'Ljubljana is an easy day trip for a riverside walk, the old town, the market, cafés and a visit to the castle.',
-      sl: 'Ljubljana, lepa prestolnica Slovenije, vabi z bogato tapiserijo zgodovinskih in kulturnih zakladov, ki čakajo na odkritje.',
-      de: 'Ljubljana, die charmante Hauptstadt Sloweniens, lockt mit einem reichen Teppich aus historischen und kulturellen Schätzen, die darauf warten, entdeckt zu werden.',
-      hr: 'Ljubljana, šarmantna prijestolnica Slovenije, mami bogatim tapiserijom povijesnih i kulturnih blaga koja čekaju da budu istražena.',
-      sr: 'Ljubljana, šarmantna prestonica Slovenije, mami bogatim tapiserijom istorijskih i kulturnih blaga koja čekaju da budu istražena.',
-    },
-    buttons: [
-      { label: 'See location', href: 'https://goo.gl/maps/kevcMT3gHanuCqG76' },
-      { label: 'Car parking', href: 'https://goo.gl/maps/KjgDHh4o3bayeK3Z9' },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.zatrnik.com/"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=RTC%20Zatrnik%20Slovenia"
+      }
     ],
+    "websiteSlug": "sledding"
   },
   {
-    image: '/suggestions/velikaplanina.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Velika Planina', sl: 'Velika Planina: Visokogorski raj v Evropi', de: 'Velika Planina: Ein Hochgebirgsparadies in Europa', hr: 'Velika Planina: Visokoplaninska oaza u Europi', sr: 'Velika Planina: Visokoplaninska oaza u Evropi' },
-    description: {
-      en: 'Velika Planina is known for its high-mountain pasture, herdsmen\'s huts and wide views. Check cable car times and weather before setting off.',
-      sl: 'Gnezdena v visokogorju Evrope, je Velika Planina slikovita pastirska vasica, kjer tradicija in narava soobstajata v harmoniji.',
-      de: 'Eingebettet in die Hochgebirge Europas, ist Velika Planina ein malerisches Hirtendorf, in dem Tradition und Natur in Harmonie nebeneinander existieren.',
-      hr: 'Smještena u visokim planinama Europe, Velika Planina je slikovito pastirsko selo u kojemu tradicija i priroda koegzistiraju u harmoniji.',
-      sr: 'Smeštena u visokim planinama Evrope, Velika Planina je slikovito pastirsko selo u kome tradicija i priroda koegzistiraju u harmoniji.',
+    "image": "/suggestions/vintgar.webp",
+    "recurring": true,
+    "validFrom": "04-01",
+    "validTo": "10-31",
+    "title": {
+      "sl": "Odkrijte sotesko Vintgar: Naravni čudež blizu Bleda",
+      "en": "Discover Vintgar Gorge near Bled",
+      "de": "Die Vintgar-Klamm bei Bled entdecken",
+      "hr": "Otkrijte sutjesku Vintgar kod Bleda",
+      "sr": "Otkrijte klisuru Vintgar kod Bleda"
     },
-    buttons: [{ label: 'See location', href: 'https://www.velikaplanina.si/en/' }],
-  },
-  {
-    image: '/suggestions/ziplinedolinka.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Zipline Dolinka', sl: 'Zipline Dolinka: Letite skozi adrenalinska doživetja', de: 'Zipline Dolinka: Gleiten Sie durch malerische Nervenkitzel', hr: 'Zipline Dolinka: Letite kroz uzbudljive prizore', sr: 'Zipline Dolinka: Letite kroz uzbudljive prizore' },
-    description: {
-      en: 'Zipline Dolinka starts from the meeting point at "Grajska Cesta 16". The guides provide the required safety equipment and instructions before the tour.',
-      sl: 'Pripravite se na pustolovščino, ki se začne na zbirnem mestu na Grajski cesti 16. Izkušeni vodniki vas bodo opremili z vso potrebno opremo, vključno s čelado in polno varnostno opasnico.',
-      de: 'Bereiten Sie sich auf ein Adrenalin-Abenteuer vor, das am Treffpunkt "Grajska Cesta 16" beginnt. Ihre erfahrenen Guides statten Sie mit aller notwendigen Ausrüstung aus, einschließlich Helm und Sicherheitsgurt.',
-      hr: 'Pripremite se za uzbudljivu avanturu koja počinje na zbirnom mjestu "Grajska Cesta 16". Vaši iskusni vodiči opremit će vas svom potrebnom opremom, uključujući kacigu i sigurnosni pojas.',
-      sr: 'Pripremite se za uzbudljivu avanturu koja počinje na zbirnom mestu "Grajska Cesta 16". Vaši iskusni vodiči opremit će vas svom potrebnom opremom, uključujući kacigu i sigurnosni pojas.',
+    "description": {
+      "sl": "Sotesko je izoblikovala reka Radovna. Obisk je sezonski, praviloma od aprila do oktobra. Pred obiskom na uradni strani preverite odprtost, vstopnice in način dostopa; pozimi je soteska zaprta.",
+      "en": "The Radovna River carved this gorge. Visits are seasonal, usually April to October. Check opening status, tickets and access arrangements on the official website; the gorge closes in winter.",
+      "de": "Die Radovna hat diese Klamm geformt. Besuche sind saisonal, meist April bis Oktober. Öffnung, Tickets und Anreise auf der offiziellen Website prüfen; im Winter ist die Klamm geschlossen.",
+      "hr": "Sutjesku je oblikovala rijeka Radovna. Posjeti su sezonski, uglavnom od travnja do listopada. Na službenoj stranici provjerite otvorenost, ulaznice i pristup; zimi je zatvorena.",
+      "sr": "Klisuru je oblikovala reka Radovna. Posete su sezonske, uglavnom od aprila do oktobra. Na zvaničnom sajtu proverite otvorenost, ulaznice i pristup; zimi je zatvorena."
     },
-    buttons: [
-      { label: 'See office location', href: 'https://goo.gl/maps/rLjYicz15JYKqTBb8' },
-      { label: 'Buy tickets', href: 'https://zipline-dolinka.si/' },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Vintgar%20Gorge%20entrance%20Podhom%2080%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Preveri odprtost in vstopnice",
+          "en": "Check opening and tickets",
+          "de": "Öffnungszeiten und Tickets",
+          "hr": "Provjeri otvorenost i ulaznice",
+          "sr": "Proveri otvorenost i ulaznice"
+        },
+        "href": "https://www.vintgar.si/en/my-visit/opening-hours/"
+      }
     ],
+    "websiteSlug": "vintgar-gorge"
   },
   {
-    image: '/suggestions/piran.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Piran and the Slovenian coast', sl: 'Od Bleda do Portorož in Piran: Slikovit pobeg ob slovenski obali', de: 'Von Bled nach Portorož und Piran: Ein malerischer slowenischer Ausflug', hr: 'Od Bleda do Portorož i Piran: Slikovit slovenački bijeg', sr: 'Od Bleda do Portorož i Piran: Slikovit slovenački odmor' },
-    description: {
-      en: 'Piran and Portorož are possible as a longer day trip from Bled. Leave early, allow for traffic, and plan parking before arriving on the coast.',
-      sl: 'Odpravite se na enodnevno potovanje skozi raznolike pokrajine Slovenije, ki vas popelje od lepe alpske veličine Bleda do lepih obalnih mest Portorož in Piran. Ta slikovita pot obljublja razglede na slovensko podeželje in bleščeče Jadransko morje.',
-      de: 'Begeben Sie sich auf eine Tagesreise durch die vielfältigen Landschaften Sloweniens, von der Alpenpracht Bleds zu den charmanten Küstenstädten Portorož und Piran.',
-      hr: 'Krenite na jednodnevno putovanje kroz raznolike krajeve Slovenije, od alpskog sjaja Bleda do šarmantnih obalnih gradova Portorož i Piran i sjajnog Jadranskog mora.',
-      sr: 'Krenite na jednodnevno putovanje kroz raznolike krajeve Slovenije, od alpskog sjaja Bleda do šarmantnih obalnih gradova Portorož i Piran i sjajnog Jadranskog mora.',
+    "image": "/suggestions/pokluska-soteska.webp",
+    "recurring": true,
+    "validFrom": "04-01",
+    "validTo": "10-31",
+    "title": {
+      "sl": "Sprehod skozi Pokljuško sotesko",
+      "en": "A walk through Pokljuka Gorge",
+      "de": "Wanderung durch die Pokljuka-Klamm",
+      "hr": "Šetnja kroz Pokljušku sutjesku",
+      "sr": "Šetnja kroz Pokljušku klisuru"
     },
-    buttons: [
-      { label: 'Piran location', href: 'https://goo.gl/maps/cDVN6vJrraZheNii9' },
-      { label: 'Portorož location', href: 'https://goo.gl/maps/mcqdAL7iqPURG8oc9' },
+    "description": {
+      "sl": "Gozdna pot vodi med skalnimi stenami in galerijami. Pred obiskom preverite stanje poti pri Triglavskem narodnem parku. Za običajen pohod izberite kopne razmere in pohodno obutev.",
+      "en": "A forest trail passes rock walls and galleries. Check trail conditions with Triglav National Park before visiting. Choose snow-free conditions and walking shoes for a regular hike.",
+      "de": "Ein Waldweg führt zwischen Felswänden und Galerien hindurch. Den Wegzustand beim Nationalpark Triglav prüfen. Für eine normale Wanderung schneefreie Bedingungen und Wanderschuhe wählen.",
+      "hr": "Šumska staza prolazi među stijenama i galerijama. Prije posjeta provjerite stanje staze kod Nacionalnog parka Triglav. Za običan izlet odaberite uvjete bez snijega i planinarsku obuću.",
+      "sr": "Šumska staza prolazi između stena i galerija. Pre posete proverite stanje staze kod Nacionalnog parka Triglav. Za običan izlet birajte uslove bez snega i planinarsku obuću."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Pokljuka%20Gorge%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.tnp.si/en/visiting-park/activities/hiking/pokljuka-gorge/"
+      }
     ],
+    "websiteSlug": "pokljuka-gorge"
   },
   {
-    image: '/suggestions/alpe.webp', recurring: false, validFrom: null, validTo: null,
-    title: { en: 'Mountain day trips', sl: 'Gorski pobegi iz Bleda: Veličastje narave vas čaka', de: 'Bled Bergausflüge: Natures Majestät erwartet Sie', hr: 'Planinski izleti iz Bleda: Veličanstvo prirode čeka', sr: 'Planinski izleti iz Bleda: Veličanstvo prirode čeka' },
-    description: {
-      en: 'Bled is a good base for mountain walks and hikes in the Julian Alps and Triglav National Park. Choose a route that matches your fitness, equipment and the weather.',
-      sl: 'Pripravite se na potovanje v srce lepe naravne lepote Slovenije z enodnevnimi izleti iz Bleda v okoliške gore. Pred vami se razvija tapiserija poti, ki vabi pohodnike v pristne pokrajine Julijanskih Alp in Triglavskega narodnega parka.',
-      de: 'Begeben Sie sich auf eine Reise ins Herz der Naturschönheit Sloweniens mit Tagesausflügen von Bled in die umliegenden Berge. Ein Teppich von Wanderwegen lädt Sie ein, die unberührten Landschaften der Julischen Alpen zu erkunden.',
-      hr: 'Pripremite se za putovanje u srce prirodne ljepote Slovenije s jednodnevnim izletima iz Bleda u okolne planine. Tapiserija staza poziva planinate da se uronu u netaknute krajolike Julijskih Alpa.',
-      sr: 'Pripremite se za putovanje u srce prirodne lepote Slovenije s jednodnevnim izletima iz Bleda u okolne planine. Tapiserija staza poziva planinare da se uronu u netaknute krajolike Julijskih Alpa.',
+    "image": "/suggestions/radovna.webp",
+    "recurring": true,
+    "validFrom": "04-01",
+    "validTo": "10-31",
+    "title": {
+      "sl": "Izlet v dolino Radovne",
+      "en": "A trip to the Radovna Valley",
+      "de": "Ausflug ins Radovna-Tal",
+      "hr": "Izlet u dolinu Radovne",
+      "sr": "Izlet u dolinu Radovne"
     },
-    buttons: [{ label: 'Find a suitable mountain', href: 'https://www.hike.uno/hiking/mountain_ranges' }],
+    "description": {
+      "sl": "Dolino Radovne lahko raziskujete peš ali s kolesom po primernih označenih poteh. Pred izletom preverite vreme in dostop; v hladnejšem delu leta so možni sneg, led in zapore.",
+      "en": "Explore the Radovna Valley on suitable marked walking or cycling routes. Check weather and access before setting out; snow, ice and closures are possible in colder months.",
+      "de": "Das Radovna-Tal lässt sich auf geeigneten markierten Wegen zu Fuß oder mit dem Fahrrad erkunden. Wetter und Zugang prüfen; in kalten Monaten sind Schnee, Eis und Sperren möglich.",
+      "hr": "Dolinu Radovne istražite pješice ili biciklom po prikladnim označenim stazama. Provjerite vrijeme i pristup; u hladnijim mjesecima mogući su snijeg, led i zatvaranja.",
+      "sr": "Dolinu Radovne istražite peške ili biciklom po odgovarajućim označenim stazama. Proverite vreme i pristup; u hladnijim mesecima mogući su sneg, led i zatvaranja."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Radovna%20Valley%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.tnp.si/en/"
+      }
+    ],
+    "websiteSlug": "radovna-valley"
   },
+  {
+    "image": "/suggestions/soca.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Izlet v dolino Soče",
+      "en": "A day trip to the Soča Valley",
+      "de": "Tagesausflug ins Soča-Tal",
+      "hr": "Jednodnevni izlet u dolinu Soče",
+      "sr": "Jednodnevni izlet u dolinu Soče"
+    },
+    "description": {
+      "sl": "Izberite kraj v dolini Soče in načrtujte dovolj časa za vožnjo. Pred odhodom preverite ceste; prelaz Vršič je pozimi lahko zaprt. Vodne aktivnosti rezervirajte pri ponudniku.",
+      "en": "Choose a destination in the Soča Valley and allow enough driving time. Check road conditions; the Vršič pass may close in winter. Book water activities with an operator.",
+      "de": "Ein Ziel im Soča-Tal auswählen und ausreichend Fahrzeit einplanen. Straßenlage prüfen; der Vršič-Pass kann im Winter geschlossen sein. Wassersport beim Anbieter buchen.",
+      "hr": "Odaberite odredište u dolini Soče i planirajte dovoljno vremena za vožnju. Provjerite ceste; prijevoj Vršič zimi može biti zatvoren. Vodene aktivnosti rezervirajte kod ponuditelja.",
+      "sr": "Odaberite odredište u dolini Soče i planirajte dovoljno vremena za vožnju. Proverite puteve; prevoj Vršič zimi može biti zatvoren. Vodene aktivnosti rezervišite kod organizatora."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Bovec%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.soca-valley.com/en/"
+      }
+    ],
+    "websiteSlug": "soca-river"
+  },
+  {
+    "image": "/suggestions/zelenci.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Naravni rezervat Zelenci",
+      "en": "Zelenci Nature Reserve",
+      "de": "Naturschutzgebiet Zelenci",
+      "hr": "Prirodni rezervat Zelenci",
+      "sr": "Prirodni rezervat Zelenci"
+    },
+    "description": {
+      "sl": "Zelenci pri Kranjski Gori so primerni za krajši obisk po urejenih poteh. Ostanite na označenih površinah in pred odhodom preverite vreme; pozimi so poti lahko poledenele.",
+      "en": "Zelenci near Kranjska Gora offers a short visit on designated paths. Stay on marked surfaces and check weather; paths may be icy in winter.",
+      "de": "Zelenci bei Kranjska Gora eignet sich für einen kurzen Besuch auf ausgewiesenen Wegen. Markierte Flächen nicht verlassen; im Winter können die Wege vereist sein.",
+      "hr": "Zelenci kod Kranjske Gore pogodni su za kraći posjet uređenim stazama. Ostanite na označenim površinama i provjerite vrijeme; zimi staze mogu biti zaleđene.",
+      "sr": "Zelenci kod Kranjske Gore pogodni su za kraću posetu uređenim stazama. Ostanite na označenim površinama i proverite vreme; zimi staze mogu biti zaleđene."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Zelenci%20Nature%20Reserve%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://kranjska-gora.si/znamenitosti/naravni-rezervat-zelenci"
+      }
+    ],
+    "websiteSlug": "zelenci"
+  },
+  {
+    "image": "/suggestions/bohinj.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Izlet do Bohinjskega jezera",
+      "en": "A trip to Lake Bohinj",
+      "de": "Ausflug zum Bohinjer See",
+      "hr": "Izlet do Bohinjskog jezera",
+      "sr": "Izlet do Bohinjskog jezera"
+    },
+    "description": {
+      "sl": "Bohinjsko jezero lahko obiščete vse leto. Izberite sprehod, primeren vremenu in letnemu času; pred vožnjo preverite parkirišča, javni prevoz in morebitne omejitve dostopa.",
+      "en": "Lake Bohinj can be visited throughout the year. Choose a walk suited to the weather and season; check parking, public transport and access restrictions before travelling.",
+      "de": "Der Bohinjer See ist ganzjährig ein Ausflugsziel. Spaziergänge nach Wetter und Jahreszeit wählen; Parkmöglichkeiten, öffentliche Verkehrsmittel und Zugangsbeschränkungen vorab prüfen.",
+      "hr": "Bohinjsko jezero možete posjetiti tijekom cijele godine. Šetnju prilagodite vremenu i sezoni; prije polaska provjerite parkirališta, javni prijevoz i ograničenja pristupa.",
+      "sr": "Bohinjsko jezero možete posetiti tokom cele godine. Šetnju prilagodite vremenu i sezoni; pre polaska proverite parking, javni prevoz i ograničenja pristupa."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Lake%20Bohinj%20Rib%C4%8Dev%20Laz%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bohinj.si/en/"
+      }
+    ],
+    "websiteSlug": "lake-bohinj"
+  },
+  {
+    "image": "/suggestions/radovljica.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Radovljica, Begunje in Kropa",
+      "en": "Radovljica, Begunje and Kropa",
+      "de": "Radovljica, Begunje und Kropa",
+      "hr": "Radovljica, Begunje i Kropa",
+      "sr": "Radovljica, Begunje i Kropa"
+    },
+    "description": {
+      "sl": "Sprehodite se po starem jedru Radovljice ter obiščite Begunje ali Kropo. Kraji so zanimivi vse leto; odpiralni časi muzejev in ogledov se spreminjajo.",
+      "en": "Walk through Radovljica’s old town and visit Begunje or Kropa. The towns are worth exploring year-round; museum and tour opening times vary.",
+      "de": "Die Altstadt von Radovljica erkunden und Begunje oder Kropa besuchen. Die Orte sind ganzjährig interessant; Öffnungszeiten von Museen und Führungen variieren.",
+      "hr": "Prošećite starom jezgrom Radovljice te posjetite Begunje ili Kropu. Mjesta su zanimljiva cijele godine; radno vrijeme muzeja i razgleda se mijenja.",
+      "sr": "Prošetajte starim jezgrom Radovljice i posetite Begunje ili Kropu. Mesta su zanimljiva cele godine; radno vreme muzeja i obilazaka se menja."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Linhartov%20trg%20Radovljica%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.radolca.si/en"
+      }
+    ],
+    "websiteSlug": "radovljica"
+  },
+  {
+    "image": "/suggestions/predjama.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Postojnska jama in Predjamski grad",
+      "en": "Postojna Cave and Predjama Castle",
+      "de": "Höhle von Postojna und Burg Predjama",
+      "hr": "Postojnska jama i Predjamski dvorac",
+      "sr": "Postojnska jama i Predjamski zamak"
+    },
+    "description": {
+      "sl": "Ogled jame lahko združite z obiskom Predjamskega gradu. Pred odhodom preverite termine in kupite ustrezne vstopnice. V jami je hladno, zato vzemite dodatno oblačilo.",
+      "en": "Combine a cave tour with Predjama Castle. Check tour times and tickets before travelling. Bring an extra layer, as the cave is cool.",
+      "de": "Eine Höhlenführung lässt sich mit der Burg Predjama verbinden. Termine und Tickets vorab prüfen. Für die kühle Höhle eine zusätzliche Kleidungsschicht mitnehmen.",
+      "hr": "Obilazak jame možete spojiti s posjetom Predjamskom dvorcu. Provjerite termine i ulaznice prije polaska. U jami je hladno pa ponesite dodatnu odjeću.",
+      "sr": "Obilazak jame možete spojiti sa posetom Predjamskom zamku. Proverite termine i ulaznice pre polaska. U jami je hladno pa ponesite dodatnu odeću."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Postojna%20Cave%20Jamska%20cesta%2030%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Predjama%20Castle%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.postojnska-jama.eu/en/"
+      }
+    ],
+    "websiteSlug": "postojna-cave"
+  },
+  {
+    "image": "/suggestions/horseriding.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Blejske konjeniške pustolovščine: Jahanje v naravi",
+      "en": "Horse riding near Bled",
+      "de": "Reiten rund um Bled",
+      "hr": "Jahanje u okolici Bleda",
+      "sr": "Jahanje u okolini Bleda"
+    },
+    "description": {
+      "sl": "Za jahanje pri Konjeniškem klubu Palomino v Koritnem se dogovorite neposredno s ponudnikom. Povejte, koliko izkušenj imate; termin in program sta odvisna od razpoložljivosti in vremena.",
+      "en": "Contact Palomino Equestrian Club in Koritno directly to arrange horse riding. Explain your experience level; dates and programmes depend on availability and weather.",
+      "de": "Reiten direkt mit dem Reitclub Palomino in Koritno vereinbaren. Die eigene Erfahrung angeben; Termine und Programm hängen von Verfügbarkeit und Wetter ab.",
+      "hr": "Jahanje u Konjičkom klubu Palomino u Koritnom dogovorite izravno s ponuditeljem. Navedite svoje iskustvo; termin i program ovise o raspoloživosti i vremenu.",
+      "sr": "Jahanje u Konjičkom klubu Palomino u Koritnom dogovorite direktno sa organizatorom. Navedite svoje iskustvo; termin i program zavise od raspoloživosti i vremena."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Pokliči Palomino",
+          "en": "Call Palomino",
+          "de": "Palomino anrufen",
+          "hr": "Nazovi Palomino",
+          "sr": "Pozovi Palomino"
+        },
+        "href": "tel:+38640887486",
+        "target": "_self"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/en/what-to-see-do/activities/8/1/"
+      }
+    ],
+    "websiteSlug": "horse-ridding"
+  },
+  {
+    "image": "/suggestions/ljubljana.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Izlet v Ljubljano",
+      "en": "A trip to Ljubljana",
+      "de": "Ausflug nach Ljubljana",
+      "hr": "Izlet u Ljubljanu",
+      "sr": "Izlet u Ljubljanu"
+    },
+    "description": {
+      "sl": "Ljubljano lahko raziskujete vse leto. Sprehodite se po starem mestnem jedru in ob Ljubljanici; za muzeje, grad in dogodke preverite aktualni urnik.",
+      "en": "Explore Ljubljana year-round. Walk through the old town and along the Ljubljanica River; check current schedules for museums, the castle and events.",
+      "de": "Ljubljana lässt sich ganzjährig erkunden. Durch die Altstadt und an der Ljubljanica spazieren; aktuelle Zeiten für Museen, Burg und Veranstaltungen prüfen.",
+      "hr": "Ljubljanu možete istraživati cijele godine. Prošećite starom jezgrom i uz Ljubljanicu; za muzeje, dvorac i događanja provjerite aktualni raspored.",
+      "sr": "Ljubljanu možete istraživati cele godine. Prošetajte starim jezgrom i uz Ljubljanicu; za muzeje, zamak i događaje proverite aktuelni raspored."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Pre%C5%A1eren%20Square%20Ljubljana%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.visitljubljana.com/en/visitors/"
+      }
+    ],
+    "websiteSlug": "ljubljana"
+  },
+  {
+    "image": "/suggestions/velikaplanina.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Obisk Velike planine",
+      "en": "Visiting Velika planina",
+      "de": "Besuch auf der Velika planina",
+      "hr": "Posjet Velikoj planini",
+      "sr": "Poseta Velikoj planini"
+    },
+    "description": {
+      "sl": "Na Veliki planini lahko spoznate pastirsko naselje in izberete sprehod po svojih zmožnostih. Pred odhodom preverite vreme ter obratovanje nihalke in sedežnice; pozimi veljajo drugačne razmere.",
+      "en": "Visit the herders’ settlement on Velika planina and choose a walk that suits your ability. Check weather, cable car and chairlift operation; winter conditions require different preparation.",
+      "de": "Die Hirtensiedlung auf der Velika planina besuchen und einen passenden Spaziergang wählen. Wetter sowie Seilbahn- und Sesselliftbetrieb prüfen; Winterbedingungen erfordern andere Vorbereitung.",
+      "hr": "Posjetite pastirsko naselje na Velikoj planini i odaberite šetnju prema svojim mogućnostima. Provjerite vrijeme te rad žičare i sjedežnice; zimi su uvjeti drukčiji.",
+      "sr": "Posetite pastirsko naselje na Velikoj planini i izaberite šetnju prema svojim mogućnostima. Proverite vreme i rad žičare; zimi su uslovi drugačiji."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.velikaplanina.si/en/"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Velika%20planina%20cable%20car%20Kamni%C5%A1ka%20Bistrica%20Slovenia"
+      }
+    ],
+    "websiteSlug": "velika-planina"
+  },
+  {
+    "image": "/suggestions/ziplinedolinka.webp",
+    "recurring": true,
+    "validFrom": "03-01",
+    "validTo": "11-30",
+    "title": {
+      "sl": "Spust po jeklenicah Zipline Dolinka",
+      "en": "Zipline Dolinka",
+      "de": "Zipline Dolinka",
+      "hr": "Zipline Dolinka",
+      "sr": "Zipline Dolinka"
+    },
+    "description": {
+      "sl": "Voden spust po jeklenicah poteka v dolini Save Dolinke, praviloma od marca do novembra, odvisno od vremena. Rezervirajte termin in preverite navodila; zbirno mesto je Cesta svobode 1, Bled.",
+      "en": "Guided zipline tours run in the Sava Dolinka valley, usually March to November, weather permitting. Book ahead and check instructions; the meeting point is Cesta svobode 1, Bled.",
+      "de": "Geführte Zipline-Touren im Tal der Sava Dolinka finden meist März bis November statt, wetterabhängig. Vorab buchen und Hinweise prüfen; Treffpunkt: Cesta svobode 1, Bled.",
+      "hr": "Vođeni zipline izleti u dolini Save Dolinke obično traju od ožujka do studenoga, ovisno o vremenu. Rezervirajte termin i provjerite upute; okupljanje je na Cesti svobode 1, Bled.",
+      "sr": "Vođeni zipline izleti u dolini Save Dolinke obično traju od marta do novembra, zavisno od vremena. Rezervišite termin i proverite uputstva; okupljanje je na Cesti svobode 1, Bled."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Zipline%20Dolinka%20Cesta%20svobode%201%20Bled"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://zipline-dolinka.si/sl/pogosta-vprasanja/"
+      }
+    ],
+    "websiteSlug": "zipline-dolinka"
+  },
+  {
+    "image": "/suggestions/piran.webp",
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31",
+    "title": {
+      "sl": "Enodnevni izlet v Piran in Portorož",
+      "en": "A day trip to Piran and Portorož",
+      "de": "Tagesausflug nach Piran und Portorož",
+      "hr": "Jednodnevni izlet u Piran i Portorož",
+      "sr": "Jednodnevni izlet u Piran i Portorož"
+    },
+    "description": {
+      "sl": "Piran in Portorož sta možnosti za celodnevni izlet na obalo. Pred odhodom preverite promet in parkiranje; poleti pričakujte več gneče, pozimi pa spremljajte vreme.",
+      "en": "Piran and Portorož are options for a full-day coastal trip. Check traffic and parking; expect more visitors in summer and keep an eye on winter weather.",
+      "de": "Piran und Portorož eignen sich für einen ganztägigen Küstenausflug. Verkehr und Parkmöglichkeiten prüfen; im Sommer mehr Besucher, im Winter die Wetterlage beachten.",
+      "hr": "Piran i Portorož mogućnosti su za cjelodnevni izlet na obalu. Provjerite promet i parkiranje; ljeti očekujte veću gužvu, a zimi pratite vrijeme.",
+      "sr": "Piran i Portorož su mogućnosti za celodnevni izlet na obalu. Proverite saobraćaj i parking; leti očekujte veću gužvu, a zimi pratite vreme."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Tartini%20Square%20Piran%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Portoro%C5%BE%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.portoroz.si/en"
+      }
+    ],
+    "websiteSlug": "sea-side"
+  },
+  {
+    "image": "/suggestions/alpe.webp",
+    "recurring": true,
+    "validFrom": "06-01",
+    "validTo": "09-30",
+    "title": {
+      "sl": "Pohodništvo v Julijskih Alpah",
+      "en": "Hiking in the Julian Alps",
+      "de": "Wandern in den Julischen Alpen",
+      "hr": "Planinarenje u Julijskim Alpama",
+      "sr": "Planinarenje u Julijskim Alpima"
+    },
+    "description": {
+      "sl": "Izberite označeno pot, primerno svoji pripravljenosti. Za običajne visokogorske ture načrtujte poletno sezono ter preverite vreme, odprtost poti in koč. Sneg lahko ostane tudi poleti.",
+      "en": "Choose a marked route that matches your fitness. Plan ordinary high-mountain hikes for summer and check weather, trail and hut status. Snow can remain even in summer.",
+      "de": "Eine markierte Route passend zur Kondition wählen. Normale Hochgebirgstouren für den Sommer planen; Wetter, Wege und Hütten prüfen. Auch im Sommer kann Schnee liegen.",
+      "hr": "Odaberite označenu stazu prema svojoj kondiciji. Obične visokogorske ture planirajte ljeti i provjerite vrijeme, staze i domove. Snijeg se može zadržati i ljeti.",
+      "sr": "Izaberite označenu stazu prema svojoj kondiciji. Uobičajene visokogorske ture planirajte leti i proverite vreme, staze i domove. Sneg može ostati i leti."
+    },
+    "buttons": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.tnp.si/en/visiting-park/activities/hiking/"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://en.pzs.si/"
+      }
+    ],
+    "websiteSlug": "mountains"
+  }
 ]
 
 export const SEED_FAQ: SeedFaq[] = [
   {
-    title: { en: 'Breakfast delivery', sl: 'Dostava zajtrka', de: 'Frühstückslieferung', hr: 'Dostava doručka', sr: 'Dostava doručka' },
-    description: {
-      en: 'You can order a Bled Breakfast Basket for delivery to the apartment. It usually includes local bread and pastries, milk, yoghurt, butter, cheese, free-range eggs, homemade salami, honey, jam, seasonal fruit, granola and apple juice.',
-      sl: 'Naročite lahko Bled Breakfast Basket z dostavo v apartma. Običajno vključuje lokalni kruh in pecivo, mleko, jogurt, maslo, sir, jajca s proste reje, domačo salamo, med, marmelado, sezonsko sadje, granolo in jabolčni sok.',
-      de: 'Bestellen Sie einen Bled Breakfast Basket und lassen Sie ihn direkt in die Wohnung liefern. Er enthält Produkte von lokalen Bauernhöfen und Bäckereien: frisches Brot, Croissants, Milch, Joghurt, Butter, Käse, Freilandeier, hausgemachte Salami, Honig, Marmeladen, saisonale Früchte, Granola und Apfelsaft.',
-      hr: 'Naručite Bled Breakfast Basket i primite ga direktno u apartman. Uključuje proizvode s lokalnih farmi i pekara: svježi kruh, kroasane, mlijeko, jogurte, maslac, sir, jaja iz slobodnog uzgoja, domaću salamu, med, džemove, sezonsko voće, granolu i sok od jabuke.',
-      sr: 'Naručite Bled Breakfast Basket i primite ga direktno u apartman. Uključuje proizvode sa lokalnih farmi i pekara: svež hleb, kroasane, mleko, jogurte, puter, sir, jaja iz slobodnog uzgoja, domaću salamu, med, džemove, sezonsko voće, granolu i sok od jabuke.',
+    "title": {
+      "sl": "Zajtrk pri Bled Breakfast",
+      "en": "Breakfast from Bled Breakfast",
+      "de": "Frühstück von Bled Breakfast",
+      "hr": "Doručak od Bled Breakfast",
+      "sr": "Doručak od Bled Breakfast"
     },
-    links: [{ label: 'Order breakfast / Naroči zajtrk', href: '/guest/breakfast' }],
-  },
-  {
-    title: { en: 'Groceries nearby', sl: 'Bližnje trgovine', de: 'Einkaufsmöglichkeiten in der Nähe', hr: 'Obližnje trgovine', sr: 'Obližnje prodavnice' },
-    description: {
-      en: 'On the way to the lake you will find a smaller Mercator shop for quick essentials. Two larger grocery stores, Mercator and Spar, are also nearby.',
-      sl: 'Na poti do jezera je manjša trgovina Mercator za hiter nakup osnovnih stvari. V bližini sta tudi večji trgovini Mercator in Spar.',
-      de: 'Auf dem Weg zum See finden Sie einen kleineren Mercator-Laden für schnelle Besorgungen. Zwei größere Supermärkte, Mercator und Spar, sind ebenfalls in der Nähe.',
-      hr: 'Na putu prema jezeru naći ćete manji Mercator za brzu kupovinu. Dva veća supermarketa, Mercator i Spar, također su u blizini.',
-      sr: 'Na putu prema jezeru naći ćete manji Mercator za brzu kupovinu. Dva veća supermarketa, Mercator i Spar, takođe su u blizini.',
+    "description": {
+      "sl": "Zajtrk naročite neposredno pri Bled Breakfast. Aktualno vsebino košaric, dostavo, cene in razpoložljivost preverite na njihovi spletni strani; naročila ne oddajate prek portala.",
+      "en": "Order breakfast directly from Bled Breakfast. Check basket contents, delivery, prices and availability on their website; orders are not placed through this portal.",
+      "de": "Frühstück direkt bei Bled Breakfast bestellen. Inhalt, Lieferung, Preise und Verfügbarkeit auf deren Website prüfen; Bestellungen erfolgen nicht über dieses Portal.",
+      "hr": "Doručak naručite izravno kod Bled Breakfast. Sadržaj košarica, dostavu, cijene i dostupnost provjerite na njihovoj stranici; ne naručujete preko ovog portala.",
+      "sr": "Doručak naručite direktno kod Bled Breakfast. Sadržaj korpi, dostavu, cene i dostupnost proverite na njihovom sajtu; ne naručujete preko ovog portala."
     },
-    links: [
-      { label: 'Small Mercator', href: 'https://goo.gl/maps/Sk76eFdxdwDwPFWW9' },
-      { label: 'Mercator', href: 'https://goo.gl/maps/z7P9Laq8R9ZtFcc36' },
-      { label: 'Spar', href: 'https://goo.gl/maps/YvM5AbGeoeWnqNDy5' },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bledbreakfast.com/"
+      }
     ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Nearest path to Lake Bled', sl: 'Najkrajša pot do Blejskega jezera', de: 'Kürzester Weg zum Bleder See', hr: 'Najbliži put do Blejskog jezera', sr: 'Najbliži put do Blejskog jezera' },
-    description: {
-      en: 'The shortest path to the lake is about 800 metres. It starts along a local road without a pavement, so take a little care at the beginning. It is a commonly used route.',
-      sl: 'Najkrajša pot do jezera je dolga približno 800 metrov. Začne se po lokalni cesti brez pločnika, zato bodite na začetku nekoliko previdni. Pot domačini in gostje pogosto uporabljajo.',
-      de: 'Der kürzeste Weg zum See ist etwa 800 Meter lang und beginnt auf einer Nebenstraße ohne Gehsteig. Er wirkt anfangs vielleicht ungewöhnlich, wird aber häufig genutzt und ist ungefährlich.',
-      hr: 'Najkraći put do jezera dugačak je oko 800 metara i počinje lokalnom cestom bez pločnika. Isprva može izgledati neobično, ali se često koristi i nije opasan.',
-      sr: 'Najkraći put do jezera dugačak je oko 800 metara i počinje lokalnim putem bez trotoara. Isprva može izgledati neobično, ali se često koristi i nije opasan.',
+    "title": {
+      "sl": "Trgovine z živili",
+      "en": "Grocery shops",
+      "de": "Lebensmittelgeschäfte",
+      "hr": "Trgovine namirnicama",
+      "sr": "Prodavnice namirnica"
     },
-    links: [
-      { label: 'Nearest path', href: 'https://goo.gl/maps/eEqwY1ne6pniw2rB6' },
-      { label: 'Alternative quieter route', href: 'https://goo.gl/maps/EZmGyMntWcTCx31d6' },
+    "description": {
+      "sl": "Za nakup živil preverite poslovalnice Mercator in SPAR na Bledu. Lokacijo in aktualni delovni čas, zlasti ob nedeljah in praznikih, preverite v uradnem iskalniku poslovalnic.",
+      "en": "For groceries, check Mercator and SPAR shops in Bled. Use their official store finders for locations and current hours, especially on Sundays and public holidays.",
+      "de": "Für Lebensmittel kommen Mercator und SPAR in Bled infrage. Standorte und aktuelle Zeiten, besonders sonntags und an Feiertagen, in den offiziellen Filialfindern prüfen.",
+      "hr": "Za namirnice provjerite trgovine Mercator i SPAR na Bledu. Lokacije i radno vrijeme, osobito nedjeljom i blagdanima, provjerite u službenim tražilicama poslovnica.",
+      "sr": "Za namirnice proverite prodavnice Mercator i SPAR na Bledu. Lokacije i radno vreme, posebno nedeljom i praznicima, proverite u zvaničnim pretragama poslovnica."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Mercator: poslovalnice",
+          "en": "Mercator stores",
+          "de": "Mercator-Filialen",
+          "hr": "Mercator poslovnice",
+          "sr": "Mercator prodavnice"
+        },
+        "href": "https://www.mercator.si/prodajna-mesta/"
+      },
+      {
+        "label": {
+          "sl": "SPAR: poslovalnice",
+          "en": "SPAR stores",
+          "de": "SPAR-Filialen",
+          "hr": "SPAR poslovnice",
+          "sr": "SPAR prodavnice"
+        },
+        "href": "https://www.spar.si/trgovine"
+      }
     ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Path to Bled Castle', sl: 'Pot do Blejskega gradu', de: 'Weg zur Burg Bled', hr: 'Put do Blejskog dvorca', sr: 'Put do Blejskog dvorca' },
-    description: {
-      en: 'You can walk from the apartment to Bled Castle in about 15 minutes. The route includes stairs, so it is worth planning ahead if you have a stroller.',
-      sl: 'Do Blejskega gradu lahko iz apartmaja pridete peš v približno 15 minutah. Pot vključuje stopnice, zato je pri otroškem vozičku dobro pot načrtovati vnaprej.',
-      de: 'Sie können in etwa 15 Minuten zu Fuß direkt von der Wohnung zur Burg Bled gelangen. Der Weg beinhaltet Treppen, daher möchten Familien mit Kleinkind oder Kinderwagen die Route im Voraus planen.',
-      hr: 'Do Blejskog dvorca možete hodati pješice izravno iz apartmana za oko 15 minuta. Ruta uključuje stepenice, pa obitelji s bebom ili kolicima možda žele unaprijed planirati put.',
-      sr: 'Do Blejskog dvorca možete hodati pešice direktno iz apartmana za oko 15 minuta. Ruta uključuje stepenice, pa porodice sa bebom ili kolicima možda žele unapred planirati put.',
+    "title": {
+      "sl": "Peš do Blejskega jezera",
+      "en": "Walking to Lake Bled",
+      "de": "Zu Fuß zum Bleder See",
+      "hr": "Pješice do Bledskog jezera",
+      "sr": "Peške do Bledskog jezera"
     },
-    links: [{ label: 'Path to the castle', href: 'https://goo.gl/maps/SuBNG7hF5tMgexL77' }],
-  },
-  {
-    title: { en: 'Outdoor activities', sl: 'Aktivnosti na prostem', de: 'Sportliche Aktivitäten', hr: 'Sportske aktivnosti', sr: 'Sportske aktivnosti' },
-    description: {
-      en: 'For hiking, cycling, water activities and guided trips around Bled or elsewhere in Slovenia, OUTdoor Capital is a useful starting point.',
-      sl: 'Za pohodništvo, kolesarjenje, vodne aktivnosti in vodene izlete na Bledu ali drugod po Sloveniji je OUTdoor Capital uporabno izhodišče.',
-      de: 'Wenn Sie Outdoor-Aktivitäten in Bled oder anderswo in Slowenien suchen, ist die OUTdoor Capital Website ein guter Ausgangspunkt. Sie finden Ideen für Wandern, Radfahren, Wasseraktivitäten und geführte Abenteuer.',
-      hr: 'Ako tražite aktivnosti u prirodi u Bledu ili drugdje u Sloveniji, web stranica OUTdoor Capital odlično je polazište. Naći ćete ideje za planinarenje, biciklizam, vodene aktivnosti i vođene avanture.',
-      sr: 'Ako tražite aktivnosti u prirodi u Bledu ili drugde u Sloveniji, sajt OUTdoor Capital je odlično polazište. Naći ćete ideje za planinarenje, biciklizam, vodene aktivnosti i vođene avanture.',
+    "description": {
+      "sl": "Do jezera se lahko odpravite peš. Del lokalne poti nima pločnika, zato bodite previdni. Povezava prikazuje lokacijo jezera, ne vnaprej določene poti iz apartmaja.",
+      "en": "You can walk to the lake. Part of the local approach has no pavement, so take care. The link shows the lake location, not a preset route from the apartment.",
+      "de": "Der See ist zu Fuß erreichbar. Ein Teil des örtlichen Zugangs hat keinen Gehweg; bitte vorsichtig sein. Der Link zeigt den See, keine vorgegebene Route ab der Wohnung.",
+      "hr": "Do jezera možete pješice. Dio lokalnog prilaza nema pločnik pa budite oprezni. Poveznica prikazuje jezero, a ne unaprijed određenu rutu iz apartmana.",
+      "sr": "Do jezera možete peške. Deo lokalnog prilaza nema trotoar pa budite oprezni. Link prikazuje jezero, a ne unapred određenu rutu iz apartmana."
     },
-    links: [{ label: 'Explore activities', href: 'https://outdoor.capital/maple-pine-bled/' }],
-  },
-  {
-    title: { en: 'Bakeries', sl: 'Pekarne', de: 'Bäckereien', hr: 'Pekare', sr: 'Pekare' },
-    description: {
-      en: 'There are two bakeries close to the apartment. The map links are useful for opening hours and Sunday availability.',
-      sl: 'V bližini apartmaja sta dve pekarni. Na spodnjih povezavah lahko preverite odpiralni čas in ali sta odprti ob nedeljah.',
-      de: 'In der Nähe der Wohnung gibt es zwei Bäckereien. Über die Kartenlinks unten können Sie auch die Öffnungszeiten und die Sonntagsöffnung prüfen.',
-      hr: 'U blizini apartmana nalaze se dvije pekare. Na linkovima ispod možete provjeriti radno vrijeme i jesu li otvorene nedjeljom.',
-      sr: 'U blizini apartmana nalaze se dve pekare. Na linkovima ispod možete proveriti radno vreme i da li su otvorene nedeljom.',
-    },
-    links: [
-      { label: 'Bakery Hitri kruhek', href: 'https://goo.gl/maps/LHxF5x1CktHACWxp9' },
-      { label: 'Bakery Planika', href: 'https://goo.gl/maps/36eWoM7fLWAqHvGd7' },
+    "links": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Lake%20Bled%20Slovenia"
+      }
     ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Tourist train around the lake', sl: 'Turistični vlak okoli jezera', de: 'Touristenzug um den See', hr: 'Turistički vlak oko jezera', sr: 'Turistički voz oko jezera' },
-    description: {
-      en: 'The tourist train circles Lake Bled. The nearest stop for you is Zdraviliški park.',
-      sl: 'Turistični vlak kroži okoli Blejskega jezera. Najbližja postaja je Zdraviliški park.',
-      de: 'Der Touristenzug fährt um den Bleder See. Die nächste Haltestelle für Sie ist Zdraviliški park.',
-      hr: 'Turistički vlak kruži oko Blejskog jezera. Najbliža postaja za vas je Zdraviliški park.',
-      sr: 'Turistički voz kruži oko Blejskog jezera. Najbliža stanica za vas je Zdraviliški park.',
+    "title": {
+      "sl": "Peš do Blejskega gradu",
+      "en": "Walking to Bled Castle",
+      "de": "Zu Fuß zur Bleder Burg",
+      "hr": "Pješice do Bledskog dvorca",
+      "sr": "Peške do Bledskog zamka"
     },
-    links: [
-      { label: 'Tourist train timetable', href: 'https://www.bled.si/en/information/getting-around-bled/20190920131939/tourist-train/' },
-      { label: 'Nearest station', href: 'https://goo.gl/maps/MrymrQrLoYBSzzzM8' },
+    "description": {
+      "sl": "Pešpoti do gradu vključujejo vzpon in stopnice. Izberite dostop glede na svoje zmožnosti, zlasti z otroškim vozičkom. Pred obiskom preverite odpiralni čas in vstopnice.",
+      "en": "Walking routes to the castle include an ascent and steps. Choose access that suits your needs, especially with a pushchair. Check opening hours and tickets before visiting.",
+      "de": "Fußwege zur Burg führen bergauf und über Treppen. Einen passenden Zugang wählen, besonders mit Kinderwagen. Öffnungszeiten und Tickets vorab prüfen.",
+      "hr": "Pješačke staze do dvorca uključuju uspon i stepenice. Pristup prilagodite svojim mogućnostima, posebno s kolicima. Prije posjeta provjerite radno vrijeme i ulaznice.",
+      "sr": "Pešačke staze do zamka uključuju uspon i stepenice. Pristup prilagodite svojim mogućnostima, posebno sa kolicima. Pre posete proverite radno vreme i ulaznice."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Bled%20Castle%20Grajska%20cesta%2061%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.blejski-grad.si/en/"
+      }
     ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Buses', sl: 'Avtobusi', de: 'Busse', hr: 'Autobusi', sr: 'Autobusi' },
-    description: {
-      en: 'There is a nearby bus stop for local and regional transport. For departures and current timetables, please check the official Ljubljana bus station website.',
-      sl: 'V bližini je avtobusna postaja za lokalni in medkrajevni promet. Za odhode in aktualne vozne rede preverite uradno spletno stran avtobusne postaje Ljubljana.',
-      de: 'In der Nähe gibt es eine Bushaltestelle für lokalen und regionalen Verkehr. Abfahrten und aktuelle Fahrpläne finden Sie auf der offiziellen Website des Busbahnhofs Ljubljana.',
-      hr: 'U blizini se nalazi autobusna stanica za lokalni i regionalni prijevoz. Odlaske i aktualne vozne redove provjerite na službenoj stranici autobusnog kolodvora Ljubljana.',
-      sr: 'U blizini se nalazi autobuska stanica za lokalni i regionalni prevoz. Polaske i aktuelne vozne redove proverite na zvaničnom sajtu autobuske stanice Ljubljana.',
+    "title": {
+      "sl": "Aktivnosti na prostem",
+      "en": "Outdoor activities",
+      "de": "Aktivitäten im Freien",
+      "hr": "Aktivnosti na otvorenom",
+      "sr": "Aktivnosti na otvorenom"
     },
-    links: [{ label: 'Bus timetable', href: 'https://www.ap-ljubljana.si/' }],
-  },
-  {
-    title: { en: 'Trains', sl: 'Vlaki', de: 'Züge', hr: 'Vlakovi', sr: 'Vozovi' },
-    description: {
-      en: 'Bled Jezero station is convenient for trips toward Bohinjska Bistrica, Most na Soči and Nova Gorica. If you are travelling toward Ljubljana or other major destinations, Lesce-Bled station is usually the more practical choice.',
-      sl: 'Postaja Bled Jezero je priročna za potovanja proti Bohinjski Bistrici, Mostu na Soči in Novi Gorici. Za Ljubljana in druge večje destinacije je Lesce-Bled postaja navadno praktičnejša izbira.',
-      de: 'Der Bahnhof Bled Jezero eignet sich für Fahrten nach Bohinjska Bistrica, Most na Soči und Nova Gorica. Für Ljubljana und andere größere Ziele ist der Bahnhof Lesce-Bled meist praktischer.',
-      hr: 'Postaja Bled Jezero pogodna je za putovanja prema Bohinjskoj Bistrici, Mostu na Soči i Novoj Gorici. Za Ljubljana i druge veće destinacije, postaja Lesce-Bled obično je praktičniji izbor.',
-      sr: 'Stanica Bled Jezero pogodna je za putovanja prema Bohinjskoj Bistrici, Mostu na Soči i Novoj Gorici. Za Ljubljanu i druge veće destinacije, stanica Lesce-Bled obično je praktičniji izbor.',
+    "description": {
+      "sl": "Ponudbo vodenih aktivnosti preverite pri OUTdoor Capital. Razpoložljivost, zahtevnost, starostne omejitve in sezono preverite za izbrani program neposredno pri organizatorju.",
+      "en": "Check guided activities with OUTdoor Capital. Ask the organiser about availability, difficulty, age limits and the season for your chosen programme.",
+      "de": "Geführte Aktivitäten bei OUTdoor Capital ansehen. Verfügbarkeit, Anforderungen, Altersgrenzen und Saison für das gewünschte Programm direkt beim Veranstalter erfragen.",
+      "hr": "Ponudu vođenih aktivnosti provjerite kod OUTdoor Capital. Dostupnost, zahtjevnost, dobna ograničenja i sezonu provjerite za odabrani program kod organizatora.",
+      "sr": "Ponudu vođenih aktivnosti proverite kod OUTdoor Capital. Dostupnost, zahtevnost, starosna ograničenja i sezonu proverite za odabrani program kod organizatora."
     },
-    links: [
-      { label: 'Slovenian railways', href: 'https://potniski.sz.si/' },
-      { label: 'Bled Jezero station', href: 'https://goo.gl/maps/vWPYX1CBgq1ZfND3A' },
-      { label: 'Lesce-Bled station', href: 'https://goo.gl/maps/a553P2DtEtb3aEvQA' },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://outdoor.capital/maple-pine-bled/"
+      }
     ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Taxi & transfers', sl: 'Taksi in transferji', de: 'Taxi & Transfers', hr: 'Taxi i transferi', sr: 'Taxi i transferi' },
-    description: {
-      en: 'For airport transfers or longer trips in the region, we recommend Bled Transfers. Private transfers can be booked in advance through their website.',
-      sl: 'Za prevoz z letališča ali daljše vožnje po regiji priporočamo Bled Transfers. Zasebne transferje lahko rezervirate vnaprej na njihovi spletni strani.',
-      de: 'Für komfortable Transfers zum Flughafen Ljubljana oder andere Ziele in der Region empfehlen wir Bled Transfers. Sie bieten Privattransfers mit Vorabreservierung an.',
-      hr: 'Za udobne transfere do aerodroma Ljubljana ili bilo gdje u regiji preporučujemo Bled Transfers. Nude privatne transfere s prethodnom rezervacijom.',
-      sr: 'Za udobne transfere do aerodroma Ljubljana ili bilo gde u regiji preporučujemo Bled Transfers. Nude privatne transfere s prethodnom rezervacijom.',
+    "title": {
+      "sl": "Pekarne v okolici",
+      "en": "Bakeries nearby",
+      "de": "Bäckereien in der Umgebung",
+      "hr": "Pekare u okolici",
+      "sr": "Pekare u okolini"
     },
-    links: [{ label: 'Bled Transfers', href: 'https://bledtransfers.si/' }],
+    "description": {
+      "sl": "V okolici preverite ponudbo pekarn Hitri kruhek in Planika. Pred odhodom preverite lokacijo in delovni čas; nedeljski in praznični urniki se lahko razlikujejo.",
+      "en": "Check Hitri kruhek and Planika bakeries in the area. Confirm the location and opening hours before setting out; Sunday and holiday hours may differ.",
+      "de": "Die Bäckereien Hitri kruhek und Planika in der Umgebung prüfen. Standort und Öffnungszeiten vorab bestätigen; sonntags und an Feiertagen können andere Zeiten gelten.",
+      "hr": "U okolici provjerite pekare Hitri kruhek i Planika. Prije polaska provjerite lokaciju i radno vrijeme; nedjeljom i blagdanima raspored se može razlikovati.",
+      "sr": "U okolini proverite pekare Hitri kruhek i Planika. Pre polaska proverite lokaciju i radno vreme; nedeljom i praznicima raspored se može razlikovati."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Hitri kruhek",
+          "en": "Hitri kruhek",
+          "de": "Hitri kruhek",
+          "hr": "Hitri kruhek",
+          "sr": "Hitri kruhek"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Pekarna%20Hitri%20kruhek%20Ljubljanska%20cesta%2026%20Bled"
+      },
+      {
+        "label": {
+          "sl": "Planika",
+          "en": "Planika",
+          "de": "Planika",
+          "hr": "Planika",
+          "sr": "Planika"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Pekarna%20Planika%20Pre%C5%A1ernova%20cesta%2011%20Bled"
+      },
+      {
+        "label": {
+          "sl": "Pekarne Planika",
+          "en": "Planika bakeries",
+          "de": "Planika-Bäckereien",
+          "hr": "Pekarne Planika",
+          "sr": "Pekare Planika"
+        },
+        "href": "https://www.pekarna-planika.si/nase-pekarne"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Rent a bike', sl: 'Izposoja kolesa', de: 'Fahrrad mieten', hr: 'Iznajmljivanje bicikla', sr: 'Iznajmljivanje bicikla' },
-    description: {
-      en: 'Bled has several bike rental options. The official Bled website keeps an updated overview of standard bicycle rental providers.',
-      sl: 'Bled ima več možnosti izposoje koles. Na uradni spletni strani Bleda najdete aktualen pregled ponudnikov.',
-      de: 'Bled bietet mehrere Fahrradverleihoptionen. Die offizielle Bled-Website führt eine aktuelle Übersicht der Anbieter.',
-      hr: 'Bled ima nekoliko opcija iznajmljivanja bicikala. Službena web stranica Bleda održava ažurirani pregled pružatelja usluga.',
-      sr: 'Bled ima nekoliko opcija iznajmljivanja bicikala. Zvanični sajt Bleda održava ažurirani pregled pružaoca usluga.',
+    "title": {
+      "sl": "Turistični vlakec okoli jezera",
+      "en": "Tourist train around the lake",
+      "de": "Touristenzug um den See",
+      "hr": "Turistički vlakić oko jezera",
+      "sr": "Turistički vozić oko jezera"
     },
-    links: [{ label: 'Bike rental options', href: 'https://www.bled.si/en/information/getting-around-bled/2019100917061847/bike-and-ebike-rental/' }],
+    "description": {
+      "sl": "Turistični vlakec vozi sezonsko: poleti praviloma vsak dan, maja in oktobra ob lepem vremenu predvsem ob koncih tedna. Pred vožnjo preverite aktualni vozni red in postajališča.",
+      "en": "The tourist train is seasonal: usually daily in summer, and mainly weekends in May and October in good weather. Check the current timetable and stops before travelling.",
+      "de": "Der Touristenzug fährt saisonal: im Sommer meist täglich, im Mai und Oktober bei gutem Wetter vor allem am Wochenende. Aktuellen Fahrplan und Haltestellen prüfen.",
+      "hr": "Turistički vlakić vozi sezonski: ljeti uglavnom svakodnevno, a u svibnju i listopadu pretežno vikendom po lijepom vremenu. Provjerite aktualni vozni red i stajališta.",
+      "sr": "Turistički vozić saobraća sezonski: leti uglavnom svakodnevno, a u maju i oktobru pretežno vikendom po lepom vremenu. Proverite aktuelni red vožnje i stanice."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/en/information/getting-around-bled/20190920131939/tourist-train/"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Zdravili%C5%A1ki%20park%20Bled%20Slovenia"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "05-01",
+    "validTo": "10-31"
   },
   {
-    title: { en: 'Rent an eBike', sl: 'Izposoja e-kolesa', de: 'E-Bike mieten', hr: 'Iznajmljivanje e-bicikla', sr: 'Iznajmljivanje e-bicikla' },
-    description: {
-      en: 'For eBike rental or organised eBike tours, we recommend checking local providers. You can also ask whether delivery to the apartment and later pick-up are available.',
-      sl: 'Za izposojo e-kolesa ali organizirane e-kolesarske ture priporočamo lokalne ponudnike. Vprašajte, ali nudijo dostavo in prevzem pri apartmaju.',
-      de: 'Für E-Bike-Verleih oder geführte E-Bike-Touren empfehlen wir lokale Anbieter. Fragen Sie, ob Lieferung zur Wohnung und spätere Abholung möglich sind.',
-      hr: 'Za iznajmljivanje e-bicikla ili organizirane e-biciklističke ture preporučujemo lokalne pružatelje usluga. Možete pitati je li dostupna dostava do apartmana i kasniji preuzim.',
-      sr: 'Za iznajmljivanje e-bicikla ili organizovane e-biciklističke ture preporučujemo lokalne pružaoce usluga. Možete pitati da li je dostupna dostava do apartmana i kasniji preuzet.',
+    "title": {
+      "sl": "Avtobusne povezave",
+      "en": "Bus connections",
+      "de": "Busverbindungen",
+      "hr": "Autobusne linije",
+      "sr": "Autobuske linije"
     },
-    links: [{ label: 'eBike rental', href: 'https://www.ab-bike.si/en' }],
+    "description": {
+      "sl": "Za odhode z Bleda preverite aktualne vozne rede. Sezonski in praznični urniki se lahko razlikujejo; preverite tudi izbrano postajališče.",
+      "en": "Check current timetables for departures from Bled. Seasonal and holiday schedules may differ; confirm the stop for your chosen service.",
+      "de": "Aktuelle Fahrpläne für Abfahrten ab Bled prüfen. Saison- und Feiertagsfahrpläne können abweichen; die passende Haltestelle bestätigen.",
+      "hr": "Provjerite aktualne vozne redove za polaske s Bleda. Sezonski i blagdanski rasporedi mogu se razlikovati; provjerite i odabrano stajalište.",
+      "sr": "Proverite aktuelne redove vožnje za polaske sa Bleda. Sezonski i praznični rasporedi mogu se razlikovati; proverite i izabranu stanicu."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.ap-ljubljana.si/"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Bled%20main%20bus%20station%20Cesta%20svobode%20Slovenia"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Getting around Bled', sl: 'Gibanje po Bledu', de: 'Fortbewegung in Bled', hr: 'Kretanje po Bledu', sr: 'Kretanje po Bledu' },
-    description: {
-      en: 'Bled is easy to explore on foot, by bike, by bus, by taxi or by the traditional Pletna boat. The official Bled website has a good overview of transport options and practical tips for moving around the area.',
-      sl: 'Bled je enostaven za raziskovanje peš, s kolesom, z avtobusom, s taksijem ali s tradicionalno pletno. Na uradni spletni strani Bleda najdete dober pregled prevoznih možnosti in praktičnih nasvetov.',
-      de: 'Bled lässt sich leicht zu Fuß, mit dem Fahrrad, dem Bus, dem Taxi oder dem traditionellen Pletna-Boot erkunden. Die offizielle Bled-Website bietet einen guten Überblick über Transportmöglichkeiten.',
-      hr: 'Bled je lako istraživati pješice, biciklom, autobusom, taksijem ili tradicionalnim čamcem Pletna. Službena web stranica Bleda nudi dobar pregled prijevoznih opcija i praktičnih savjeta.',
-      sr: 'Bled je lako istraživati pešice, biciklom, autobusom, taksijem ili tradicionalnim čamcem Pletna. Zvanični sajt Bleda nudi dobar pregled prevoznih opcija i praktičnih saveta.',
+    "title": {
+      "sl": "Železniške povezave",
+      "en": "Train connections",
+      "de": "Bahnverbindungen",
+      "hr": "Željezničke veze",
+      "sr": "Železničke veze"
     },
-    links: [{ label: 'Getting around Bled', href: 'https://www.bled.si/en/information/getting-around-bled/' }],
+    "description": {
+      "sl": "Bled Jezero je izhodišče za Bohinjsko progo, Lesce-Bled pa za povezave proti Ljubljani. Pred odhodom preverite vozni red, prestope in morebitne nadomestne prevoze.",
+      "en": "Bled Jezero serves the Bohinj railway, while Lesce-Bled offers connections towards Ljubljana. Check timetables, changes and any replacement transport before travelling.",
+      "de": "Bled Jezero liegt an der Wocheinerbahn; Lesce-Bled bietet Verbindungen Richtung Ljubljana. Fahrpläne, Umstiege und möglichen Ersatzverkehr vorab prüfen.",
+      "hr": "Bled Jezero polazište je za Bohinjsku prugu, a Lesce-Bled za veze prema Ljubljani. Prije polaska provjerite vozni red, presjedanja i zamjenski prijevoz.",
+      "sr": "Bled Jezero je polazište za Bohinjsku prugu, a Lesce-Bled za veze prema Ljubljani. Pre polaska proverite red vožnje, presedanja i zamenski prevoz."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://potniski.sz.si/"
+      },
+      {
+        "label": {
+          "sl": "Bled Jezero",
+          "en": "Bled Jezero",
+          "de": "Bled Jezero",
+          "hr": "Bled Jezero",
+          "sr": "Bled Jezero"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Bled%20Jezero%20railway%20station%20Slovenia"
+      },
+      {
+        "label": {
+          "sl": "Lesce-Bled",
+          "en": "Lesce-Bled",
+          "de": "Lesce-Bled",
+          "hr": "Lesce-Bled",
+          "sr": "Lesce-Bled"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=Lesce-Bled%20railway%20station%20Slovenia"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
+  {
+    "title": {
+      "sl": "Taksi in transferji",
+      "en": "Taxis and transfers",
+      "de": "Taxi und Transfers",
+      "hr": "Taksi i transferi",
+      "sr": "Taksi i transferi"
+    },
+    "description": {
+      "sl": "Prevoz rezervirajte neposredno pri Bled Transfers. Vnaprej potrdite termin, zbirno mesto, število potnikov, prtljago in ceno.",
+      "en": "Book transport directly with Bled Transfers. Confirm the time, meeting point, passenger numbers, luggage and price in advance.",
+      "de": "Transfer direkt bei Bled Transfers buchen. Termin, Treffpunkt, Personenzahl, Gepäck und Preis vorab bestätigen.",
+      "hr": "Prijevoz rezervirajte izravno kod Bled Transfers. Unaprijed potvrdite termin, mjesto susreta, broj putnika, prtljagu i cijenu.",
+      "sr": "Prevoz rezervišite direktno kod Bled Transfers. Unapred potvrdite termin, mesto susreta, broj putnika, prtljag i cenu."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://bledtransfers.si/"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
+  },
+  {
+    "title": {
+      "sl": "Najem koles",
+      "en": "Bike rental",
+      "de": "Fahrradverleih",
+      "hr": "Najam bicikala",
+      "sr": "Iznajmljivanje bicikala"
+    },
+    "description": {
+      "sl": "Za najem koles ali e-koles priporočamo A&B Bike. Termin in ceno uredite neposredno pri ponudniku ter vprašajte za dostavo koles do apartmaja; dostava ni samodejno zagotovljena.",
+      "en": "For bikes or e-bikes, we recommend A&B Bike. Arrange dates and prices directly, and ask whether delivery to the apartment is available; delivery is not automatic.",
+      "de": "Für Fahrräder und E-Bikes empfehlen wir A&B Bike. Termin und Preis direkt vereinbaren und nach Lieferung zur Wohnung fragen; sie ist nicht automatisch zugesichert.",
+      "hr": "Za najam bicikala i e-bicikala preporučujemo A&B Bike. Termin i cijenu dogovorite izravno te pitajte za dostavu do apartmana; dostava nije automatski osigurana.",
+      "sr": "Za iznajmljivanje bicikala i e-bicikala preporučujemo A&B Bike. Termin i cenu dogovorite direktno i pitajte za dostavu do apartmana; dostava nije automatski obezbeđena."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.ab-bike.si/en"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=A%26B%20Bike%20Cesta%20svobode%2022%20Bled"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
+  },
+  {
+    "title": {
+      "sl": "Najem e-koles",
+      "en": "E-bike rental",
+      "de": "E-Bike-Verleih",
+      "hr": "Najam e-bicikala",
+      "sr": "Iznajmljivanje e-bicikala"
+    },
+    "description": {
+      "sl": "Za najem koles ali e-koles priporočamo A&B Bike. Termin in ceno uredite neposredno pri ponudniku ter vprašajte za dostavo koles do apartmaja; dostava ni samodejno zagotovljena.",
+      "en": "For bikes or e-bikes, we recommend A&B Bike. Arrange dates and prices directly, and ask whether delivery to the apartment is available; delivery is not automatic.",
+      "de": "Für Fahrräder und E-Bikes empfehlen wir A&B Bike. Termin und Preis direkt vereinbaren und nach Lieferung zur Wohnung fragen; sie ist nicht automatisch zugesichert.",
+      "hr": "Za najam bicikala i e-bicikala preporučujemo A&B Bike. Termin i cijenu dogovorite izravno te pitajte za dostavu do apartmana; dostava nije automatski osigurana.",
+      "sr": "Za iznajmljivanje bicikala i e-bicikala preporučujemo A&B Bike. Termin i cenu dogovorite direktno i pitajte za dostavu do apartmana; dostava nije automatski obezbeđena."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.ab-bike.si/en"
+      },
+      {
+        "label": {
+          "sl": "Poglej lokacijo",
+          "en": "View location",
+          "de": "Standort ansehen",
+          "hr": "Pogledaj lokaciju",
+          "sr": "Pogledaj lokaciju"
+        },
+        "href": "https://www.google.com/maps/search/?api=1&query=A%26B%20Bike%20Cesta%20svobode%2022%20Bled"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
+  },
+  {
+    "title": {
+      "sl": "Kako po Bledu",
+      "en": "Getting around Bled",
+      "de": "Unterwegs in Bled",
+      "hr": "Kretanje po Bledu",
+      "sr": "Kretanje po Bledu"
+    },
+    "description": {
+      "sl": "Za krajše razdalje izberite hojo ali kolo, za daljše poti preverite avtobus ali taksi. Pletne in turistični vlakec imajo svoje urnike; del ponudbe je sezonski.",
+      "en": "Walk or cycle for shorter distances, and check buses or taxis for longer trips. Pletna boats and the tourist train follow their own schedules; some services are seasonal.",
+      "de": "Kurze Strecken zu Fuß oder mit dem Rad, längere mit Bus oder Taxi planen. Pletna-Boote und Touristenzug haben eigene Fahrpläne; manches Angebot ist saisonal.",
+      "hr": "Za kraće udaljenosti odaberite hodanje ili bicikl, a za dulje provjerite autobus ili taksi. Pletne i turistički vlakić imaju svoje rasporede; dio ponude je sezonski.",
+      "sr": "Za kraće udaljenosti birajte šetnju ili bicikl, a za duže proverite autobus ili taksi. Pletne i turistički vozić imaju svoje rasporede; deo ponude je sezonski."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Uradna spletna stran",
+          "en": "Official website",
+          "de": "Offizielle Website",
+          "hr": "Službena stranica",
+          "sr": "Zvanični sajt"
+        },
+        "href": "https://www.bled.si/en/information/getting-around-bled/"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
+  }
 ]
 
 export const SEED_HOWTO: SeedHowto[] = [
   {
-    image: '/how-to/ac.webp',
-    title: { en: 'Air conditioning', sl: 'Klimatska naprava', de: 'Klimaanlage', hr: 'Klima uređaj', sr: 'Klima uređaj' },
-    description: {
-      en: 'On the upper floor there is an air conditioner with a standard remote control. Please adjust it however it suits you best.',
-      sl: 'Na zgornjem nadstropju je klimatska naprava s standardnim daljinskim upravljalnikom. Nastavite jo po svojih željah.',
-      de: 'Im Obergeschoss befindet sich eine Klimaanlage mit einer Standardfernbedienung. Stellen Sie sie nach Ihren Wünschen ein.',
-      hr: 'Na gornjem katu nalazi se klima uređaj sa standardnim daljinskim upravljačem. Namjestite ga kako vam najviše odgovara.',
-      sr: 'Na gornjem spratu nalazi se klima uređaj sa standardnim daljinskim upravljačem. Podesite ga kako vam najviše odgovara.',
+    "image": "/how-to/ac.webp",
+    "title": {
+      "en": "Air conditioning",
+      "sl": "Klimatska naprava",
+      "de": "Klimaanlage",
+      "hr": "Klima uređaj",
+      "sr": "Klima uređaj"
     },
+    "description": {
+      "en": "On the upper floor there is an air conditioner with a standard remote control. Please adjust it however it suits you best.",
+      "sl": "Klimatska naprava je v zgornjem nadstropju. Upravljate jo z daljinskim upravljalnikom.",
+      "de": "Im Obergeschoss befindet sich eine Klimaanlage mit einer Standardfernbedienung. Stellen Sie sie nach Ihren Wünschen ein.",
+      "hr": "Na gornjem katu nalazi se klima uređaj sa standardnim daljinskim upravljačem. Namjestite ga kako vam najviše odgovara.",
+      "sr": "Na gornjem spratu nalazi se klima uređaj sa standardnim daljinskim upravljačem. Podesite ga kako vam najviše odgovara."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/tv.webp',
-    title: { en: 'TV', sl: 'Televizija', de: 'Fernseher', hr: 'Televizor', sr: 'Televizor' },
-    description: {
-      en: 'The apartment has a TCL 55P69B 4K UHD TV with Google TV. You can use it for regular TV content, streaming apps and casting through Google TV or Chromecast. Use the large remote to switch the HDMI source and the small remote to control the TV.',
-      sl: 'Apartma ima televizor TCL 55P69B 4K UHD z Google TV. Uporabite ga za redne televizijske kanale, pretočne aplikacije in predvajanje prek Google TV ali Chromecast. Z velikim daljincem preklopite HDMI vir, z malim pa upravljate televizor.',
-      de: 'Die Wohnung verfügt über einen TCL 55P69B 4K UHD TV mit Google TV. Nutzen Sie ihn für reguläre TV-Inhalte, Streaming-Apps und Casting über Google TV oder Chromecast. Mit der großen Fernbedienung wechseln Sie den HDMI-Eingang, mit der kleinen steuern Sie den Fernseher.',
-      hr: 'Apartman ima TCL 55P69B 4K UHD TV s Google TV-om. Koristite ga za redovne TV kanale, streaming aplikacije i prijenos putem Google TV ili Chromecast-a. Velikim daljincem mijenjate HDMI izvor, malim upravljate televizorom.',
-      sr: 'Apartman ima TCL 55P69B 4K UHD TV sa Google TV-om. Koristite ga za redovne TV kanale, streaming aplikacije i prenos putem Google TV ili Chromecast-a. Velikim daljinskim menjate HDMI izvor, malim upravljate televizorom.',
+    "image": "/how-to/tv.webp",
+    "title": {
+      "en": "TV",
+      "sl": "Televizija",
+      "de": "Fernseher",
+      "hr": "Televizor",
+      "sr": "Televizor"
     },
+    "description": {
+      "en": "The apartment has a TCL 55P69B 4K UHD TV with Google TV. You can use it for regular TV content, streaming apps and casting through Google TV or Chromecast. Use the large remote to switch the HDMI source and the small remote to control the TV.",
+      "sl": "Apartma ima televizor TCL 55P69B 4K UHD z Google TV. Uporabite ga za redne televizijske kanale, pretočne aplikacije in predvajanje prek Google TV ali Chromecast. Z velikim daljincem preklopite HDMI vir, z malim pa upravljate televizor.",
+      "de": "Die Wohnung verfügt über einen TCL 55P69B 4K UHD TV mit Google TV. Nutzen Sie ihn für reguläre TV-Inhalte, Streaming-Apps und Casting über Google TV oder Chromecast. Mit der großen Fernbedienung wechseln Sie den HDMI-Eingang, mit der kleinen steuern Sie den Fernseher.",
+      "hr": "Apartman ima TCL 55P69B 4K UHD TV s Google TV-om. Koristite ga za redovne TV kanale, streaming aplikacije i prijenos putem Google TV ili Chromecast-a. Velikim daljincem mijenjate HDMI izvor, malim upravljate televizorom.",
+      "sr": "Apartman ima TCL 55P69B 4K UHD TV sa Google TV-om. Koristite ga za redovne TV kanale, streaming aplikacije i prenos putem Google TV ili Chromecast-a. Velikim daljinskim menjate HDMI izvor, malim upravljate televizorom."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/kids-safety.webp',
-    title: { en: 'Safety gate for kids', sl: 'Varnostna vrata za otroke', de: 'Kinderschutzgitter', hr: 'Zaštitna vrata za djecu', sr: 'Zaštitna vrata za decu' },
-    description: {
-      en: 'The stairs are protected by a child safety gate. To unlock or lock it, press and twist the button on the holder.',
-      sl: 'Stopnišče je zaščiteno z varnostnimi vrati za otroke. Za odklepanje ali zaklepanje pritisnite in zavrtite gumb na držalu.',
-      de: 'Die Treppe ist durch ein Kinderschutzgitter gesichert. Zum Öffnen oder Schließen den Knopf am Halter drücken und drehen.',
-      hr: 'Stubište je zaštićeno sigurnosnim vratima za djecu. Za otključavanje ili zaključavanje pritisnite i zavrtite gumb na nosaču.',
-      sr: 'Stepenište je zaštićeno sigurnosnim vratima za decu. Za otključavanje ili zaključavanje pritisnite i zavrtite dugme na nosaču.',
+    "image": "/how-to/kids-safety.webp",
+    "title": {
+      "en": "Safety gate for kids",
+      "sl": "Varnostna vrata za otroke",
+      "de": "Kinderschutzgitter",
+      "hr": "Zaštitna vrata za djecu",
+      "sr": "Zaštitna vrata za decu"
     },
+    "description": {
+      "en": "The stairs are protected by a child safety gate. To unlock or lock it, press and twist the button on the holder.",
+      "sl": "Stopnišče je zaščiteno z varnostnimi vrati za otroke. Za odklepanje ali zaklepanje pritisnite in zavrtite gumb na držalu.",
+      "de": "Die Treppe ist durch ein Kinderschutzgitter gesichert. Zum Öffnen oder Schließen den Knopf am Halter drücken und drehen.",
+      "hr": "Stubište je zaštićeno sigurnosnim vratima za djecu. Za otključavanje ili zaključavanje pritisnite i zavrtite gumb na nosaču.",
+      "sr": "Stepenište je zaštićeno sigurnosnim vratima za decu. Za otključavanje ili zaključavanje pritisnite i zavrtite dugme na nosaču."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/ventilation-control.webp',
-    title: { en: 'Automatic ventilation', sl: 'Samodejno prezračevanje', de: 'Automatische Lüftung', hr: 'Automatska ventilacija', sr: 'Automatska ventilacija' },
-    description: {
-      en: 'The ventilation controls are located in the lower part of the apartment near the sofa. The right-side control operates ventilation with heat recovery and is the recommended setting for everyday use.',
-      sl: 'Upravljalnik prezračevanja se nahaja v spodnjem delu apartmaja pri kavču. Desni upravljalnik nadzoruje prezračevanje s toplotnim rekuperatorjem in je priporočena nastavitev za vsakodnevno uporabo.',
-      de: 'Die Lüftungssteuerung befindet sich im unteren Teil der Wohnung beim Sofa. Die rechte Steuerung betreibt die Lüftung mit Wärmerückgewinnung und ist die empfohlene Einstellung für den Alltag.',
-      hr: 'Upravljač ventilacije nalazi se u donjem dijelu apartmana kod sofe. Desni upravljač kontrolira ventilaciju s rekuperacijom topline i preporučena je postavka za svakodnevnu upotrebu.',
-      sr: 'Upravljač ventilacije nalazi se u donjem delu apartmana kod sofe. Desni upravljač kontroliše ventilaciju s rekuperacijom toplote i preporučena je postavka za svakodnevnu upotrebu.',
+    "image": "/how-to/ventilation-control.webp",
+    "title": {
+      "en": "Automatic ventilation",
+      "sl": "Samodejno prezračevanje",
+      "de": "Automatische Lüftung",
+      "hr": "Automatska ventilacija",
+      "sr": "Automatska ventilacija"
     },
+    "description": {
+      "en": "The ventilation controls are located in the lower part of the apartment near the sofa. The right-side control operates ventilation with heat recovery and is the recommended setting for everyday use.",
+      "sl": "Upravljalnik prezračevanja se nahaja v spodnjem delu apartmaja pri kavču. Desni upravljalnik nadzoruje prezračevanje s toplotnim rekuperatorjem in je priporočena nastavitev za vsakodnevno uporabo.",
+      "de": "Die Lüftungssteuerung befindet sich im unteren Teil der Wohnung beim Sofa. Die rechte Steuerung betreibt die Lüftung mit Wärmerückgewinnung und ist die empfohlene Einstellung für den Alltag.",
+      "hr": "Upravljač ventilacije nalazi se u donjem dijelu apartmana kod sofe. Desni upravljač kontrolira ventilaciju s rekuperacijom topline i preporučena je postavka za svakodnevnu upotrebu.",
+      "sr": "Upravljač ventilacije nalazi se u donjem delu apartmana kod sofe. Desni upravljač kontroliše ventilaciju s rekuperacijom toplote i preporučena je postavka za svakodnevnu upotrebu."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/blinds-control.webp',
-    title: { en: 'Blinds', sl: 'Žaluzije', de: 'Jalousien', hr: 'Žaluzine', sr: 'Žaluzine' },
-    description: {
-      en: 'Press and hold the up arrow for about a second to raise the blinds and the down arrow to lower them. A short press stops them.',
-      sl: 'Pridržite puščico gor za sekundo, da dvignete žaluzijo, in puščico dol, da jo spustite. Kratki pritisk jo ustavi.',
-      de: 'Pfeil nach oben ca. eine Sekunde gedrückt halten, um die Jalousie hochzufahren, Pfeil nach unten zum Herunterlassen. Ein kurzer Druck stoppt sie.',
-      hr: 'Pritisnite i držite strelicu gore oko sekunde za podizanje žaluzine, strelicu dolje za spuštanje. Kratki pritisak zaustavlja je.',
-      sr: 'Pritisnite i držite strelicu gore oko sekunde za podizanje žaluzine, strelicu dole za spuštanje. Kratak pritisak zaustavlja je.',
+    "image": "/how-to/blinds-control.webp",
+    "title": {
+      "en": "Blinds",
+      "sl": "Žaluzije",
+      "de": "Jalousien",
+      "hr": "Žaluzine",
+      "sr": "Žaluzine"
     },
+    "description": {
+      "en": "Press and hold the up arrow for about a second to raise the blinds and the down arrow to lower them. A short press stops them.",
+      "sl": "Pridržite puščico gor za sekundo, da dvignete žaluzijo, in puščico dol, da jo spustite. Kratki pritisk jo ustavi.",
+      "de": "Pfeil nach oben ca. eine Sekunde gedrückt halten, um die Jalousie hochzufahren, Pfeil nach unten zum Herunterlassen. Ein kurzer Druck stoppt sie.",
+      "hr": "Pritisnite i držite strelicu gore oko sekunde za podizanje žaluzine, strelicu dolje za spuštanje. Kratki pritisak zaustavlja je.",
+      "sr": "Pritisnite i držite strelicu gore oko sekunde za podizanje žaluzine, strelicu dole za spuštanje. Kratak pritisak zaustavlja je."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/roof-window.webp',
-    title: { en: 'Roof window', sl: 'Strešno okno', de: 'Dachfenster', hr: 'Krovni prozor', sr: 'Krovni prozor' },
-    description: {
-      en: 'Use the arrow buttons to open or close the roof window, and the middle button to stop it at any position. Please do not operate the window manually.',
-      sl: 'Z gumbi s puščicami odprite ali zaprite strešno okno, srednji gumb ga ustavi na katerem koli položaju. Prosimo, ne upravljajte okna ročno.',
-      de: 'Mit den Pfeiltasten das Dachfenster öffnen oder schließen, mit der mittleren Taste an jeder Position stoppen. Bitte das Fenster nicht manuell bedienen.',
-      hr: 'Strelicama otvorite ili zatvorite krovni prozor, srednjim gumbom zaustavite ga na bilo kojoj poziciji. Molimo ne upravljajte prozorom ručno.',
-      sr: 'Strelicama otvorite ili zatvorite krovni prozor, srednjim dugmetom zaustavite ga na bilo kojoj poziciji. Molimo ne upravljajte prozorom ručno.',
+    "image": "/how-to/roof-window.webp",
+    "title": {
+      "en": "Roof window",
+      "sl": "Strešno okno",
+      "de": "Dachfenster",
+      "hr": "Krovni prozor",
+      "sr": "Krovni prozor"
     },
+    "description": {
+      "en": "Use the arrow buttons to open or close the roof window, and the middle button to stop it at any position. Please do not operate the window manually.",
+      "sl": "Z gumbi s puščicami odprite ali zaprite strešno okno, srednji gumb ga ustavi na katerem koli položaju. Prosimo, ne upravljajte okna ročno.",
+      "de": "Mit den Pfeiltasten das Dachfenster öffnen oder schließen, mit der mittleren Taste an jeder Position stoppen. Bitte das Fenster nicht manuell bedienen.",
+      "hr": "Strelicama otvorite ili zatvorite krovni prozor, srednjim gumbom zaustavite ga na bilo kojoj poziciji. Molimo ne upravljajte prozorom ručno.",
+      "sr": "Strelicama otvorite ili zatvorite krovni prozor, srednjim dugmetom zaustavite ga na bilo kojoj poziciji. Molimo ne upravljajte prozorom ručno."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/gorenje-h30mobs10hc-oven.jpg',
-    title: { en: 'Gorenje combination oven', sl: 'Kombinirana pečica Gorenje', de: 'Gorenje Kombi-Backofen', hr: 'Gorenje kombinirana pećnica', sr: 'Gorenje kombinovana rerna' },
-    description: {
-      en: 'The kitchen has a Gorenje H30MOBS10HC combination oven. It can be used as a microwave, convection oven, grill and air-fry oven. Detailed instructions are available in the PDF below.',
-      sl: 'V kuhinji je kombinirana pečica Gorenje H30MOBS10HC. Deluje kot mikrovalovna, konvekcijska pečica, žar in pečica za airfry. Podrobna navodila so na voljo v PDF-ju spodaj.',
-      de: 'In der Küche steht ein Gorenje H30MOBS10HC Kombinationsgerät. Es kann als Mikrowelle, Heißluftbackofen, Grill und Air-Fryer genutzt werden. Eine ausführliche Anleitung steht als PDF bereit.',
-      hr: 'U kuhinji se nalazi Gorenje H30MOBS10HC kombinirana pećnica. Može se koristiti kao mikrovalna, konvekcijska pećnica, roštilj i air-fry pećnica. Detaljne upute dostupne su u PDF-u ispod.',
-      sr: 'U kuhinji se nalazi Gorenje H30MOBS10HC kombinovana rerna. Može se koristiti kao mikrotalasna, konvekcijska rerna, roštilj i air-fry rerna. Detaljna uputstva dostupna su u PDF-u ispod.',
+    "image": "/how-to/gorenje-h30mobs10hc-oven.jpg",
+    "title": {
+      "en": "Gorenje combination oven",
+      "sl": "Kombinirana pečica Gorenje",
+      "de": "Gorenje Kombi-Backofen",
+      "hr": "Gorenje kombinirana pećnica",
+      "sr": "Gorenje kombinovana rerna"
     },
-    links: [{ label: 'Open PDF manual', href: '/how-to/gorenje-h30mobs10hc-navodila.pdf' }],
+    "description": {
+      "sl": "V kuhinji je kombinirana pečica Gorenje H30MOBS10HC. Za načine delovanja in varno uporabo preberite priložena navodila.",
+      "en": "The kitchen has a Gorenje H30MOBS10HC combination oven. See the attached manual for operating modes and safe use.",
+      "de": "In der Küche steht ein Gorenje H30MOBS10HC Kombinationsgerät. Betriebsarten und Hinweise zur sicheren Nutzung finden Sie in der beigefügten Anleitung.",
+      "hr": "U kuhinji se nalazi kombinirana pećnica Gorenje H30MOBS10HC. Za načine rada i sigurnu uporabu pročitajte priložene upute.",
+      "sr": "U kuhinji je kombinovana rerna Gorenje H30MOBS10HC. Za režime rada i bezbednu upotrebu pročitajte priloženo uputstvo."
+    },
+    "links": [
+      {
+        "label": {
+          "sl": "Navodila za uporabo (PDF)",
+          "en": "User manual (PDF)",
+          "de": "Bedienungsanleitung (PDF)",
+          "hr": "Upute za uporabu (PDF)",
+          "sr": "Uputstvo za upotrebu (PDF)"
+        },
+        "href": "/how-to/gorenje-h30mobs10hc-navodila.pdf"
+      }
+    ],
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Baby chair', sl: 'Otroški stolček', de: 'Babystuhl', hr: 'Dječja stolica', sr: 'Dečja stolica' },
-    description: {
-      en: 'In the kitchen cabinet under the microwave you will find a child-seat kit that fits the kitchen chair.',
-      sl: 'V kuhinjski omari pod mikrovalovno pečico najdete komplet za otroški sedež, ki se pritrdi na kuhinjski stol.',
-      de: 'Im Küchenschrank unter der Mikrowelle finden Sie ein Kindersitzset, das auf den Küchenstuhl passt.',
-      hr: 'U kuhinjskom ormariću ispod mikrovalne pećnice naći ćete komplet dječjeg sjedala koji odgovara kuhinjskoj stolici.',
-      sr: 'U kuhinjskom ormariću ispod mikrotalasne naći ćete komplet dečjeg sedišta koji odgovara kuhinjskoj stolici.',
+    "title": {
+      "en": "Baby chair",
+      "sl": "Otroški stolček",
+      "de": "Babystuhl",
+      "hr": "Dječja stolica",
+      "sr": "Dečja stolica"
     },
+    "description": {
+      "en": "In the kitchen cabinet under the microwave you will find a child-seat kit that fits the kitchen chair.",
+      "sl": "V kuhinjski omari pod mikrovalovno pečico najdete komplet za otroški sedež, ki se pritrdi na kuhinjski stol.",
+      "de": "Im Küchenschrank unter der Mikrowelle finden Sie ein Kindersitzset, das auf den Küchenstuhl passt.",
+      "hr": "U kuhinjskom ormariću ispod mikrovalne pećnice naći ćete komplet dječjeg sjedala koji odgovara kuhinjskoj stolici.",
+      "sr": "U kuhinjskom ormariću ispod mikrotalasne naći ćete komplet dečjeg sedišta koji odgovara kuhinjskoj stolici."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Bed safety for kids', sl: 'Varnostna ograja za posteljo', de: 'Bettschutzgitter für Kinder', hr: 'Zaštitna ograda za krevet', sr: 'Zaštitna ograda za krevet' },
-    description: {
-      en: 'If you need a bed safety rail, it is stored under the first single bed. Lift the mattress and place the rail on the bed where you need it.',
-      sl: 'Če potrebujete varnostno ograjo za posteljo, je shranjena pod prvo enojno posteljo. Dvignite vzmetnico in namestite ograjo tja, kjer jo potrebujete.',
-      de: 'Falls Sie ein Bettschutzgitter benötigen, befindet es sich unter dem ersten Einzelbett. Heben Sie die Matratze an und platzieren Sie das Gitter dort, wo Sie es brauchen.',
-      hr: 'Ako vam treba zaštitna ograda za krevet, pohranjena je ispod prvog jednostrukog kreveta. Podignite madrac i postavite ogradu tamo gdje vam treba.',
-      sr: 'Ako vam treba zaštitna ograda za krevet, pohranjena je ispod prvog jednostrukog kreveta. Podignite madrac i postavite ogradu tamo gde vam treba.',
+    "title": {
+      "en": "Bed safety for kids",
+      "sl": "Varnostna ograja za posteljo",
+      "de": "Bettschutzgitter für Kinder",
+      "hr": "Zaštitna ograda za krevet",
+      "sr": "Zaštitna ograda za krevet"
     },
+    "description": {
+      "en": "If you need a bed safety rail, it is stored under the first single bed. Lift the mattress and place the rail on the bed where you need it.",
+      "sl": "Če potrebujete varnostno ograjo za posteljo, je shranjena pod prvo enojno posteljo. Dvignite vzmetnico in namestite ograjo tja, kjer jo potrebujete.",
+      "de": "Falls Sie ein Bettschutzgitter benötigen, befindet es sich unter dem ersten Einzelbett. Heben Sie die Matratze an und platzieren Sie das Gitter dort, wo Sie es brauchen.",
+      "hr": "Ako vam treba zaštitna ograda za krevet, pohranjena je ispod prvog jednostrukog kreveta. Podignite madrac i postavite ogradu tamo gdje vam treba.",
+      "sr": "Ako vam treba zaštitna ograda za krevet, pohranjena je ispod prvog jednostrukog kreveta. Podignite madrac i postavite ogradu tamo gde vam treba."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/outdoor.webp',
-    title: { en: 'Outdoor light', sl: 'Zunanja svetilka', de: 'Außenbeleuchtung', hr: 'Vanjska rasvjeta', sr: 'Spoljašnja rasveta' },
-    description: {
-      en: 'The outdoor light switch is by the entrance. Top position: always on. Middle: off. Bottom: motion sensor.',
-      sl: 'Stikalo za zunanjo svetilko je pri vhodu. Zgoraj: vedno vklopljeno. Na sredini: izklopljeno. Spodaj: senzor gibanja.',
-      de: 'Der Schalter für die Außenbeleuchtung befindet sich beim Eingang. Oben: dauerhaft an. Mitte: aus. Unten: Bewegungssensor.',
-      hr: 'Prekidač za vanjsku rasvjetu nalazi se kod ulaza. Gore: uvijek uključeno. Sredina: isključeno. Dolje: senzor pokreta.',
-      sr: 'Prekidač za spoljašnju rasvetu nalazi se kod ulaza. Gore: uvek uključeno. Sredina: isključeno. Dole: senzor pokreta.',
+    "image": "/how-to/outdoor.webp",
+    "title": {
+      "en": "Outdoor light",
+      "sl": "Zunanja svetilka",
+      "de": "Außenbeleuchtung",
+      "hr": "Vanjska rasvjeta",
+      "sr": "Spoljašnja rasveta"
     },
+    "description": {
+      "en": "The outdoor light switch is by the entrance. Top position: always on. Middle: off. Bottom: motion sensor.",
+      "sl": "Stikalo za zunanjo svetilko je pri vhodu. Zgoraj: vedno vklopljeno. Na sredini: izklopljeno. Spodaj: senzor gibanja.",
+      "de": "Der Schalter für die Außenbeleuchtung befindet sich beim Eingang. Oben: dauerhaft an. Mitte: aus. Unten: Bewegungssensor.",
+      "hr": "Prekidač za vanjsku rasvjetu nalazi se kod ulaza. Gore: uvijek uključeno. Sredina: isključeno. Dolje: senzor pokreta.",
+      "sr": "Prekidač za spoljašnju rasvetu nalazi se kod ulaza. Gore: uvek uključeno. Sredina: isključeno. Dole: senzor pokreta."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/kitchen.webp',
-    title: { en: 'Kitchen light', sl: 'Kuhinjska svetilka', de: 'Küchenbeleuchtung', hr: 'Kuhinjska rasvjeta', sr: 'Kuhinjska rasveta' },
-    description: {
-      en: 'Under the kitchen cabinet above the stove there is a blue touch switch. Touch to turn on/off, hold to adjust brightness.',
-      sl: 'Pod kuhinjsko omaro nad štedilnikom je modro tipkalno stikalo. Dotaknite se za vklop/izklop, pridržite za nastavitev svetlosti.',
-      de: 'Unter dem Küchenschrank über dem Herd befindet sich ein blauer Touch-Schalter. Antippen zum Ein-/Ausschalten, gedrückt halten zum Dimmen.',
-      hr: 'Ispod kuhinjskog ormara iznad štednjaka nalazi se plavi touch prekidač. Dodirnite za uključivanje/isključivanje, dugo pritisnite za podešavanje svjetline.',
-      sr: 'Ispod kuhinjskog ormara iznad šporeta nalazi se plavi touch prekidač. Dodirnite za uključivanje/isključivanje, dugo pritisnite za podešavanje svetline.',
+    "image": "/how-to/kitchen.webp",
+    "title": {
+      "en": "Kitchen light",
+      "sl": "Kuhinjska svetilka",
+      "de": "Küchenbeleuchtung",
+      "hr": "Kuhinjska rasvjeta",
+      "sr": "Kuhinjska rasveta"
     },
+    "description": {
+      "en": "Under the kitchen cabinet above the stove there is a blue touch switch. Touch to turn on/off, hold to adjust brightness.",
+      "sl": "Pod kuhinjsko omaro nad štedilnikom je modro tipkalno stikalo. Dotaknite se za vklop/izklop, pridržite za nastavitev svetlosti.",
+      "de": "Unter dem Küchenschrank über dem Herd befindet sich ein blauer Touch-Schalter. Antippen zum Ein-/Ausschalten, gedrückt halten zum Dimmen.",
+      "hr": "Ispod kuhinjskog ormara iznad štednjaka nalazi se plavi touch prekidač. Dodirnite za uključivanje/isključivanje, dugo pritisnite za podešavanje svjetline.",
+      "sr": "Ispod kuhinjskog ormara iznad šporeta nalazi se plavi touch prekidač. Dodirnite za uključivanje/isključivanje, dugo pritisnite za podešavanje svetline."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    image: '/how-to/bathroom.webp',
-    title: { en: 'Bathroom heating', sl: 'Kopalniško ogrevanje', de: 'Badezimmerheizung', hr: 'Grijanje kupaonice', sr: 'Grejanje kupatila' },
-    description: {
-      en: 'By the bathroom entrance there is a switch with a heating icon. Press it to activate additional bathroom heating for about 30 minutes.',
-      sl: 'Pri vhodu v kopalnico je stikalo z ikono ogrevanja. Pritisnite ga za vklop dodatnega kopalničnega ogrevanja za približno 30 minut.',
-      de: 'Beim Badezimmereingang gibt es einen Schalter mit einem Heizsymbol. Drücken Sie ihn, um die zusätzliche Badezimmerheizung für ca. 30 Minuten einzuschalten.',
-      hr: 'Kod ulaza u kupaonicu nalazi se prekidač s ikonom grijanja. Pritisnite ga za aktiviranje dodatnog grijanja kupaonice na oko 30 minuta.',
-      sr: 'Kod ulaza u kupatilo nalazi se prekidač sa ikonom grejanja. Pritisnite ga za aktiviranje dodatnog grejanja kupatila na oko 30 minuta.',
+    "image": "/how-to/bathroom.webp",
+    "title": {
+      "en": "Bathroom heating",
+      "sl": "Kopalniško ogrevanje",
+      "de": "Badezimmerheizung",
+      "hr": "Grijanje kupaonice",
+      "sr": "Grejanje kupatila"
     },
+    "description": {
+      "en": "By the bathroom entrance there is a switch with a heating icon. Press it to activate additional bathroom heating for about 30 minutes.",
+      "sl": "Pri vhodu v kopalnico je stikalo z ikono ogrevanja. Pritisnite ga za vklop dodatnega kopalničnega ogrevanja za približno 30 minut.",
+      "de": "Beim Badezimmereingang gibt es einen Schalter mit einem Heizsymbol. Drücken Sie ihn, um die zusätzliche Badezimmerheizung für ca. 30 Minuten einzuschalten.",
+      "hr": "Kod ulaza u kupaonicu nalazi se prekidač s ikonom grijanja. Pritisnite ga za aktiviranje dodatnog grijanja kupaonice na oko 30 minuta.",
+      "sr": "Kod ulaza u kupatilo nalazi se prekidač sa ikonom grejanja. Pritisnite ga za aktiviranje dodatnog grejanja kupatila na oko 30 minuta."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
   },
   {
-    title: { en: 'Waste handling', sl: 'Ločevanje odpadkov', de: 'Mülltrennung', hr: 'Razvrstavanje otpada', sr: 'Razvrstavanje otpada' },
-    description: {
-      en: 'Under the sink you will find separate bins for waste sorting. Outside by the driveway there are collection bins, including a separate glass container.',
-      sl: 'Pod kopalničkim umivalnikom najdete ločene koše za odpadke. Zunaj pri dovozu so zbiralni kontejnerji, vključno z ločenim za steklo.',
-      de: 'Unter dem Waschbecken finden Sie separate Behälter für die Mülltrennung. Draußen an der Einfahrt stehen Sammelcontainer, darunter ein separater für Glas.',
-      hr: 'Ispod sudopera naći ćete odvojene kante za razvrstavanje otpada. Vani kod ulaza nalaze se zbirni kontejneri, uključujući odvojeni za staklo.',
-      sr: 'Ispod sudopere naći ćete odvojene kante za razvrstavanje otpada. Napolju kod ulaza nalaze se zbirni kontejneri, uključujući odvojeni za staklo.',
+    "title": {
+      "en": "Waste handling",
+      "sl": "Ločevanje odpadkov",
+      "de": "Mülltrennung",
+      "hr": "Razvrstavanje otpada",
+      "sr": "Razvrstavanje otpada"
     },
-  },
+    "description": {
+      "sl": "Pod umivalnikom v kopalnici so koši za ločevanje odpadkov. Zbirni zabojniki so zunaj ob dovozu; steklo odložite v ločen zabojnik.",
+      "en": "Waste-sorting bins are under the bathroom washbasin. Collection bins are outside by the driveway; use the separate container for glass.",
+      "de": "Behälter zur Mülltrennung stehen unter dem Waschbecken im Bad. Sammelbehälter befinden sich draußen an der Einfahrt; Glas getrennt entsorgen.",
+      "hr": "Koševi za odvajanje otpada nalaze se ispod umivaonika u kupaonici. Zbirni spremnici su vani uz prilaz; staklo odložite odvojeno.",
+      "sr": "Kante za odvajanje otpada su ispod umivaonika u kupatilu. Zajednički kontejneri su napolju uz prilaz; staklo odložite odvojeno."
+    },
+    "recurring": true,
+    "validFrom": "01-01",
+    "validTo": "12-31"
+  }
 ]
 
 export const SEED_HOUSE_RULES: LocalizedText[] = [
-  { en: 'No smoking inside the apartment.', sl: 'Kajenje v apartmaju ni dovoljeno.', de: 'Rauchen in der Wohnung ist nicht gestattet.', hr: 'Pušenje u apartmanu nije dozvoljeno.', sr: 'Pušenje u apartmanu nije dozvoljeno.' },
-  { en: 'Please separate waste and flush toilet paper only.', sl: 'Prosimo, ločujte odpadke in splakujte samo toaletni papir.', de: 'Bitte Abfall trennen und nur Toilettenpapier spülen.', hr: 'Molimo odvajajte otpad i bacajte samo toaletni papir.', sr: 'Molimo odvajajte otpad i bacajte samo toaletni papir.' },
-  { en: 'Please do not feed the horses — unsuitable food can harm them.', sl: 'Prosimo, ne hranite konj — neprimerna hrana jim lahko škodi.', de: 'Bitte füttern Sie die Pferde nicht — ungeeignetes Futter kann ihnen schaden.', hr: 'Molimo ne hranite konje — neprikladna hrana može im nauditi.', sr: 'Molimo ne hranite konje — neprikladna hrana im može naškoditi.' },
-  { en: 'Do not lean on or climb the upper-floor fence.', sl: 'Ne naslanjajte se na ograjo zgornjega nadstropja in ne plezajte nanjo.', de: 'Bitte nicht auf den Zaun im Obergeschoss lehnen oder ihn besteigen.', hr: 'Ne naslanjajte se na ogradu gornjeg kata niti se penjite na nju.', sr: 'Ne naslanjajte se na ogradu gornjeg sprata niti se penjite na nju.' },
-  { en: 'The horse fence is electrified.', sl: 'Konjska ograja je elektrificirana.', de: 'Der Pferdezaun ist elektrifiziert.', hr: 'Ograda za konje je elektrificirana.', sr: 'Ograda za konje je elektrificirana.' },
-  { en: 'Tap water is safe to drink.', sl: 'Voda iz pipe je primerna za pitje.', de: 'Leitungswasser ist trinkbar.', hr: 'Voda iz slavine je sigurna za piće.', sr: 'Voda iz slavine je bezbedna za piće.' },
+  {
+    "en": "No smoking inside the apartment.",
+    "sl": "Kajenje v apartmaju ni dovoljeno.",
+    "de": "Rauchen in der Wohnung ist nicht gestattet.",
+    "hr": "Pušenje u apartmanu nije dozvoljeno.",
+    "sr": "Pušenje u apartmanu nije dozvoljeno."
+  },
+  {
+    "sl": "Prosimo, ločujte odpadke. V straniščno školjko odlagajte samo toaletni papir.",
+    "en": "Please sort your waste. Only toilet paper should be flushed down the toilet.",
+    "de": "Bitte den Müll trennen. Nur Toilettenpapier in der Toilette entsorgen.",
+    "hr": "Molimo odvajajte otpad. U zahodsku školjku bacajte samo toaletni papir.",
+    "sr": "Molimo odvajajte otpad. U WC šolju bacajte samo toaletni papir."
+  },
+  {
+    "en": "Please do not feed the horses — unsuitable food can harm them.",
+    "sl": "Prosimo, ne hranite konj — neprimerna hrana jim lahko škodi.",
+    "de": "Bitte füttern Sie die Pferde nicht — ungeeignetes Futter kann ihnen schaden.",
+    "hr": "Molimo ne hranite konje — neprikladna hrana može im nauditi.",
+    "sr": "Molimo ne hranite konje — neprikladna hrana im može naškoditi."
+  },
+  {
+    "sl": "Ne naslanjajte se na ograjo v zgornjem nadstropju in ne plezajte nanjo.",
+    "en": "Do not lean on or climb the railing on the upper floor.",
+    "de": "Bitte nicht gegen das Geländer im Obergeschoss lehnen oder darauf klettern.",
+    "hr": "Ne naslanjajte se na ogradu na gornjem katu i ne penjite se na nju.",
+    "sr": "Ne naslanjajte se na ogradu na gornjem spratu i ne penjite se na nju."
+  },
+  {
+    "en": "The horse fence is electrified.",
+    "sl": "Konjska ograja je elektrificirana.",
+    "de": "Der Pferdezaun ist elektrifiziert.",
+    "hr": "Ograda za konje je elektrificirana.",
+    "sr": "Ograda za konje je elektrificirana."
+  },
+  {
+    "en": "Tap water is safe to drink.",
+    "sl": "Voda iz pipe je primerna za pitje.",
+    "de": "Leitungswasser ist trinkbar.",
+    "hr": "Voda iz slavine je sigurna za piće.",
+    "sr": "Voda iz slavine je bezbedna za piće."
+  }
 ]

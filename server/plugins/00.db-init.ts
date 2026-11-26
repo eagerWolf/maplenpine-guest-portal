@@ -409,67 +409,6 @@ export default defineNitroPlugin(() => {
     ins.run(key, value, ts)
   }
 
-  // Seed guest content (restaurants, suggestions, faq, how-to, house rules) — first run only
-  for (const dir of ['restaurants', 'suggestions', 'howto']) {
-    mkdirSync(join(process.cwd(), 'data', 'uploads', dir), { recursive: true })
-  }
-
-  if ((db.prepare('SELECT COUNT(*) c FROM restaurants').get() as { c: number }).c === 0) {
-    const insertRestaurant = db.prepare(`
-      INSERT INTO restaurants (name, type, website, description, image_path, active, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)
-    `)
-    SEED_RESTAURANTS.forEach((r, i) => {
-      const imagePath = copySeedImage('restaurants', r.image)
-      insertRestaurant.run(r.name, r.type, r.website, JSON.stringify(r.description), imagePath, i, ts, ts)
-    })
-  }
-
-  if ((db.prepare('SELECT COUNT(*) c FROM suggestions').get() as { c: number }).c === 0) {
-    const insertSuggestion = db.prepare(`
-      INSERT INTO suggestions (title, description, buttons, image_path, recurring, valid_from, valid_to, active, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-    `)
-    SEED_SUGGESTIONS.forEach((s, i) => {
-      const imagePath = copySeedImage('suggestions', s.image)
-      insertSuggestion.run(
-        JSON.stringify(s.title), JSON.stringify(s.description), s.buttons ? JSON.stringify(s.buttons) : null,
-        imagePath, s.recurring ? 1 : 0, s.validFrom, s.validTo, i, ts, ts,
-      )
-    })
-  }
-
-  if ((db.prepare('SELECT COUNT(*) c FROM faq_items').get() as { c: number }).c === 0) {
-    const insertFaq = db.prepare(`
-      INSERT INTO faq_items (title, description, links, active, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, 1, ?, ?, ?)
-    `)
-    SEED_FAQ.forEach((f, i) => {
-      insertFaq.run(JSON.stringify(f.title), JSON.stringify(f.description), f.links ? JSON.stringify(f.links) : null, i, ts, ts)
-    })
-  }
-
-  if ((db.prepare('SELECT COUNT(*) c FROM howto_items').get() as { c: number }).c === 0) {
-    const insertHowto = db.prepare(`
-      INSERT INTO howto_items (title, description, image_path, links, active, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-    `)
-    SEED_HOWTO.forEach((h, i) => {
-      const imagePath = h.image ? copySeedImage('howto', h.image) : null
-      insertHowto.run(JSON.stringify(h.title), JSON.stringify(h.description), imagePath, h.links ? JSON.stringify(h.links) : null, i, ts, ts)
-    })
-  }
-
-  if ((db.prepare('SELECT COUNT(*) c FROM house_rules').get() as { c: number }).c === 0) {
-    const insertRule = db.prepare(`
-      INSERT INTO house_rules (text, active, sort_order, created_at, updated_at)
-      VALUES (?, 1, ?, ?, ?)
-    `)
-    SEED_HOUSE_RULES.forEach((text, i) => {
-      insertRule.run(JSON.stringify(text), i, ts, ts)
-    })
-  }
-
   // Migrations
   const jobCols = db.prepare("PRAGMA table_info(jobs)").all() as Array<{ name: string }>
   if (!jobCols.some(c => c.name === 'attempt_count')) {
@@ -582,13 +521,7 @@ export default defineNitroPlugin(() => {
   const suggestionWebsiteCols = db.prepare("PRAGMA table_info(suggestions)").all() as Array<{ name: string }>
   if (!suggestionWebsiteCols.some(c => c.name === 'website_slug')) db.exec('ALTER TABLE suggestions ADD COLUMN website_slug TEXT')
   if (!suggestionWebsiteCols.some(c => c.name === 'youtube_url')) db.exec('ALTER TABLE suggestions ADD COLUMN youtube_url TEXT')
-  const suggestionSlugs = ['life-adventure','pletna-island','horse-carriages','ojstrica','bled-breakfast','skiing','sledding','vintgar-gorge','pokljuka-gorge','radovna-valley','soca-river','zelenci','lake-bohinj','radovljica','postojna-cave','horse-ridding','ljubljana','velika-planina','zipline-dolinka','sea-side','mountains']
-  const setSuggestionSlug = db.prepare('UPDATE suggestions SET website_slug=? WHERE sort_order=? AND (website_slug IS NULL OR website_slug=?)')
-  suggestionSlugs.forEach((slug, index) => setSuggestionSlug.run(slug, index, ''))
-  db.prepare("UPDATE suggestions SET youtube_url='https://www.youtube.com/embed/ZpIO7qyk760?si=HaZpAqX8mg89Ptbl' WHERE website_slug='life-adventure' AND youtube_url IS NULL").run()
-  const restaurantSlugs = ['old-cellar','planinc','blejska-hisa','al-fresco','julijana','sova','spica','central','grajska-plaza','mega-burger']
-  const setRestaurantSlug = db.prepare('UPDATE restaurants SET website_slug=? WHERE sort_order=? AND (website_slug IS NULL OR website_slug=?)')
-  restaurantSlugs.forEach((slug, index) => setRestaurantSlug.run(slug, index, ''))
+  // Website slugs belong to content, never to its mutable display order.
 
   // Preserve the original single-provider setup as the first breakfast provider.
   const breakfastProviderCount = (db.prepare("SELECT COUNT(*) c FROM partners WHERE category = 'breakfast'").get() as { c: number }).c
@@ -723,5 +656,69 @@ export default defineNitroPlugin(() => {
       db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(2,?,?)').run('staff-notifications-and-cleaning',new Date().toISOString())
     })()
   }
+  // Seed guest content (restaurants, suggestions, faq, how-to, house rules) — first run only
+  for (const dir of ['restaurants', 'suggestions', 'howto']) {
+    mkdirSync(join(process.cwd(), 'data', 'uploads', dir), { recursive: true })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM restaurants').get() as { c: number }).c === 0) {
+    const insertRestaurant = db.prepare(`
+      INSERT INTO restaurants (name, type, website, description, image_path, active, sort_order, recurring, valid_from, valid_to, location_id, website_slug, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    SEED_RESTAURANTS.forEach((r, i) => {
+      const imagePath = copySeedImage('restaurants', r.image)
+      const locationId = r.location
+        ? db.prepare('INSERT INTO locations (name,country,address,google_maps_url,created_at) VALUES (?,?,?,?,?)').run(r.location.name,'Slovenia',r.location.address,r.location.google_maps_url,ts).lastInsertRowid
+        : null
+      insertRestaurant.run(r.name, r.type, r.website, JSON.stringify(r.description), imagePath, r.active ?? 1, i, r.recurring ? 1 : 0, r.validFrom, r.validTo, locationId, r.websiteSlug, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM suggestions').get() as { c: number }).c === 0) {
+    const insertSuggestion = db.prepare(`
+      INSERT INTO suggestions (title, description, buttons, image_path, recurring, valid_from, valid_to, active, sort_order, website_slug, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+    `)
+    SEED_SUGGESTIONS.forEach((s, i) => {
+      const imagePath = copySeedImage('suggestions', s.image)
+      insertSuggestion.run(
+        JSON.stringify(s.title), JSON.stringify(s.description), s.buttons ? JSON.stringify(s.buttons) : null,
+        imagePath, s.recurring ? 1 : 0, s.validFrom, s.validTo, i, s.websiteSlug, ts, ts,
+      )
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM faq_items').get() as { c: number }).c === 0) {
+    const insertFaq = db.prepare(`
+      INSERT INTO faq_items (title, description, links, active, sort_order, recurring, valid_from, valid_to, created_at, updated_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+    `)
+    SEED_FAQ.forEach((f, i) => {
+      insertFaq.run(JSON.stringify(f.title), JSON.stringify(f.description), f.links ? JSON.stringify(f.links) : null, i, f.recurring ? 1 : 0, f.validFrom, f.validTo, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM howto_items').get() as { c: number }).c === 0) {
+    const insertHowto = db.prepare(`
+      INSERT INTO howto_items (title, description, image_path, links, active, sort_order, recurring, valid_from, valid_to, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+    `)
+    SEED_HOWTO.forEach((h, i) => {
+      const imagePath = h.image ? copySeedImage('howto', h.image) : null
+      insertHowto.run(JSON.stringify(h.title), JSON.stringify(h.description), imagePath, h.links ? JSON.stringify(h.links) : null, i, h.recurring ? 1 : 0, h.validFrom, h.validTo, ts, ts)
+    })
+  }
+
+  if ((db.prepare('SELECT COUNT(*) c FROM house_rules').get() as { c: number }).c === 0) {
+    const insertRule = db.prepare(`
+      INSERT INTO house_rules (text, active, sort_order, recurring, valid_from, valid_to, created_at, updated_at)
+      VALUES (?, 1, ?, 1, '01-01', '12-31', ?, ?)
+    `)
+    SEED_HOUSE_RULES.forEach((text, i) => {
+      insertRule.run(JSON.stringify(text), i, ts, ts)
+    })
+  }
+
   console.log('[db] Schema ready')
 })
