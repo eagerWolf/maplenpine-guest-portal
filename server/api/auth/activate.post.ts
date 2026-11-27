@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   if (!activation) throw createError({ statusCode: 400, statusMessage: 'Aktivacijska povezava ni veljavna ali je potekla.' })
 
   const user = db.prepare('SELECT * FROM users WHERE email = ? AND active != 0').get(activation.email) as DbUser | undefined
-  if (!user || user.password_hash) throw createError({ statusCode: 400, statusMessage: 'Računa ni mogoče aktivirati.' })
+  if (!user || user.portal_access === 0 || user.password_hash) throw createError({ statusCode: 400, statusMessage: 'Računa ni mogoče aktivirati.' })
 
   const hash = await bcrypt.hash(password, 12)
   const tx = db.transaction(() => {
@@ -29,6 +29,6 @@ export default defineEventHandler(async (event) => {
   })
   tx()
 
-  await setUserSession(event, { user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff' } })
+  await setUserSession(event, { user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff', cleaningOnly: user.role !== 'admin' && !user.notify_checkin && !user.staff_manager } })
   return { success: true, role: user.role }
 })

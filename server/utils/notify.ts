@@ -91,12 +91,12 @@ export async function notifyAdmins(opts: {
   const users = db.prepare(`
     SELECT id, email, notification_level, whatsapp_phone
     FROM users
-    WHERE role = 'admin' AND notification_level != 'none' AND active != 0
+    WHERE staff_manager = 1 AND active != 0 AND notifications_enabled != 0
   `).all() as UserRow[]
 
   const minLevel = EVENT_MIN_LEVEL[opts.event]
   const eligible = users.filter(u => {
-    const level = u.notification_level as NotificationLevel
+    const level = (u.notification_level === 'none' ? 'all' : u.notification_level) as NotificationLevel
     return LEVEL_RANK[level] >= LEVEL_RANK[minLevel]
   })
   const incidentKey = `${opts.event}:${opts.subject}`
@@ -111,7 +111,7 @@ export async function notifyAdmins(opts: {
   let succeeded = 0
 
   await Promise.allSettled(eligible.map(async (user) => {
-    if (emailConfig.configured) {
+    if (emailConfig.configured && !user.email.endsWith('@staff.invalid')) {
       attempted++
       try {
         await sendEmail({

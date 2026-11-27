@@ -51,6 +51,10 @@ export interface Job {
 }
 
 export interface DbUser {
+  name: string
+  portal_access: number
+  staff_manager: number
+  notifications_enabled: number
   id: number
   email: string
   role: string

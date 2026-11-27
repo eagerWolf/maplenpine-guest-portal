@@ -21,10 +21,12 @@ beforeEach(() => {
     INSERT INTO app_settings VALUES('reception_whatsapp','+386 40 222 222');
     INSERT INTO reservations VALUES(1,'Pine','2026-11-19','2026-11-22','active','Ana','Test',2,'a'),(2,'Pine','2026-11-22','2026-11-25','active','Test','Guest',3,'a');`)
   staff.migrateStaffNotifications()
+  db.exec("ALTER TABLE users ADD COLUMN staff_manager INTEGER DEFAULT 0; ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 1; UPDATE users SET staff_manager=1 WHERE role='admin';")
+  db.exec("ALTER TABLE users ADD COLUMN name TEXT DEFAULT 'Čistilka'; ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''; CREATE TABLE cleaning_assignments(token TEXT PRIMARY KEY,task_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(task_id,user_id)); ALTER TABLE cleaning_tasks ADD COLUMN confirmed_by_user_id INTEGER; ALTER TABLE cleaning_tasks ADD COLUMN confirmed_by_name TEXT;")
 })
 afterEach(()=>{db.close();vi.useRealTimers();vi.unstubAllEnvs()})
 function reservation(id=1) {return db.prepare('SELECT * FROM reservations WHERE id=?').get(id) as Reservation}
-function task() {staff.queueStaffReminders();return db.prepare('SELECT * FROM cleaning_tasks').get() as {token:string;confirmed_at:string|null}}
+function task() {staff.queueStaffReminders();return db.prepare('SELECT a.token,t.confirmed_at FROM cleaning_assignments a JOIN cleaning_tasks t ON t.id=a.task_id').get() as {token:string;confirmed_at:string|null}}
 
 it('queues one cleaner reminder per apartment with next arrival and confirmation link',()=>{
   const link = task();staff.queueStaffReminders()
@@ -98,4 +100,34 @@ it('delivers staff messages once and labels the test environment',async()=>{
   task();await staff.processStaffNotifications();await staff.processStaffNotifications()
   expect(send).toHaveBeenCalledTimes(1)
   expect(send.mock.calls[0]?.[1]).toContain('[TEST]')
+})
+it('issues personal tokens, records the first cleaner and never overwrites confirmation',()=>{
+  db.exec("INSERT INTO users(id,role,active,notification_level,notify_housekeeper,notify_checkin,whatsapp_phone,name) VALUES(4,'staff',1,'none',1,0,'+38640444444','Druga čistilka')")
+  staff.queueStaffReminders()
+  const assignments=db.prepare('SELECT user_id,token FROM cleaning_assignments ORDER BY user_id').all() as {user_id:number;token:string}[]
+  expect(assignments).toHaveLength(2);expect(assignments[0]!.token).not.toBe(assignments[1]!.token)
+  vi.setSystemTime(new Date('2026-11-22T09:00:00Z'))
+  staff.confirmCleaning(assignments[1]!.token)
+  expect(staff.confirmCleaning(assignments[0]!.token).alreadyConfirmed).toBe(true)
+  expect(db.prepare('SELECT confirmed_by_user_id,confirmed_by_name FROM cleaning_tasks').get()).toEqual({confirmed_by_user_id:4,confirmed_by_name:'Druga čistilka'})
+  expect((db.prepare("SELECT body FROM staff_notifications WHERE event='cleaning_completed' LIMIT 1").get() as {body:string}).body).toContain('Druga čistilka')
+})
+it('revokes personal links and queued sends when notifications or cleaner access are disabled',async()=>{
+ const link=task(); db.exec('UPDATE users SET notifications_enabled=0 WHERE id=3')
+ expect(()=>staff.getCleaningTask(link.token)).toThrow()
+ await staff.processStaffNotifications();expect(send).not.toHaveBeenCalled()
+ db.exec('UPDATE users SET notifications_enabled=1,active=0 WHERE id=3')
+ expect(()=>staff.getCleaningTask(link.token)).toThrow()
+})
+it('permanently invalidates personal tokens after a cancellation even if reservation is restored',()=>{
+ const link=task(),before=reservation();const after={...before,status:'cancelled',updated_at:'cancel'}
+ staff.queueReceptionChange(before,after)
+ db.exec("UPDATE reservations SET status='cancelled' WHERE id=1")
+ expect(()=>staff.getCleaningTask(link.token)).toThrow()
+ db.exec("UPDATE reservations SET status='active' WHERE id=1")
+ expect(()=>staff.getCleaningTask(link.token)).toThrow()
+})
+it('rejects old shared links that cannot identify a cleaner',()=>{
+ task();const shared=db.prepare('SELECT token FROM cleaning_tasks').get() as {token:string}
+ expect(()=>staff.getCleaningTask(shared.token)).toThrow('osebno povezavo')
 })

@@ -3,7 +3,7 @@ import {expect,it,vi} from 'vitest'
 const db=new Database(':memory:')
 vi.mock('../server/db/index',async importOriginal=>({...await importOriginal<any>(),getDb:()=>db}))
 vi.mock('node:fs',async importOriginal=>({...await importOriginal<any>(),mkdirSync:vi.fn(),copyFileSync:vi.fn()}))
-vi.mock('../server/utils/staffNotifications',()=>({migrateStaffNotifications:vi.fn()}))
+vi.mock('../server/utils/whatsapp',()=>({getWhatsAppProvider:vi.fn()}))
 vi.stubGlobal('defineNitroPlugin',(fn:any)=>fn)
 it('fresh installation seeds reviewed seasons, translations and restaurant locations without overwriting later edits',async()=>{
  const init=(await import('../server/plugins/00.db-init')).default

@@ -18,6 +18,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Ne morete izbrisati svojega računa' })
   }
 
+  db.prepare('DELETE FROM cleaning_assignments WHERE user_id=?').run(id)
+  db.prepare('DELETE FROM password_reset_tokens WHERE user_id=?').run(id)
   db.prepare('DELETE FROM users WHERE id = ?').run(id)
 
   db.prepare(`

@@ -19,6 +19,7 @@ interface Reservation {
   guestLang: string | null
   guestLangOverride: string | null
   status: string
+  cleaning?: {door:string;cleaning_date:string;confirmed_at:string|null;confirmed_by_name:string|null}[]
 }
 
 interface AdminLogJob {
@@ -407,7 +408,7 @@ function statusClass(status: string) {
 
     <!-- ── Header ── -->
     <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold text-stone-800">Nadzorna plošča</h1>
+      <h1 class="text-xl font-semibold text-stone-800">Nadzorna plošča</h1><NuxtLink to="/cleaning-status" class="text-sm underline">Pregled čiščenj</NuxtLink>
       <button
         v-if="isAdmin"
         class="inline-flex items-center gap-2 text-sm bg-pine-600 hover:bg-pine-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"

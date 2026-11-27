@@ -44,3 +44,40 @@ V Nastavitve → Integracije → WhatsApp uredimo vseh 12 vrst internih obvestil
 Gumb za posamezni test uporabi izmišljene primere, oznako `[TEST]` in izključno WhatsApp številko prijavljenega administratorja. Vhodni zahtevek ne more določiti drugega prejemnika. Test čiščenja vsebuje neveljavno demonstracijsko povezavo; ne ustvari ali potrdi čiščenja. Ne prevzema eKey opravil, ne spreminja rezervacij in ne kliče Bentrala. Dostava je zapisana v dnevnik. Pošiljanje ostaja omejeno z `PORTAL_WHATSAPP_ENABLED`; ne obide izklopljenega kanala. Potrebna sta potrjen pošiljatelj in odobren Content SID. Dostava se ne ponavlja samodejno.
 
 Ročni test se pošlje izključno na veljavno WhatsApp številko trenutno prijavljenega aktivnega administratorja v tabeli uporabnikov. Manjkajoča številka prepreči pošiljanje; skupna testna številka in prejemnik iz zahtevka se ne uporabljata. Redni opomniki še vedno sledijo nastavitvam prejemnikov. Pred vklopom rednega pošiljanja preverimo vse prejemnike posebej.
+
+## Osebje, prijava in osebne potrditve (27. 11. 2026)
+
+Migracija 3 doda ime, neodvisni `portal_access`, `notifications_enabled` (privzeto
+vključen) in vlogo za obvestila skrbniku. Čistilka in sprejem uporabljata obstoječi
+polji `notify_housekeeper`/`notify_checkin`. Vloge se lahko kombinirajo; polne
+administratorske pravice so ločene od vloge za obveščanje. Stari telefoni iz
+nastavitev se enkrat prenesejo v osebje, ujemanje po normalizirani številki ne
+ustvari dvojnika. Novi kontaktni vnosi nimajo prijave ali gesla. Kontaktni zapis
+brez emaila uporablja samo interni naslov `@staff.invalid`; nanj se ne pošilja.
+Telefonska številka sprejema v splošnih nastavitvah ostaja javni kontakt za goste,
+ne seznam prejemnikov obvestil.
+
+Brez kljukice Dostop do portala prijava, aktivacija, ponastavitev gesla in obstoječa
+seja niso dovoljene. Čistilka brez drugih pravic se preusmeri na `/cleaning-calendar`.
+API ji dovoljuje samo minimalni koledar (apartma, datum čiščenja in stanje), sejo,
+odjavo in javno potrditev z osebnim ključem. Neposredni klici API-jev z rezervacijami,
+PIN-i, kontakti in nastavitvami vrnejo 403. Sprejem in skrbnik imata pregled
+`/cleaning-status`, ki prikazuje tudi prvo potrjujočo osebo in čas.
+
+Vsaka vključena aktivna čistilka dobi za vsako čiščenje svoj naključni 256-bitni
+ključ v `cleaning_assignments`. Povezava ne zahteva prijave. Prva potrditev zapiše
+`confirmed_by_user_id`, zgodovinsko ime in čas v skupno opravilo; poznejše
+potrditve tega ne prepišejo in ne pošljejo dodatnih obvestil. Ime potrjujoče osebe
+prejmeta sprejem in skrbnik, gost pa nič. Gre za osebo, ki ji je bil ključ izdan;
+posredovanje povezave drugi osebi ne dokazuje identitete dejanskega klika.
+
+Deaktivacija, odvzem vloge, izklop obveščanja ali sprememba telefona prekličejo
+osebne ključe. Sprememba termina/apartmaja/veljavnosti rezervacije in odpoved
+prekličeta izdane povezave. Pred pošiljanjem se ponovno preverita prejemnik in
+veljavnost ključa. Stare skupne povezave brez določljive osebe niso več sprejete.
+Za nove osebne povezave mora teči običajni urnik opomnikov. Pošiljanje ostaja
+pod obstoječimi varovalkami okolja; namestitev ga ne vključi.
+
+Preverjeno: testi migracije in združevanja kontaktov, izolacije API-ja čistilk,
+izklopa obvestil, osebnih ključev, preklica in nespremenljive prve potrditve.
+Ločen preizkus nove izdaje z obema obnovljenima bazama je uspel pred namestitvijo.

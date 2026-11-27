@@ -4,6 +4,7 @@ declare module '#auth-utils' {
     email: string
     role: 'admin' | 'staff'
     passwordVersion?: number
+    cleaningOnly?: boolean
   }
 }
 

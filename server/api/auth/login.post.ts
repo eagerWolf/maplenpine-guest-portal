@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Napačen email ali geslo' })
   }
 
-  if (!user.active) {
+  if (!user.active || user.portal_access === 0) {
     throw createError({ statusCode: 403, statusMessage: 'Račun je neaktiven' })
   }
 
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await setUserSession(event, {
-    user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff', passwordVersion: user.password_version || 0 },
+    user: { id: user.id, email: user.email, role: user.role as 'admin' | 'staff', cleaningOnly: user.role !== 'admin' && !user.notify_checkin && !user.staff_manager, passwordVersion: user.password_version || 0 },
   })
 
   return { success: true, role: user.role }

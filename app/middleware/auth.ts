@@ -1,7 +1,8 @@
 export default defineNuxtRouteMiddleware(async () => {
-  const { loggedIn, fetch } = useUserSession()
+  const { loggedIn, user, fetch } = useUserSession()
   await fetch()
   if (!loggedIn.value) {
     return navigateTo('/login')
   }
+  if(user.value?.cleaningOnly) return navigateTo('/cleaning-calendar')
 })

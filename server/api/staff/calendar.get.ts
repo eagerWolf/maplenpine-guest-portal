@@ -45,6 +45,7 @@ export default defineEventHandler(async (event) => {
     guestLang: r.guest_lang,
     guestLangOverride: r.guest_lang_override,
     status: r.status,
+    cleaning: db.prepare('SELECT door,cleaning_date,confirmed_at,confirmed_by_name FROM cleaning_tasks WHERE reservation_id=? AND cleaning_date=?').all(r.id,r.check_out),
   })
 
   return {

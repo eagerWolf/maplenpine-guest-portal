@@ -15,6 +15,7 @@ beforeEach(()=>{
     CREATE TABLE notification_incidents(incident_key TEXT PRIMARY KEY,alerted_at TEXT,resolved_at TEXT);
     CREATE TABLE notification_log(id INTEGER PRIMARY KEY,user_id INTEGER,user_email TEXT,channel TEXT,event_type TEXT,recipient TEXT,subject TEXT,body TEXT,status TEXT,error TEXT,reference_id INTEGER,created_at TEXT);
     INSERT INTO users VALUES(1,'owner@test','admin',1,'errors','+38640111111'),(2,'staff@test','staff',1,'all','+38640222222');`)
+  db.exec("ALTER TABLE users ADD COLUMN staff_manager INTEGER DEFAULT 0; ALTER TABLE users ADD COLUMN notifications_enabled INTEGER DEFAULT 1; UPDATE users SET staff_manager=1 WHERE role='admin';")
 })
 afterEach(()=>{db.close();vi.unstubAllEnvs()})
 const failure={event:'sync_error' as const,subject:'Bentral error',emailHtml:'',whatsappText:'Napaka'}
@@ -34,4 +35,8 @@ it('does not mark an error as notified when delivery failed',async()=>{
   send.mockRejectedValue(new Error('offline'))
   await notifyAdmins(failure)
   expect(db.prepare('SELECT COUNT(*) n FROM notification_incidents').get()).toEqual({n:0})
+})
+it('respects the notification checkbox independently of portal login access',async()=>{
+ db.exec('UPDATE users SET notifications_enabled=0 WHERE id=1')
+ await notifyAdmins(failure);expect(send).not.toHaveBeenCalled()
 })

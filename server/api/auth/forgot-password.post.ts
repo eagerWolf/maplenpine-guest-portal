@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!mail.configured) throw createError({statusCode:503,statusMessage:'Obnova po e-pošti trenutno ni nastavljena. Obrnite se na administratorja.'})
   const responseAt = Date.now()+2000
   const normalized = email.trim().toLowerCase()
-  const user = getDb().prepare('SELECT id FROM users WHERE email=? AND active != 0 AND password_hash IS NOT NULL').get(normalized) as {id:number}|undefined
+  const user = getDb().prepare('SELECT id FROM users WHERE email=? AND active != 0 AND portal_access != 0 AND password_hash IS NOT NULL').get(normalized) as {id:number}|undefined
   if (user) {
     const token = createPasswordReset(user.id)
     const url = new URL('/reset-password',String(useRuntimeConfig().public.baseUrl))

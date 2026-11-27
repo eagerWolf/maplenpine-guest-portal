@@ -37,11 +37,9 @@ function settings() {
 }
 function phone(value: string) { return '+' + value.replace(/\D/g, '') }
 export function staffRecipients(audience: Audience): string[] {
-  const s = settings()
   const numbers: string[] = []
-  if (audience !== 'owner') numbers.push(...String(s[audience === 'reception' ? 'reception_whatsapp' : 'housekeeper_whatsapp'] || '').split(/[,;\n]+/))
-  const condition = audience === 'owner' ? "role = 'admin' AND notification_level IN ('errors','all')" : audience === 'cleaners' ? 'notify_housekeeper = 1' : 'notify_checkin = 1'
-  const users = getDb().prepare(`SELECT whatsapp_phone FROM users WHERE active != 0 AND (${condition})`).all() as {whatsapp_phone:string|null}[]
+  const condition = audience === 'owner' ? "staff_manager = 1" : audience === 'cleaners' ? 'notify_housekeeper = 1' : 'notify_checkin = 1'
+  const users = getDb().prepare(`SELECT whatsapp_phone FROM users WHERE active != 0 AND notifications_enabled != 0 AND (${condition})`).all() as {whatsapp_phone:string|null}[]
   for (const user of users) if (user.whatsapp_phone) numbers.push(user.whatsapp_phone)
   return [...new Set(numbers.filter(n => n.replace(/\D/g, '').length >= 8).map(phone))]
 }
@@ -54,9 +52,9 @@ function dateLabel(date: string) { return date.split('-').reverse().join('.') }
 function summary(r: Reservation) {
   return `${r.door.replace(',', ' in ')} · ${r.first_name} ${r.last_name} · ${dateLabel(r.check_in)}–${dateLabel(r.check_out)} · oseb: ${r.guest_count ?? 'ni podatka'}`
 }
-export function queueStaffMessage(event: StaffEvent, key: string, reservation: Reservation, audiences: Audience[], body: string) {
+export function queueStaffMessage(event: StaffEvent, key: string, reservation: Reservation, audiences: Audience[], body: string, onlyRecipients?: string[]) {
   const db = getDb()
-  const recipients = new Set(audiences.flatMap(staffRecipients))
+  const recipients = new Set(onlyRecipients ?? audiences.flatMap(staffRecipients))
   let queued = 0
   for (const recipient of recipients) {
     const uniqueKey = createHash('sha256').update(`${event}:${key}:${recipient}`).digest('hex')
@@ -67,6 +65,11 @@ export function queueStaffMessage(event: StaffEvent, key: string, reservation: R
   return queued
 }
 export function queueReceptionChange(before: Reservation, after: Reservation) {
+  if(before.check_out !== after.check_out || before.door !== after.door || before.status !== after.status) {
+    const db=getDb()
+    db.prepare('DELETE FROM cleaning_assignments WHERE task_id IN (SELECT id FROM cleaning_tasks WHERE reservation_id=?)').run(after.id)
+    for(const task of db.prepare('SELECT id FROM cleaning_tasks WHERE reservation_id=?').all(after.id) as {id:number}[]) db.prepare('UPDATE cleaning_tasks SET token=? WHERE id=?').run(randomBytes(32).toString('hex'),task.id)
+  }
   const cancelled = before.status !== 'cancelled' && after.status === 'cancelled'
   const changes: string[] = []
   if (before.check_in !== after.check_in) changes.push(`Prihod: ${dateLabel(before.check_in)} → ${dateLabel(after.check_in)}`)
@@ -85,28 +88,31 @@ export function ensureCleaningTask(r: Reservation, door: string) {
     .run(r.id,door,r.check_out,randomBytes(32).toString('hex'),now())
   return db.prepare('SELECT * FROM cleaning_tasks WHERE reservation_id=? AND door=? AND cleaning_date=?').get(r.id,door,r.check_out) as CleaningTask
 }
-interface CleaningTask { id:number; reservation_id:number; door:string; cleaning_date:string; token:string; confirmed_at:string|null }
+interface CleaningTask { id:number; reservation_id:number; door:string; cleaning_date:string; token:string; confirmed_at:string|null; confirmed_by_name?:string|null; confirmed_by_user_id?:number|null }
 export function getCleaningTask(token: string, reference = new Date()) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw createError({statusCode:404,statusMessage:'Povezava ni veljavna'})
   const db = getDb()
-  const task = db.prepare('SELECT * FROM cleaning_tasks WHERE token=?').get(token) as CleaningTask | undefined
+  const assignment=db.prepare(`SELECT a.task_id,a.user_id,u.name,u.email,u.active,u.notify_housekeeper,u.notifications_enabled FROM cleaning_assignments a LEFT JOIN users u ON u.id=a.user_id WHERE a.token=?`).get(token) as {task_id:number;user_id:number;name:string;email:string;active:number;notify_housekeeper:number;notifications_enabled:number}|undefined
+  if(assignment && (!assignment.active || !assignment.notify_housekeeper || !assignment.notifications_enabled)) throw createError({statusCode:410,statusMessage:'Povezava ni več aktivna.'})
+  if(!assignment) throw createError({statusCode:410,statusMessage:'Uporabite osebno povezavo za potrditev.'})
+  const task = db.prepare('SELECT * FROM cleaning_tasks WHERE id=?').get(assignment.task_id) as CleaningTask | undefined
   if (!task) throw createError({statusCode:404,statusMessage:'Povezava ni veljavna'})
   const r = db.prepare('SELECT * FROM reservations WHERE id=?').get(task.reservation_id) as Reservation | undefined
   const today = formatInTimeZone(reference,ZONE,'yyyy-MM-dd')
   if (!r || r.status !== 'active' || r.check_out !== task.cleaning_date || !r.door.split(',').includes(task.door) || today > task.cleaning_date)
     throw createError({statusCode:410,statusMessage:'Povezava je potekla ali rezervacija ni več veljavna'})
-  return {task,reservation:r,canConfirm:today === task.cleaning_date}
+  return {task,reservation:r,assignment,canConfirm:today === task.cleaning_date}
 }
 export function confirmCleaning(token: string, reference = new Date()) {
   const db = getDb()
   return db.transaction(() => {
-    const {task,reservation,canConfirm} = getCleaningTask(token,reference)
+    const {task,reservation,canConfirm,assignment} = getCleaningTask(token,reference)
     if (task.confirmed_at) return {confirmedAt:task.confirmed_at,alreadyConfirmed:true}
     if (!canConfirm) throw createError({statusCode:409,statusMessage:'Čiščenje lahko potrdite na dan odhoda gostov'})
     const timestamp = reference.toISOString()
-    db.prepare('UPDATE cleaning_tasks SET confirmed_at=? WHERE id=? AND confirmed_at IS NULL').run(timestamp,task.id)
+    db.prepare('UPDATE cleaning_tasks SET confirmed_at=?,confirmed_by_user_id=?,confirmed_by_name=? WHERE id=? AND confirmed_at IS NULL').run(timestamp,assignment?.user_id??null,assignment?.name || assignment?.email || 'Stara skupna povezava',task.id)
     queueStaffMessage('cleaning_completed',String(task.id),reservation,['owner','reception'],
-      `${task.door} je pospravljen in pripravljen za prihod gostov.\nPotrjeno: ${formatInTimeZone(reference,ZONE,'dd.MM.yyyy HH:mm')}\nPredviden začetek veljavnosti PIN-a za naslednji prihod je ob 13:00; preverite stanje dostopa v portalu.\n${baseUrl()}/admin`)
+      `${task.door} je pospravljen in pripravljen za prihod gostov.\nPotrdila oseba: ${assignment?.name || assignment?.email || 'stara skupna povezava'}.\nPotrjeno: ${formatInTimeZone(reference,ZONE,'dd.MM.yyyy HH:mm')}\nPredviden začetek veljavnosti PIN-a za naslednji prihod je ob 13:00; preverite stanje dostopa v portalu.\n${baseUrl()}/admin`)
     return {confirmedAt:timestamp,alreadyConfirmed:false}
   })()
 }
@@ -124,7 +130,13 @@ export function queueStaffReminders(reference = new Date()) {
     for (const r of departures) for (const door of r.door.split(',').filter(d => ['Maple','Pine'].includes(d))) {
       const task = ensureCleaningTask(r,door)
       const next = db.prepare("SELECT check_in FROM reservations WHERE status='active' AND id!=? AND check_in>=? AND (door=? OR door='Maple,Pine') ORDER BY check_in LIMIT 1").get(r.id,r.check_out,door) as {check_in:string}|undefined
-      queueStaffMessage('cleaning_reminder',`${task.id}:${r.check_out}`,r,['cleaners'],`Jutri čiščenje: ${door} (${dateLabel(r.check_out)}).\nOdhod gostov ob ${settings().bentral_checkout_time || '11:00'}.\n${next ? `Naslednji prihod: ${dateLabel(next.check_in)}${next.check_in === r.check_out ? ' (menjava isti dan)' : ''}.` : 'Naslednji prihod še ni zabeležen.'}\nKo je apartma pospravljen, odprite povezavo in potrdite:\n${baseUrl()}/cleaning/${task.token}`)
+      const cleaners=db.prepare('SELECT id,name,whatsapp_phone FROM users WHERE active!=0 AND notifications_enabled!=0 AND notify_housekeeper=1').all() as {id:number;name:string;whatsapp_phone:string|null}[]
+      for(const cleaner of cleaners) {
+        if(!cleaner.whatsapp_phone || cleaner.whatsapp_phone.replace(/\D/g,'').length<8) continue
+        db.prepare('INSERT OR IGNORE INTO cleaning_assignments(token,task_id,user_id,created_at) VALUES(?,?,?,?)').run(randomBytes(32).toString('hex'),task.id,cleaner.id,now())
+        const assignment=db.prepare('SELECT token FROM cleaning_assignments WHERE task_id=? AND user_id=?').get(task.id,cleaner.id) as {token:string}
+        queueStaffMessage('cleaning_reminder',`${task.id}:${r.check_out}:${cleaner.id}`,r,['cleaners'],`Jutri čiščenje: ${door} (${dateLabel(r.check_out)}).\nOdhod gostov ob ${settings().bentral_checkout_time || '11:00'}.\n${next ? `Naslednji prihod: ${dateLabel(next.check_in)}${next.check_in === r.check_out ? ' (menjava isti dan)' : ''}.` : 'Naslednji prihod še ni zabeležen.'}\nKo je apartma pospravljen, odprite povezavo in potrdite:\n${baseUrl()}/cleaning/${assignment.token}`, [phone(cleaner.whatsapp_phone)])
+      }
     }
   }
 }
@@ -140,7 +152,11 @@ export async function processStaffNotifications(reference = new Date()) {
     for (const row of rows) {
       const r = db.prepare('SELECT * FROM reservations WHERE id=?').get(row.reservation_id) as Reservation|undefined
       const localDay = formatInTimeZone(reference,ZONE,'yyyy-MM-dd')
-      const stale = (row.event === 'arrival_today' && row.expected_arrival !== localDay)
+      const audience: Audience = row.event === 'cleaning_reminder' ? 'cleaners' : 'reception'
+      const allowed = row.event === 'cleaning_completed' ? [...staffRecipients('owner'),...staffRecipients('reception')] : staffRecipients(audience)
+      const personalToken = row.event === 'cleaning_reminder' ? String(row.body).match(/\/cleaning\/([a-f0-9]{64})/)?.[1] : null
+      const validLink = !personalToken || !!db.prepare('SELECT 1 FROM cleaning_assignments WHERE token=?').get(personalToken)
+      const stale = !validLink || !allowed.includes(row.recipient) || (row.event === 'arrival_today' && row.expected_arrival !== localDay)
         || (row.event === 'cleaning_reminder' && row.expected_departure <= localDay)
         || (row.event === 'cleaning_completed' && row.expected_departure !== localDay)
       if (stale || !r || r.status !== row.expected_status || r.check_in !== row.expected_arrival || r.check_out !== row.expected_departure) {

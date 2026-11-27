@@ -17,6 +17,7 @@ beforeEach(()=>{
  CREATE TABLE password_reset_tokens(token_hash TEXT PRIMARY KEY,user_id INTEGER,expires_at TEXT,used INTEGER DEFAULT 0,created_at TEXT);
  CREATE TABLE auth_tokens(email TEXT);
  CREATE TABLE audit_log(user_id INTEGER,action TEXT,created_at TEXT);`)
+ db.exec("ALTER TABLE users ADD COLUMN portal_access INTEGER DEFAULT 1; ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'admin'; ALTER TABLE users ADD COLUMN notify_checkin INTEGER DEFAULT 0; ALTER TABLE users ADD COLUMN staff_manager INTEGER DEFAULT 1;")
  vi.stubGlobal('clearUserSession',vi.fn())
  vi.stubGlobal('useRuntimeConfig',()=>({public:{baseUrl:'https://guesttest.example.com'}}))
  sendEmail.mockReset().mockResolvedValue(undefined)
