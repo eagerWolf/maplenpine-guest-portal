@@ -3,6 +3,7 @@ import { validateBentralUnitIds } from '../../../utils/bentralUnits'
 import { recommendationKeys } from '../../../../shared/serviceRecommendations'
 import { getDb, now } from '../../../db/index'
 import { decodeSetting, encodeSetting } from '../../../utils/secretSettings'
+import { bentralIntervalRules, validBentralInterval } from '../../../../shared/bentralIntervals'
 
 const ALLOWED_KEYS = [
   ...recommendationKeys,
@@ -65,6 +66,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, string>>(event)
+  for (const key of Object.keys(bentralIntervalRules) as Array<keyof typeof bentralIntervalRules>) {
+    if (body[key] !== undefined && !validBentralInterval(key, body[key])) {
+      const rule = bentralIntervalRules[key]
+      throw createError({ statusCode: 400, statusMessage: `Interval ${key} mora biti celo število med ${rule.min} in ${rule.max}.` })
+    }
+  }
   for (const name of Object.keys(notificationEvents)) {
     const value = body[`notification_template_${name}`]
     if (value !== undefined && !validateNotificationTemplate(value)) throw createError({statusCode:400,statusMessage:'Predloga mora vsebovati {title}, {details} in {link}, največ 1500 znakov.'})

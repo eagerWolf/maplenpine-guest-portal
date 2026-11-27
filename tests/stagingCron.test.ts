@@ -1,4 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
+import { getDb } from '../server/db/index'
+import { syncBentral } from '../server/utils/sync'
+import { processIntegrationOutbox } from '../server/utils/integrationOutbox'
 const calls = vi.hoisted(() => ({ schedule: vi.fn(), config: vi.fn() }))
 vi.mock('node-cron', () => ({ default: { schedule: calls.schedule } }))
 vi.mock('#imports', () => ({ useRuntimeConfig: calls.config }))
@@ -11,6 +14,21 @@ vi.mock('../server/utils/orchestratorHealth', () => ({ checkOrchestratorHealth: 
 vi.mock('../server/utils/dbBackup', () => ({ backupDatabase: vi.fn() }))
 vi.mock('../server/utils/websiteContent', () => ({ triggerWebsitePublish: vi.fn() }))
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
+it('Bentral-only staging opt-in starts sync without delivery, cleanup or publishing', async () => {
+  vi.stubEnv('PORTAL_DISABLE_BACKGROUND_TASKS', 'true')
+  vi.stubEnv('PORTAL_BENTRAL_SYNC_ENABLED', 'true')
+  vi.stubEnv('PORTAL_INTEGRATION_OUTBOX_ENABLED', 'false')
+  vi.stubGlobal('defineNitroPlugin', (callback: () => void) => callback)
+  const immediate = vi.spyOn(globalThis, 'setImmediate').mockImplementation((() => ({}) as NodeJS.Immediate) as typeof setImmediate)
+  vi.mocked(getDb).mockReturnValue({ prepare: () => ({ all: () => [{ key: 'auto_sync_bentral', value: '1' }] }) } as unknown as ReturnType<typeof getDb>)
+  const plugin = (await import('../server/plugins/01.cron')).default as unknown as () => void
+  plugin()
+  expect(calls.schedule).toHaveBeenCalledTimes(1)
+  expect(immediate).toHaveBeenCalledTimes(1)
+  await immediate.mock.calls[0]![0]()
+  expect(syncBentral).toHaveBeenCalledWith('hot')
+  expect(processIntegrationOutbox).not.toHaveBeenCalled()
+})
 it('staging never schedules cron or queues startup integration work', async () => {
   vi.stubEnv('PORTAL_DISABLE_BACKGROUND_TASKS', 'true')
   vi.stubEnv('PORTAL_INTEGRATION_OUTBOX_ENABLED', 'false')

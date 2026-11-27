@@ -2,13 +2,13 @@ import cron from 'node-cron'
 import { syncBentral } from '../utils/sync'
 import { queueStaffReminders, processStaffNotifications } from '../utils/staffNotifications'
 import { getDb } from '../db/index'
-import { useRuntimeConfig } from '#imports'
 import { queueExpiredManagedCodeCleanup } from '../utils/jobs'
 import { processIntegrationOutbox } from '../utils/integrationOutbox'
 import { checkOrchestratorHealth } from '../utils/orchestratorHealth'
 import { notifyAdmins, resolveNotification } from '../utils/notify'
 import { backupDatabase } from '../utils/dbBackup'
 import { triggerWebsitePublish } from '../utils/websiteContent'
+import { createBentralScheduler } from '../utils/bentralScheduler'
 
 async function runBackup() {
   try {
@@ -20,6 +20,16 @@ async function runBackup() {
 }
 
 export default defineNitroPlugin(() => {
+  const backgroundDisabled = process.env.PORTAL_DISABLE_BACKGROUND_TASKS === 'true'
+  if (!backgroundDisabled || process.env.PORTAL_BENTRAL_SYNC_ENABLED === 'true') {
+    const tick = createBentralScheduler({
+      settings: () => Object.fromEntries((getDb().prepare('SELECT key, value FROM app_settings WHERE key IN (\'auto_sync_bentral\', \'hot_interval_minutes\', \'warm_interval_hours\', \'cold_interval_hours\')').all() as Array<{key: string; value: string}>).map(row => [row.key, row.value])),
+      run: tier => syncBentral(tier),
+    })
+    cron.schedule('* * * * *', () => { tick().catch(err => console.error('[cron:bentral]', err)) })
+    setImmediate(() => { tick(true).catch(err => console.error('[cron:bentral:startup]', err)) })
+    console.log('[cron] Bentral sync enabled; live intervals from settings')
+  }
   if (process.env.PORTAL_DISABLE_BACKGROUND_TASKS === 'true') {
     // Explicit opt-in for testing delivery while reservation sync, cleanup,
     // notifications and website publishing remain paused.
@@ -30,42 +40,16 @@ export default defineNitroPlugin(() => {
       })
       console.log('[cron] Integration outbox enabled; other background tasks remain disabled')
     }
-    console.log('[cron] Background tasks disabled (isolated staging)')
+    console.log('[cron] Other background tasks disabled (isolated staging)')
     return
   }
 
-  const config = useRuntimeConfig()
-
-  const hotExpr = config.bentralHotCron || '*/30 * * * *'
-  const warmExpr = config.bentralWarmCron || '0 */5 * * *'
-  const coldExpr = config.bentralColdCron || '0 3 * * *'
   const hkExpr = '*/5 * * * *'
   const ekeyCleanupExpr = '15 3 * * *'
   const outboxExpr = '* * * * *'
   const orchestratorHealthExpr = '*/5 * * * *'
   const backupExpr = '30 2 * * *'
   const websitePublishExpr = '15 1 * * *'
-
-  function isSyncEnabled(): boolean {
-    const db = getDb()
-    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('auto_sync_bentral') as { value: string } | undefined
-    return row ? row.value !== '0' : true
-  }
-
-  cron.schedule(hotExpr, () => {
-    if (!isSyncEnabled()) return
-    syncBentral('hot').catch(err => console.error('[cron:hot]', err))
-  })
-
-  cron.schedule(warmExpr, () => {
-    if (!isSyncEnabled()) return
-    syncBentral('warm').catch(err => console.error('[cron:warm]', err))
-  })
-
-  cron.schedule(coldExpr, () => {
-    if (!isSyncEnabled()) return
-    syncBentral('cold').catch(err => console.error('[cron:cold]', err))
-  })
 
   cron.schedule(hkExpr, () => {
     try { queueStaffReminders() } catch (err) { console.error('[cron:staff-reminders]', err) }
@@ -101,7 +85,6 @@ export default defineNitroPlugin(() => {
 
   // Run hot sync once on startup
   setImmediate(() => {
-    if (isSyncEnabled()) syncBentral('hot').catch(err => console.error('[cron:startup]', err))
     processIntegrationOutbox().catch(err => console.error('[cron:integration-outbox:startup]', err))
     runBackup().catch(err => console.error('[cron:backup:startup]', err))
     try {
@@ -112,5 +95,5 @@ export default defineNitroPlugin(() => {
     }
   })
 
-  console.log('[cron] Scheduled — hot:', hotExpr, '| warm:', warmExpr, '| cold:', coldExpr, '| housekeeper:', hkExpr, '| eKey cleanup:', ekeyCleanupExpr, '| outbox:', outboxExpr, '| Orchestrator health:', orchestratorHealthExpr, '| backup:', backupExpr, '| website:', websitePublishExpr)
+  console.log('[cron] Scheduled — housekeeper:', hkExpr, '| eKey cleanup:', ekeyCleanupExpr, '| outbox:', outboxExpr, '| Orchestrator health:', orchestratorHealthExpr, '| backup:', backupExpr, '| website:', websitePublishExpr)
 })
