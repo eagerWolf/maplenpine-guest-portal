@@ -32,4 +32,9 @@ tar -czf "$archive.tmp" -C "$work" .
 mv "$archive.tmp" "$archive"
 sha256sum "$archive" > "$archive.sha256"
 chmod 600 "$archive" "$archive.sha256"
+# Retain the newest 30 completed exports; never touch incomplete or unrelated files.
+mapfile -t completed < <(find "$root/export" -maxdepth 1 -type f -name 'maplenpine-private-????????T??????Z.tar.gz' | sort -r)
+for ((i=30;i<${#completed[@]};i++)); do
+ rm -- "${completed[$i]}" "${completed[$i]}.sha256"
+done
 printf 'Private recovery archive ready: %s\n' "$archive"

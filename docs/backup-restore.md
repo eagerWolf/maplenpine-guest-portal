@@ -26,7 +26,7 @@ Skripta `scripts/verify-portal-restore.mjs` je na ARM VPS obnovila in zagnala ob
 node scripts/verify-portal-restore.mjs --snapshot /private/snapshot --release /compatible/.output --port 3099
 ```
 
-`scripts/ops/export-private-recovery.sh` po uspešnem dnevnem backupu pripravi zasebni arhiv v `/home/deploy/portal-backups/export`. Vključuje obe kopiji z izvirnima `.env`, datoteke, združljivi ARM izdaji, Caddy in cron. Arhiv vsebuje skrivnosti; ne sme v Git ali javno spletno mapo. `SHA256SUMS` znotraj arhiva omogoča preverjanje vsake datoteke. Za QNAP je pripravljena mapa `ManualBackup/MapleAndPine-Recovery`, z dovoljenji samo lastnika. Dne 27. 11. 2026 je bil arhiv `maplenpine-private-20261127T110343Z.tar.gz` dejansko prenesen na QNAP in ponovno prenesen nazaj; SHA-256 je enak izvirniku na VPS: `e86a7fa1957f42586c09e19837c12bf74953d5f7a705f965746f088ba4cb4c3c`. Avtomatski prenos na QNAP še ni nastavljen.
+`scripts/ops/export-private-recovery.sh` je vključena v dnevni backup in po uspešni kopiji obeh portalov pripravi zasebni arhiv v `/home/deploy/portal-backups/export`. Vključuje obe kopiji z izvirnima `.env`, datoteke, združljivi ARM izdaji, Caddy in cron. Arhiv vsebuje skrivnosti; ne sme v Git ali javno spletno mapo. `SHA256SUMS` znotraj arhiva omogoča preverjanje vsake datoteke. Za QNAP je pripravljena mapa `ManualBackup/MapleAndPine-Recovery`, z dovoljenji samo lastnika. Dne 27. 11. 2026 je bil arhiv `maplenpine-private-20261127T110343Z.tar.gz` dejansko prenesen na QNAP in ponovno prenesen nazaj; SHA-256 je enak izvirniku na VPS: `e86a7fa1957f42586c09e19837c12bf74953d5f7a705f965746f088ba4cb4c3c`. Hranimo zadnjih 30 dokončanih izvozov. HBS 3 je nameščen na QNAP, avtomatski prevzem z VPS pa še ni nastavljen.
 
 ## Ponovna postavitev po izgubi VPS
 

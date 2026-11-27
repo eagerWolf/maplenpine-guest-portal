@@ -13,4 +13,7 @@ for target in staging production; do
  printf '%s %s backup starting\n' "$(date -u +%FT%TZ)" "$target"
  (cd "$folder" && PORTAL_BACKUP_ROOT="/home/deploy/portal-backups/automatic/$target" node scripts/backup-portal.mjs --verify-restore) || result=1
 done
+if [[ "$result" == 0 && -f /home/deploy/export-private-recovery.sh ]]; then
+ bash /home/deploy/export-private-recovery.sh || result=1
+fi
 exit "$result"
