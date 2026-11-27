@@ -1,10 +1,10 @@
 <script setup lang="ts">
 definePageMeta({middleware:['auth','admin']})
-type Person={id:number;name:string;email:string;role:string;portal_access:number;notifications_enabled:number;staff_manager:number;notify_housekeeper:number;notify_checkin:number;whatsapp_phone:string|null;active:number}
+type Person={id:number;name:string;email:string;role:string;guest_contact:number;portal_access:number;notifications_enabled:number;staff_manager:number;notify_housekeeper:number;notify_checkin:number;whatsapp_phone:string|null;active:number}
 const {data:people,refresh}=await useFetch<Person[]>('/api/admin/users')
-const blank=()=>({name:'',email:'',role:'staff',portal_access:false,notifications_enabled:true,staff_manager:false,notify_housekeeper:false,notify_checkin:false,whatsapp_phone:'',active:true})
+const blank=()=>({name:'',email:'',role:'staff',guest_contact:false,portal_access:false,notifications_enabled:true,staff_manager:false,notify_housekeeper:false,notify_checkin:false,whatsapp_phone:'',active:true})
 const form=ref(blank()),editing=ref<number|null>(null),open=ref(false),busy=ref(false),error=ref(''),activation=ref('')
-function edit(p?:Person){editing.value=p?.id??null;form.value=p?{name:p.name||p.email,email:p.email.endsWith('@staff.invalid')?'':p.email,role:p.role,portal_access:!!p.portal_access,notifications_enabled:p.notifications_enabled!==0,staff_manager:!!p.staff_manager,notify_housekeeper:!!p.notify_housekeeper,notify_checkin:!!p.notify_checkin,whatsapp_phone:p.whatsapp_phone||'',active:!!p.active}:blank();error.value='';open.value=true}
+function edit(p?:Person){editing.value=p?.id??null;form.value=p?{name:p.name||p.email,email:p.email.endsWith('@staff.invalid')?'':p.email,role:p.role,guest_contact:!!p.guest_contact,portal_access:!!p.portal_access,notifications_enabled:p.notifications_enabled!==0,staff_manager:!!p.staff_manager,notify_housekeeper:!!p.notify_housekeeper,notify_checkin:!!p.notify_checkin,whatsapp_phone:p.whatsapp_phone||'',active:!!p.active}:blank();error.value='';open.value=true}
 async function save(){busy.value=true;error.value='';try{const result=await $fetch<{activationUrl?:string|null}>(editing.value?`/api/admin/users/${editing.value}`:'/api/admin/users',{method:editing.value?'PATCH':'POST',body:form.value});activation.value=result.activationUrl||'';await refresh();open.value=false}catch(e:any){error.value=e?.data?.statusMessage||'Shranjevanje ni uspelo.'}finally{busy.value=false}}
 function roles(p:Person){return [p.notify_housekeeper?'Čistilka':'',p.notify_checkin?'Sprejem':'',p.staff_manager?'Skrbnik':''].filter(Boolean).join(', ')||'Brez vloge'}
 </script>
@@ -19,6 +19,7 @@ function roles(p:Person){return [p.notify_housekeeper?'Čistilka':'',p.notify_ch
  <label class="block">WhatsApp številka<input v-model="form.whatsapp_phone" type="tel" placeholder="+386…" class="block border rounded p-2 w-full" /></label>
  <fieldset class="flex flex-wrap gap-5"><legend class="mb-2">Vloge za obvestila</legend><label><input v-model="form.notify_housekeeper" type="checkbox" /> Čistilka</label><label><input v-model="form.notify_checkin" type="checkbox" /> Sprejem</label><label><input v-model="form.staff_manager" type="checkbox" /> Skrbnik</label></fieldset>
  <label class="block"><input v-model="form.notifications_enabled" type="checkbox" /> Obveščanje</label>
+ <label class="block"><input v-model="form.guest_contact" type="checkbox" /> Kontakt za goste — številka je vidna gostom</label>
  <label class="block"><input v-model="form.portal_access" type="checkbox" /> Dostop do portala</label>
  <template v-if="form.portal_access"><label class="block">Email za prijavo<input v-model="form.email" required type="email" class="block border rounded p-2 w-full" /></label><label class="block">Pravice v portalu<select v-model="form.role" class="block border rounded p-2"><option value="staff">Osebje — glede na vloge</option><option value="admin">Administrator — poln dostop</option></select></label></template>
  <label class="block"><input v-model="form.active" type="checkbox" /> Aktivna oseba</label>

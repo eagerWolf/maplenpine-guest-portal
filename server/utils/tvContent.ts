@@ -1,3 +1,4 @@
+import { guestContacts } from './guestContacts'
 import { timingSafeEqual } from 'node:crypto'
 import { getDb, today } from '../db/index'
 import { getSettingValue } from './secretSettings'
@@ -54,6 +55,6 @@ export function buildTVContent(apartment: 'maple' | 'pine', section: string) {
       ...rows('house_rules').map(row => ({ id: row.id, kind: 'rule', title: {}, description: localized(row.text) })),
       ...rows('faq_items').map(row => item(row, 'faq')),
     ],
-    contactPhone: getSettingValue('contact_phone'),
+    contactPhone: guestContacts().reception || guestContacts().additional,
   }
 }

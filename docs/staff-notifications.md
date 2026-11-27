@@ -54,8 +54,11 @@ administratorske pravice so ločene od vloge za obveščanje. Stari telefoni iz
 nastavitev se enkrat prenesejo v osebje, ujemanje po normalizirani številki ne
 ustvari dvojnika. Novi kontaktni vnosi nimajo prijave ali gesla. Kontaktni zapis
 brez emaila uporablja samo interni naslov `@staff.invalid`; nanj se ne pošilja.
-Telefonska številka sprejema v splošnih nastavitvah ostaja javni kontakt za goste,
-ne seznam prejemnikov obvestil.
+Migracija 4 prenese tudi javna kontakta iz splošnih nastavitev med osebje.
+Polje `guest_contact` izrecno določa, katere aktivne osebe so kontakti za goste.
+Vloga sprejem določa primarni kontakt, drugi označeni kontakt se pokaže zadnji.
+Obveščanje in prijava na javni kontakt ne vplivata. Splošne nastavitve nimajo več
+telefonskih polj; stara polja API-ja se ne spreminjajo in se ne uporabljajo.
 
 Brez kljukice Dostop do portala prijava, aktivacija, ponastavitev gesla in obstoječa
 seja niso dovoljene. Čistilka brez drugih pravic se preusmeri na `/cleaning-calendar`.

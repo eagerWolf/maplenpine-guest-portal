@@ -1,3 +1,4 @@
+import { guestContacts } from '../../utils/guestContacts'
 import { getDb, guestTokenExpiry } from '../../db/index'
 import type { Reservation, GuestToken } from '../../db/index'
 import { getSettings } from '../../utils/jobs'
@@ -43,6 +44,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const settings = getSettings()
+  const contacts = guestContacts()
   const checkinTime = settings.bentral_checkin_time || '15:00'
   const checkoutTime = settings.bentral_checkout_time || '11:00'
 
@@ -62,9 +64,9 @@ export default defineEventHandler(async (event) => {
     checkOut: `${reservation.check_out} ${checkoutTime}`,
     guestCount: reservation.guest_count,
     lang: reservation.guest_lang_override || reservation.guest_lang || null,
-    contactPhone: visibility.detailsAvailable ? settings.contact_phone || null : null,
-    receptionPhone: visibility.detailsAvailable ? settings.reception_whatsapp || null : null,
-    receptionWhatsapp: visibility.detailsAvailable ? settings.reception_whatsapp || null : null,
+    contactPhone: visibility.detailsAvailable ? contacts.additional : null,
+    receptionPhone: visibility.detailsAvailable ? contacts.reception : null,
+    receptionWhatsapp: visibility.detailsAvailable ? contacts.reception : null,
     propertyNavUrl: settings.property_nav_url || null,
   }
 })

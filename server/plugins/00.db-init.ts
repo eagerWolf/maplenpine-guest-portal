@@ -1,4 +1,4 @@
-import { migrateStaffDirectory } from '../utils/staffDirectory'
+import { migrateStaffDirectory, migrateGuestContacts } from '../utils/staffDirectory'
 import { initialNewsTags } from '../../shared/news'
 import { migrateStaffNotifications } from '../utils/staffNotifications'
 import { getDb } from '../db/index'
@@ -667,6 +667,12 @@ export default defineNitroPlugin(() => {
     db.transaction(() => {
       migrateStaffDirectory(db)
       db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(3,?,?)').run('staff-directory-and-portal-access',new Date().toISOString())
+    })()
+  }
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version=4').get()) {
+    db.transaction(() => {
+      migrateGuestContacts(db)
+      db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(4,?,?)').run('guest-contacts-in-staff',new Date().toISOString())
     })()
   }
   // Seed guest content (restaurants, suggestions, faq, how-to, house rules) — first run only

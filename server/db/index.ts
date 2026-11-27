@@ -55,6 +55,7 @@ export interface DbUser {
   portal_access: number
   staff_manager: number
   notifications_enabled: number
+  guest_contact: number
   id: number
   email: string
   role: string

@@ -1,3 +1,4 @@
+vi.mock('../server/utils/guestContacts',()=>({guestContacts:()=>({additional:'host-phone',reception:null})}))
 import Database from 'better-sqlite3'
 import { beforeEach, afterEach, it, expect, vi } from 'vitest'
 let db: Database.Database

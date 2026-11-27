@@ -11,7 +11,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = getRouterParam(event, 'id')
-  const { notification_level, whatsapp_phone, notify_housekeeper, notify_checkin, notes, active, notifications_enabled, name, portal_access, staff_manager, email, role } = await readBody<{
+  const { notification_level, whatsapp_phone, notify_housekeeper, notify_checkin, notes, active, guest_contact, notifications_enabled, name, portal_access, staff_manager, email, role } = await readBody<{
+    guest_contact?: boolean
     notifications_enabled?: boolean
     name?: string
     portal_access?: boolean
@@ -52,6 +53,7 @@ export default defineEventHandler(async (event) => {
   const fields: string[] = []
   const values: unknown[] = []
 
+  if(guest_contact !== undefined) { fields.push('guest_contact = ?'); values.push(guest_contact === true ? 1 : 0) }
   if(notifications_enabled !== undefined) { fields.push('notifications_enabled = ?'); values.push(notifications_enabled === true ? 1 : 0) }
   if(name !== undefined) { if(!name.trim()) throw createError({statusCode:400,statusMessage:'Vnesite ime.'}); fields.push('name = ?'); values.push(name.trim()) }
   if(staff_manager !== undefined) { fields.push('staff_manager = ?'); values.push(staff_manager === true ? 1 : 0) }

@@ -5,9 +5,7 @@ const { data: settings, refresh } = await useFetch<Record<string, string>>('/api
 const { data: websiteStatus, refresh: refreshWebsiteStatus } = await useFetch<any>('/api/admin/website/status')
 
 const form = reactive({
-  contact_phone: '',
   property_nav_url: '',
-  reception_whatsapp: '',
   instagram_url: '',
   facebook_url: '',
   website_export_token: '',
@@ -19,9 +17,7 @@ const form = reactive({
 
 watch(settings, (s) => {
   if (!s) return
-  form.contact_phone = s.contact_phone ?? ''
   form.property_nav_url = s.property_nav_url ?? ''
-  form.reception_whatsapp = s.reception_whatsapp || ''
   form.instagram_url = s.instagram_url ?? ''
   form.facebook_url = s.facebook_url ?? ''
   form.website_export_token = s.website_export_token ?? ''
@@ -85,12 +81,8 @@ async function publishWebsite() {
           <input v-model="form.property_nav_url" type="url" placeholder="https://maps.google.com/?q=..." class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
           <p class="text-xs text-stone-400 mt-1">Prikazana kot gumb »Navigacija« na gostovi strani</p>
         </div>
-        <p class="text-sm"><NuxtLink to="/admin/staff" class="underline">WhatsApp prejemnike in vloge uredite v Osebju.</NuxtLink></p>
-        <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Sprejem — telefon in WhatsApp</label>
-          <input v-model="form.reception_whatsapp" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Ista številka za klice in WhatsApp gostov Za prejemnike obvestil uporabite Osebje. Format +386... · prazno = izklopljeno</p>
-        </div>
+        <p class="text-sm"><NuxtLink to="/admin/staff" class="underline">Telefonske številke, kontakte za goste in obveščanje uredite v Osebju.</NuxtLink></p>
+
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Instagram URL</label>
           <input v-model="form.instagram_url" type="url" placeholder="https://www.instagram.com/maple.and.pine.bled/" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
@@ -99,11 +91,7 @@ async function publishWebsite() {
           <label class="block text-sm font-medium text-stone-600 mb-1">Facebook URL</label>
           <input v-model="form.facebook_url" type="url" placeholder="https://www.facebook.com/mapleandpinebled" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-stone-600 mb-1">Telefonska številka (za klice gostov)</label>
-          <input v-model="form.contact_phone" type="tel" placeholder="+386 40 123 456" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Dodatni kontakt za goste, prikazan zadnji. Za vprašanja gost najprej pokliče sprejem.</p>
-        </div>
+
       </div>
     </div>
 

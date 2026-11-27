@@ -1,3 +1,4 @@
+vi.mock('../server/utils/guestContacts',()=>({guestContacts:()=>({additional:'+38611111111',reception:'+38622222222'})}))
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
 const fixture = vi.hoisted(() => ({

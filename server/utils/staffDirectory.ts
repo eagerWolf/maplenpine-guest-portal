@@ -37,3 +37,16 @@ export function staffActivation(db: Database.Database, email:string, baseUrl:str
   db.prepare('INSERT INTO auth_tokens(email,token,expires_at,used,created_at) VALUES(?,?,?,0,?)').run(email,token,new Date(Date.now()+86400000).toISOString(),ts)
   return `${baseUrl.replace(/\/$/,'')}/activate?token=${token}`
 }
+
+export function migrateGuestContacts(db: Database.Database) {
+  db.exec('ALTER TABLE users ADD COLUMN guest_contact INTEGER NOT NULL DEFAULT 0')
+  for(const [key,label] of [['reception_whatsapp','Sprejem'],['contact_phone','Kontakt za goste']]) {
+    const value=(db.prepare('SELECT value FROM app_settings WHERE key=?').get(key) as {value:string}|undefined)?.value || ''
+    for(const raw of value.split(/[,;\n]+/)) {
+      const digits=raw.replace(/\D/g,''); if(digits.length<8) continue
+      const existing=(db.prepare('SELECT id,whatsapp_phone FROM users').all() as {id:number;whatsapp_phone:string|null}[]).find(u=>u.whatsapp_phone?.replace(/\D/g,'')===digits)
+      if(existing) db.prepare('UPDATE users SET guest_contact=1 WHERE id=?').run(existing.id)
+      else db.prepare("INSERT INTO users(email,name,role,portal_access,guest_contact,whatsapp_phone,notification_level,active,created_at) VALUES(?,?,'staff',0,1,?,'none',1,?)").run(`contact-${randomUUID()}@staff.invalid`,label,'+'+digits,new Date().toISOString())
+    }
+  }
+}
