@@ -84,3 +84,10 @@ pod obstoječimi varovalkami okolja; namestitev ga ne vključi.
 Preverjeno: testi migracije in združevanja kontaktov, izolacije API-ja čistilk,
 izklopa obvestil, osebnih ključev, preklica in nespremenljive prve potrditve.
 Ločen preizkus nove izdaje z obema obnovljenima bazama je uspel pred namestitvijo.
+
+Brisanje osebe je dovoljeno samo administratorju portala in zahteva potrditveno
+okno. Lastnega računa in zadnjega aktivnega administratorja ni mogoče izbrisati.
+Transakcija odstrani osebo, osebne povezave ter aktivacijske/ponastavitvene žetone
+in zapiše revizijski dogodek. Potrjena čiščenja ostanejo z zgodovinskim imenom,
+ID-jem in časom; neodvisna od obstoja uporabniškega računa. Prejemniki čakajočih
+obvestil se pred pošiljanjem ponovno preverijo.
