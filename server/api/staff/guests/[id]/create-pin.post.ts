@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
 
   if (reservation.pin) {
     // Must cancel old PIN before issuing a new one
-    const cancelPayload = buildJobPayload(reservation, 'cancel')
+    const cancelPayload = { ...buildJobPayload(reservation, 'cancel'), _replacePinAfterCancel: true }
     createJob(reservation.id, 'cancel', cancelPayload, triggeredBy)
 
     // Clear pin immediately so guest portal shows "pending"
@@ -33,8 +33,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const fresh = db.prepare('SELECT * FROM reservations WHERE id = ?').get(id) as Reservation
-  const insertPayload = buildJobPayload(fresh, 'insert')
-  createJob(reservation.id, 'insert', insertPayload, triggeredBy)
+  const insertPayload = { ...buildJobPayload(fresh, 'insert'), _pinReplaced: !!reservation.pin }
+  if (!reservation.pin) createJob(reservation.id, 'insert', insertPayload, triggeredBy)
 
   db.prepare(`
     INSERT INTO audit_log (user_id, user_email, action, detail, created_at)

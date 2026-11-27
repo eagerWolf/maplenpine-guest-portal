@@ -11,7 +11,7 @@ function displayAccessTime(value: string, language: string): string {
 }
 
 // Plain text: Bentral routes the message to the reservation's conversation.
-export function guestAccessMessage(reservation: Reservation, pin: string, portalLink: string): string {
+export function guestAccessMessage(reservation: Reservation, pin: string, portalLink: string, kind: 'created' | 'updated' | 'replaced' = 'created'): string {
   const requested = reservation.guest_lang_override || reservation.guest_lang || 'en'
   const language = ['sl', 'en', 'de', 'hr', 'sr'].includes(requested) ? requested : 'en'
   const firstName = (reservation.first_name || '').trim().replace(/\s+/g, ' ')
@@ -28,5 +28,10 @@ export function guestAccessMessage(reservation: Reservation, pin: string, portal
     hr: `Pozdrav${name},\n\nvaša osobna šifra za ulazak u ${plural ? 'apartmane' : 'apartman'} ${door} je:\n\n${pin}\n\nŠifra vrijedi od ${from} do ${until}.\n\nViše informacija o vašem boravku, upute za dolazak i preporuke pronaći ćete na svom osobnom portalu:\n${portalLink}\n\nSrdačan pozdrav,\n${signature}`,
     sr: `Zdravo${name},\n\nvaša lična šifra za ulazak u ${plural ? 'apartmane' : 'apartman'} ${door} je:\n\n${pin}\n\nŠifra važi od ${from} do ${until}.\n\nViše informacija o vašem boravku, uputstva za dolazak i preporuke pronaći ćete na svom ličnom portalu:\n${portalLink}\n\nSrdačan pozdrav,\n${signature}`,
   }
-  return messages[language]!
+  const notices: Record<string, Record<string, string>> = {
+    updated: { sl: 'Veljavnost vaše kode za vstop je posodobljena.', en: 'The validity of your access code has been updated.', de: 'Die Gültigkeit Ihres Zugangscodes wurde aktualisiert.', hr: 'Valjanost vaše šifre za ulazak je ažurirana.', sr: 'Važenje vaše šifre za ulazak je ažurirano.' },
+    replaced: { sl: 'Vaša koda za vstop je zamenjana. Uporabite spodnjo novo kodo.', en: 'Your access code has changed. Please use the new code below.', de: 'Ihr Zugangscode wurde geändert. Bitte verwenden Sie den neuen Code unten.', hr: 'Vaša šifra za ulazak je promijenjena. Koristite novu šifru u nastavku.', sr: 'Vaša šifra za ulazak je promenjena. Koristite novu šifru u nastavku.' },
+  }
+  const notice = notices[kind]?.[language]
+  return notice ? `${notice}\n\n${messages[language]!}` : messages[language]!
 }

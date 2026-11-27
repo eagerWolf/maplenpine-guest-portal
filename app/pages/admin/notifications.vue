@@ -51,6 +51,8 @@ function eventLabel(e: string) {
     issue_recovered: 'Težava odpravljena',
     orchestrator_offline: 'Worker ni dosegljiv',
     orchestrator_recovered: 'Worker ponovno povezan',
+    orchestrator_reboot: 'Reboot Windows',
+    orchestrator_recovery_failed: 'Obnova Windows ni uspela',
     job_failed: 'Napaka joba',
     pin_send_failed: 'Napaka pošiljanja',
     sync_error: 'Bentral sync napaka',

@@ -53,7 +53,7 @@ interface BentralResponse {
 
 export async function fetchBentralReservations(
   from: string,
-  to: string,
+  to: string | undefined,
   apiKey: string,
 ): Promise<BentralReservation[]> {
   const all: BentralReservation[] = []
@@ -63,7 +63,7 @@ export async function fetchBentralReservations(
   while (true) {
     const params = new URLSearchParams({
       from,
-      to,
+      ...(to ? { to } : {}),
       limit: '100',
       offset: String(offset),
       fields: 'id,arrival,departure,status,created,updated,units,guest,persons',

@@ -1,3 +1,4 @@
+import { workerCanClaimJobs } from '../../utils/workerWatchdog'
 import { getDb, now } from '../../db/index'
 import { getPendingJobs, markJobsInProgress, mergePendingJobs, requeueExpiredJobs } from '../../utils/jobs'
 import { hasValidOrchestratorToken } from '../../utils/orchestrator'
@@ -27,6 +28,8 @@ export default defineEventHandler(async (event) => {
   if (publishSetting && publishSetting.value === '0') {
     return { jobs: [] }
   }
+
+  if (!workerCanClaimJobs()) return {jobs:[]}
 
   const pendingJobs = getPendingJobs()
 

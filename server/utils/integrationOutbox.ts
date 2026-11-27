@@ -1,4 +1,4 @@
-import { messagingEnabled, bentralGuestMessagesEnabled } from './servicePolicy'
+import { messagingEnabled, bentralGuestMessagesEnabled, workerAlertsEnabled, isWorkerAlert } from './servicePolicy'
 import { getDb, now } from '../db/index'
 import type { Reservation } from '../db/index'
 import { guestAccessMessage } from './guestAccessMessage'
@@ -9,10 +9,10 @@ import { getSettingValue } from './secretSettings'
 
 export type OutboxType = 'guest_pin_email' | 'bentral_guest_message' | 'bentral_ekey' | 'admin_notification'
 
-interface GuestPinPayload { reservationId: number; pin: string; portalLink: string }
+interface GuestPinPayload { reservationId: number; pin: string; portalLink: string; messageKind?: 'created' | 'updated' | 'replaced'; publicationKey?: string }
 interface BentralPayload { reservationId: number; pin: string }
 interface AdminNotificationPayload {
-  event: 'orchestrator_offline' | 'orchestrator_recovered'
+  event: 'orchestrator_offline' | 'orchestrator_recovered' | 'orchestrator_reboot' | 'orchestrator_recovery_failed'
   subject: string
   emailHtml: string
   whatsappText: string
@@ -21,13 +21,20 @@ type OutboxPayload = GuestPinPayload | BentralPayload | AdminNotificationPayload
 
 export function enqueueIntegration(uniqueKey: string, type: OutboxType, payload: OutboxPayload): boolean {
   if (type === 'guest_pin_email') return false // SendGrid guest delivery is retired.
-  if (type === 'admin_notification' && !messagingEnabled()) return false
+  if (type === 'admin_notification' && !messagingEnabled() && !(workerAlertsEnabled() && isWorkerAlert((payload as AdminNotificationPayload).event))) return false
   const ts = now()
   const result = getDb().prepare(`
     INSERT OR IGNORE INTO integration_outbox
       (unique_key, type, payload, status, attempt_count, next_attempt_at, created_at, updated_at)
     VALUES (?, ?, ?, 'pending', 0, ?, ?, ?)
   `).run(uniqueKey, type, JSON.stringify(payload), ts, ts, ts)
+  if (result.changes > 0 && type === 'bentral_guest_message') {
+    // Coalesce only messages that have never been attempted; unknown deliveries remain reviewable.
+    getDb().prepare(`UPDATE integration_outbox SET status = 'superseded', updated_at = ?
+      WHERE type = 'bentral_guest_message' AND status = 'pending' AND attempt_count = 0
+      AND unique_key != ? AND json_extract(payload, '$.reservationId') = ?`)
+      .run(ts, uniqueKey, (payload as GuestPinPayload).reservationId)
+  }
   return result.changes > 0
 }
 
@@ -88,12 +95,14 @@ async function execute(type: OutboxType, payload: OutboxPayload): Promise<void> 
   const access = getDb().prepare('SELECT expires_at FROM guest_tokens WHERE reservation_id = ? AND token = ?').get(reservation.id, token) as { expires_at: string } | undefined
   if (!access || new Date(access.expires_at).getTime() <= new Date(now()).getTime()) throw new Error('Guest portal link is missing or expired')
   if (!reservation.bentral_reservation_id) throw new Error('Bentral reservation ID is missing')
-  const published = getDb().prepare(`SELECT id FROM integration_outbox WHERE type = 'bentral_ekey' AND status = 'completed'
+  const published = messagePayload.publicationKey
+    ? getDb().prepare("SELECT id FROM integration_outbox WHERE unique_key = ? AND type = 'bentral_ekey' AND status = 'completed'").get(messagePayload.publicationKey)
+    : getDb().prepare(`SELECT id FROM integration_outbox WHERE type = 'bentral_ekey' AND status = 'completed'
     AND json_extract(payload, '$.reservationId') = ? AND json_extract(payload, '$.pin') = ? LIMIT 1`).get(reservation.id, messagePayload.pin)
   if (!published) throw new Error('PIN has not yet been published to Bentral')
   const apiKey = getBentralApiKey()
   if (!apiKey) throw new Error('Bentral API key is not configured')
-  await sendBentralGuestMessage(apiKey, reservation.bentral_reservation_id, guestAccessMessage(reservation, messagePayload.pin, messagePayload.portalLink))
+  await sendBentralGuestMessage(apiKey, reservation.bentral_reservation_id, guestAccessMessage(reservation, messagePayload.pin, messagePayload.portalLink, messagePayload.messageKind))
 }
 
 interface OutboxRow { id: number; unique_key: string; type: OutboxType; payload: string; attempt_count: number }
@@ -114,9 +123,10 @@ export async function processIntegrationOutbox(referenceTime = now(), limit = 20
     WHERE status = 'pending' AND next_attempt_at <= ?
       AND (type = 'bentral_ekey' OR (type = 'admin_notification' AND ? = 1) OR (type = 'bentral_guest_message' AND ? = 1))
       ORDER BY created_at ASC, id ASC LIMIT ?
-  `).all(referenceTime, messagingEnabled() ? 1 : 0, bentralGuestMessagesEnabled() ? 1 : 0, limit) as OutboxRow[]
+  `).all(referenceTime, (messagingEnabled() || workerAlertsEnabled()) ? 1 : 0, bentralGuestMessagesEnabled() ? 1 : 0, limit) as OutboxRow[]
   const summary = { completed: 0, retried: 0, failed: 0 }
   for (const row of rows) {
+    if (row.type === 'admin_notification' && !messagingEnabled() && !isWorkerAlert(JSON.parse(row.payload).event)) continue
     const claimed = db.prepare("UPDATE integration_outbox SET status = 'processing', updated_at = ? WHERE id = ? AND status = 'pending'")
       .run(referenceTime, row.id)
     if (!claimed.changes) continue

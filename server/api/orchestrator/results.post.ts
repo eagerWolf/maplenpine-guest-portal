@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
 
     // Result reporting is at-least-once. A repeated result must acknowledge successfully
     // without sending a second PIN message or repeating external side effects.
-    if (job.status === 'success' || job.status === 'failed' || job.status === 'superseded') {
+    if (job.status === 'success' || job.status === 'failed' || job.status === 'superseded' || job.status === 'dismissed') {
       duplicates++
       continue
     }
@@ -87,12 +87,25 @@ export default defineEventHandler(async (event) => {
           .run(reservation.id, token, guestTokenExpiry(reservation.check_out), now())
         const portalLink = `${config.public.baseUrl}/guest/${token}`
         enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: result.pin })
-        enqueueIntegration(`ekey-job:${job.id}:guest-pin`, 'bentral_guest_message', { reservationId: reservation.id, pin: result.pin, portalLink })
+        enqueueIntegration(`ekey-job:${job.id}:guest-pin`, 'bentral_guest_message', { reservationId: reservation.id, pin: result.pin, portalLink, messageKind: jobPayload._pinReplaced ? 'replaced' : 'created', publicationKey: `ekey-job:${job.id}:bentral` })
       } else if (action === 'update' && reservation.pin) {
         enqueueIntegration(`ekey-job:${job.id}:bentral`, 'bentral_ekey', { reservationId: reservation.id, pin: reservation.pin })
+        let access = db.prepare('SELECT token FROM guest_tokens WHERE reservation_id = ? AND expires_at > ? ORDER BY id DESC LIMIT 1').get(reservation.id, now()) as { token: string } | undefined
+        if (!access) {
+          access = { token: randomUUID() }
+          db.prepare('INSERT INTO guest_tokens (reservation_id, token, expires_at, created_at) VALUES (?, ?, ?, ?)')
+            .run(reservation.id, access.token, guestTokenExpiry(reservation.check_out), now())
+        }
+        enqueueIntegration(`ekey-job:${job.id}:guest-pin`, 'bentral_guest_message', {
+          reservationId: reservation.id, pin: reservation.pin,
+          portalLink: `${config.public.baseUrl}/guest/${access.token}`, messageKind: 'updated', publicationKey: `ekey-job:${job.id}:bentral`,
+        })
       } else if (action === 'cancel') {
         db.prepare('UPDATE reservations SET pin = NULL, updated_at = ? WHERE id = ?').run(now(), reservation.id)
         db.prepare('DELETE FROM guest_tokens WHERE reservation_id = ?').run(reservation.id)
+        if (reservation.status === 'active' && jobPayload._replacePinAfterCancel) {
+          createJob(reservation.id, 'insert', { ...buildJobPayload(reservation, 'insert'), _pinReplaced: true } as ReturnType<typeof buildJobPayload>, job.triggered_by || 'pin_replacement')
+        }
       }
     })()
     processed++

@@ -168,17 +168,17 @@ function accessPreview(time: string, offset: number): string {
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Hot tier — interval (min)</label>
           <input v-model="form.hot_interval_minutes" type="number" min="5" max="120" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Prihodi od včeraj, odhodi do 30 dni vnaprej · privzeto 30 min</p>
+          <p class="text-xs text-stone-400 mt-1">Trenutna bivanja in prihodi do 3 dni vnaprej · privzeto 30 min</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Warm tier — interval (ure)</label>
           <input v-model="form.warm_interval_hours" type="number" min="1" max="24" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Prihodi od včeraj, odhodi do 60 dni vnaprej · privzeto 5 ur</p>
+          <p class="text-xs text-stone-400 mt-1">Prihodi od 4. do vključno 14. dne vnaprej · privzeto 5 ur</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-stone-600 mb-1">Cold tier — interval (ure)</label>
           <input v-model="form.cold_interval_hours" type="number" min="12" max="168" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pine-500" />
-          <p class="text-xs text-stone-400 mt-1">Prihodi od včeraj, odhodi do 400 dni vnaprej · privzeto 24 ur</p>
+          <p class="text-xs text-stone-400 mt-1">Prihodi več kot 14 dni vnaprej · privzeto 24 ur</p>
         </div>
       </div>
     </div>

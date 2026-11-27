@@ -1,3 +1,5 @@
+import { bentralWindow } from '../../shared/bentralWindows'
+import { formatInTimeZone } from 'date-fns-tz'
 import { getDb, now } from '../db/index'
 import type { Reservation } from '../db/index'
 import { fetchBentralReservations, parseName } from './bentral'
@@ -38,24 +40,21 @@ export async function syncBentral(tier: Tier, triggeredBy = 'cron'): Promise<voi
   const mapleUnitId = String(settings.bentral_unit_id_maple || config.bentralUnitIdMaple || '').trim()
   const pineUnitId = String(settings.bentral_unit_id_pine || config.bentralUnitIdPine || '').trim()
   validateBentralUnitIds(mapleUnitId, pineUnitId)
-  const today = new Date()
-
-  // `from` = earliest arrival to check (tier-specific)
-  // `to`   = Bentral filters by departure date, so always set far enough to not exclude long stays
-  const ranges: Record<Tier, { from: string; to: string }> = {
-    hot:  { from: addDays(today, -1), to: addDays(today, 30)  },
-    warm: { from: addDays(today, -1), to: addDays(today, 60)  },
-    cold: { from: addDays(today, -1), to: addDays(today, 400) },
-  }
-
-  const { from, to } = ranges[tier]
+  const today = new Date(`${formatInTimeZone(new Date(), 'Europe/Ljubljana', 'yyyy-MM-dd')}T12:00:00Z`)
+  const hotEnd = addDays(today, 3)
+  const oldestCurrent = db.prepare("SELECT MIN(check_in) AS arrival FROM reservations WHERE status = 'active' AND check_out >= ? AND check_in <= ?").get(addDays(today, 0), hotEnd) as { arrival: string | null }
+  const window = bentralWindow(tier, addDays(today,0), oldestCurrent.arrival)
+  const { from } = window
+  // Bentral's `to` filters DEPARTURE, not arrival: omit it so long stays are never excluded.
+  const to = undefined
 
   const dbApiKey = getSettingValue('bentral_api_key')
   const bentralApiKey = dbApiKey || config.bentralApiKey
 
   let bentralReservations: BentralReservation[]
   try {
-    bentralReservations = await fetchBentralReservations(from, to, bentralApiKey)
+    bentralReservations = (await fetchBentralReservations(from, to, bentralApiKey)).filter(res =>
+      window.includes(res.arrival, res.departure))
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)
     console.error(`[sync:${tier}] Bentral fetch error: ${errMsg}`)

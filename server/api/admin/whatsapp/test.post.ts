@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const link = base + (type === 'cleaning_reminder' ? '/cleaning/test-preview' : '/admin')
   const body = '[TEST] ' + renderNotificationTemplate(value(`notification_template_${type}`) || defaultNotificationTemplate,notificationSamples[type as EditableNotificationEvent]+'\n'+link,base)
   let status = 'sent'
-  try { await getWhatsAppProvider().send(recipient,body) }
+  try { await getWhatsAppProvider({ manualTest: true }).send(recipient,body) }
   catch { status = 'failed' }
   db.prepare(`INSERT INTO notification_log(channel,event_type,recipient,body,status,created_at) VALUES('whatsapp',?,?,?,?,?)`).run(`test_${type}`,recipient,body,status,now())
   if (status === 'failed') throw createError({statusCode:502,statusMessage:'Test ni uspel. Preverite omogočeno pošiljanje, Twilio pošiljatelja in odobreno predlogo.'})

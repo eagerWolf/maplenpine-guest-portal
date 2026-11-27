@@ -18,3 +18,11 @@ export function emailEnabled(): boolean {
 export function bentralGuestMessagesEnabled(): boolean {
   return process.env.BENTRAL_GUEST_MESSAGES_ENABLED !== 'false'
 }
+
+// Separate opt-in for infrastructure alerts; staff/guest sending stays unchanged.
+export function workerAlertsEnabled(): boolean {
+  return process.env.PORTAL_WORKER_ALERTS_ENABLED === 'true'
+}
+export function isWorkerAlert(event: string): boolean {
+  return ['orchestrator_offline','orchestrator_recovered','orchestrator_reboot','orchestrator_recovery_failed'].includes(event)
+}

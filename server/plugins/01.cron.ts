@@ -1,3 +1,4 @@
+import { evaluateWorkerWatchdog } from '../utils/workerWatchdog'
 import cron from 'node-cron'
 import { syncBentral } from '../utils/sync'
 import { queueStaffReminders, processStaffNotifications } from '../utils/staffNotifications'
@@ -21,6 +22,10 @@ async function runBackup() {
 
 export default defineNitroPlugin(() => {
   const backgroundDisabled = process.env.PORTAL_DISABLE_BACKGROUND_TASKS === 'true'
+  if (process.env.PORTAL_WORKER_WATCHDOG_ENABLED === 'true') {
+    setImmediate(() => { try { evaluateWorkerWatchdog() } catch { console.error('[cron:worker-watchdog] Startup check failed') } })
+    cron.schedule('* * * * *', () => { try { evaluateWorkerWatchdog() } catch (err) { console.error('[cron:worker-watchdog]',err) } })
+  }
   if (!backgroundDisabled || process.env.PORTAL_BENTRAL_SYNC_ENABLED === 'true') {
     const tick = createBentralScheduler({
       settings: () => Object.fromEntries((getDb().prepare('SELECT key, value FROM app_settings WHERE key IN (\'auto_sync_bentral\', \'hot_interval_minutes\', \'warm_interval_hours\', \'cold_interval_hours\')').all() as Array<{key: string; value: string}>).map(row => [row.key, row.value])),
@@ -70,7 +75,7 @@ export default defineNitroPlugin(() => {
   })
 
   cron.schedule(orchestratorHealthExpr, () => {
-    checkOrchestratorHealth().catch(err => console.error('[cron:orchestrator-health]', err))
+    if (process.env.PORTAL_WORKER_WATCHDOG_ENABLED !== 'true') checkOrchestratorHealth().catch(err => console.error('[cron:orchestrator-health]', err))
   })
 
   cron.schedule(backupExpr, () => {

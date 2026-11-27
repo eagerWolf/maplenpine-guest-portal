@@ -6,3 +6,9 @@ data/
 .env
 *.env.local
 .DS_Store
+.env.*
+!.env.example
+private-recovery/
+backups/
+*.key
+*.pem

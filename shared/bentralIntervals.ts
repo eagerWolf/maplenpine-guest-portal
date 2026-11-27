@@ -6,7 +6,7 @@ export const bentralIntervalRules = {
 
 export function validBentralInterval(key: keyof typeof bentralIntervalRules, value: unknown): boolean {
   const rule = bentralIntervalRules[key]
-  return typeof value === 'string' && value.trim() !== '' && Number.isInteger(Number(value)) && Number(value) >= rule.min && Number(value) <= rule.max
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && Number.isInteger(Number(value)) && Number(value) >= rule.min && Number(value) <= rule.max
 }
 
 export function bentralIntervals(settings: Record<string, string>) {

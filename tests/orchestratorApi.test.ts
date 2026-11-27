@@ -164,6 +164,41 @@ describe('Orchestrator HTTP endpointa', () => {
     expect(db.prepare('SELECT COUNT(*) n FROM integration_outbox').get()).toEqual({ n: 0 })
   })
 
+  it('queues validity updates only after hardware success, reuses the portal link and requires its own publication', async () => {
+    db.exec("UPDATE reservations SET bentral_unit_id='maple', bentral_unit_name='Maple'")
+    await jobsHandler(auth)
+    body = { results: [{ _internalJobId: 1, status: 'success', pin: '1234' }] }; await resultsHandler(auth)
+    db.exec(`INSERT INTO jobs(id,reservation_id,action,status,payload,created_at) VALUES(2,1,'update','in_progress','{}','2026-08-01T12:01:00Z')`)
+    body = { results: [{ _internalJobId: 2, status: 'success' }] }; await resultsHandler(auth)
+    expect(db.prepare('SELECT COUNT(*) n FROM guest_tokens').get()).toEqual({n:1})
+    expect(db.prepare("SELECT status FROM integration_outbox WHERE unique_key='ekey-job:1:guest-pin'").get()).toEqual({status:'superseded'})
+    const queued = db.prepare("SELECT payload FROM integration_outbox WHERE unique_key='ekey-job:2:guest-pin'").get() as {payload:string}
+    expect(JSON.parse(queued.payload)).toMatchObject({messageKind:'updated',publicationKey:'ekey-job:2:bentral',pin:'1234'})
+    await resultsHandler(auth)
+    expect(db.prepare("SELECT COUNT(*) n FROM integration_outbox WHERE unique_key='ekey-job:2:guest-pin'").get()).toEqual({n:1})
+    await processIntegrationOutbox('2026-08-01T12:00:00.000Z')
+    expect(sendBentralGuestMessage).toHaveBeenCalledWith('test-bentral-key','R-1',expect.stringContaining('validity of your access code has been updated'))
+  })
+
+  it('queues replacement insertion only after confirmed cancellation for an active reservation', async () => {
+    db.exec(`UPDATE reservations SET pin='1234'; UPDATE jobs SET action='cancel',status='in_progress',payload='{"action":"cancel","_replacePinAfterCancel":true}' WHERE id=1`)
+    body = { results: [{_internalJobId:1,status:'success'}] }; await resultsHandler(auth)
+    const replacement = db.prepare("SELECT action,status,payload FROM jobs WHERE id != 1").get() as any
+    expect(replacement).toMatchObject({action:'insert',status:'pending'})
+    expect(JSON.parse(replacement.payload)).toMatchObject({_pinReplaced:true})
+    expect(db.prepare('SELECT COUNT(*) n FROM integration_outbox').get()).toEqual({n:0})
+    await resultsHandler(auth)
+    expect(db.prepare('SELECT COUNT(*) n FROM jobs').get()).toEqual({n:2})
+  })
+
+  it('labels replacement codes in the queued guest message', async () => {
+    db.exec(`UPDATE jobs SET payload=json_set(payload,'$._pinReplaced',json('true')) WHERE id=1`)
+    await jobsHandler(auth)
+    body = { results: [{ _internalJobId: 1, status: 'success', pin: '5678' }] }; await resultsHandler(auth)
+    const queued = db.prepare("SELECT payload FROM integration_outbox WHERE type='bentral_guest_message'").get() as {payload:string}
+    expect(JSON.parse(queued.payload)).toMatchObject({messageKind:'replaced',pin:'5678'})
+  })
+
   it('does not deliver queued PIN messages after cancellation', async () => {
     await jobsHandler(auth)
     body = { results: [{ _internalJobId: 1, status: 'success', pin: '1234' }] }; await resultsHandler(auth)

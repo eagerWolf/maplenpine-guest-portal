@@ -1,3 +1,4 @@
+import { workerWatchdogSummary } from '../../../utils/workerWatchdog'
 import { messagingEnabled } from '../../../utils/servicePolicy'
 import { getDb } from '../../../db/index'
 import type { Job } from '../../../db/index'
@@ -60,6 +61,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     jobs,
+    watchdog: workerWatchdogSummary(),
     autoPublishEnabled,
     orchestratorApiKey,
     orchestratorLeaseMinutes,

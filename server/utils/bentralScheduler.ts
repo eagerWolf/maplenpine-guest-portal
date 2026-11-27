@@ -17,12 +17,16 @@ export function createBentralScheduler(options: {
     if (busy || settings.auto_sync_bentral === '0') return
     const time = clock()
     const intervals = bentralIntervals(settings)
-    const tier = (['cold', 'warm', 'hot'] as const).find(t => time - last[t] >= intervals[t]) ?? (startup ? 'hot' : undefined)
-    if (!tier) return
+    const due = (['hot', 'warm', 'cold'] as const).filter(t => time - last[t] >= intervals[t] || (startup && t === 'hot'))
+    if (!due.length) return
     busy = true
-    // Wider ranges cover smaller ranges. Count attempts to avoid API storms
-    // after errors; a failed request waits for its configured interval.
-    for (const t of ['hot', ...(tier !== 'hot' ? ['warm'] : []), ...(tier === 'cold' ? ['cold'] : [])] as Tier[]) last[t] = time
-    try { await options.run(tier) } finally { busy = false }
+    let failure: unknown
+    try {
+      for (const tier of due) {
+        last[tier] = time
+        try { await options.run(tier) } catch (err) { failure = err }
+      }
+      if (failure) throw failure
+    } finally { busy = false }
   }
 }

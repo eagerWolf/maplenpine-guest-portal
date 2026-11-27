@@ -1,5 +1,5 @@
 import { formatStaffNotification } from './notificationTemplates'
-import { messagingEnabled } from './servicePolicy'
+import { messagingEnabled, workerAlertsEnabled, isWorkerAlert } from './servicePolicy'
 import { getDb, now } from '../db/index'
 import { getWhatsAppProvider } from './whatsapp'
 import { getEmailConfig, sendEmail } from './email'
@@ -15,6 +15,8 @@ export type NotificationEvent =
   | 'checkin_reminder'
   | 'orchestrator_offline'
   | 'orchestrator_recovered'
+  | 'orchestrator_reboot'
+  | 'orchestrator_recovery_failed'
   | 'issue_recovered'
   | 'backup_failed'
 
@@ -30,6 +32,8 @@ const EVENT_MIN_LEVEL: Record<Exclude<NotificationEvent, ReminderEvent>, Notific
   breakfast_order: 'all',
   orchestrator_offline: 'errors',
   orchestrator_recovered: 'errors',
+  orchestrator_reboot: 'errors',
+  orchestrator_recovery_failed: 'errors',
   issue_recovered: 'errors',
   backup_failed: 'errors',
 }
@@ -76,7 +80,7 @@ export async function notifyAdmins(opts: {
   requireDelivery?: boolean
 }): Promise<void> {
   if (['pin_added','pin_updated','breakfast_order'].includes(opts.event)) return
-  if (!messagingEnabled()) {
+  if (!messagingEnabled() && !(isWorkerAlert(opts.event) && workerAlertsEnabled())) {
     if (opts.requireDelivery) throw new Error('Portal messaging is disabled')
     return
   }
@@ -129,7 +133,7 @@ export async function notifyAdmins(opts: {
     if (user.whatsapp_phone) {
       attempted++
       try {
-        await getWhatsAppProvider().send(user.whatsapp_phone, formatStaffNotification(opts.event, opts.whatsappText))
+        await getWhatsAppProvider({workerAlert:isWorkerAlert(opts.event)}).send(user.whatsapp_phone, formatStaffNotification(opts.event, opts.whatsappText))
         logEntry({ channel: 'whatsapp', event: opts.event, recipient: user.whatsapp_phone, subject: null, body: opts.whatsappText, status: 'sent', userId: user.id, userEmail: user.email })
         succeeded++
       } catch (err) {

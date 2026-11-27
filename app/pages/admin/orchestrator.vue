@@ -26,6 +26,7 @@ interface OutboxItem {
 }
 
 const { data, refresh, pending } = await useFetch<{
+  watchdog: {reported:boolean;ready:boolean;label:string;lastReport:string|null;rebootEnabled:boolean;incident:{startedAt:string;rebootAt?:string;failedAt?:string;resolvedAt?:string}|null}
   jobs: OrchestratorJob[]
   autoPublishEnabled: boolean
   orchestratorApiKey: string
@@ -41,6 +42,8 @@ const { data, refresh, pending } = await useFetch<{
 
 const copiedId = ref<number | null>(null)
 const copiedAll = ref(false)
+const jobActionError = ref('')
+const dismissingId = ref<number | null>(null)
 const settingsForm = reactive({ auto_publish_ekey: '1', orchestrator_api_key: '', orchestrator_lease_minutes: '30', orchestrator_max_attempts: '5' })
 const savingSettings = ref(false)
 const settingsSaved = ref(false)
@@ -86,6 +89,17 @@ async function retryJob(id: number) {
   await $fetch(`/api/admin/orchestrator/jobs/${id}/retry`, { method: 'POST' })
   await refresh()
 }
+async function dismissJob(job: OrchestratorJob) {
+  if (!window.confirm(`Odstranim neuspešno opravilo za ${job.guestName} s seznama? Zapis ostane v zgodovini. To ne odstrani uporabnika ali PIN-a iz eKey in ne potrdi preklica dostopa.`)) return
+  dismissingId.value = job.id
+  jobActionError.value = ''
+  try {
+    await $fetch(`/api/admin/orchestrator/jobs/${job.id}/dismiss`, { method: 'POST' })
+    await refresh()
+  } catch (err: any) {
+    jobActionError.value = err?.data?.statusMessage ?? 'Opravila ni bilo mogoče odstraniti.'
+  } finally { dismissingId.value = null }
+}
 async function retryOutbox(id: number) {
   await $fetch(`/api/admin/orchestrator/outbox/${id}/retry`, { method: 'POST' })
   await refresh()
@@ -110,7 +124,7 @@ function heartbeatState(lastSeen: string | null | undefined) {
 
 <template>
   <div class="space-y-6">
-    <p class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">PIN in sporočilo s povezavo do gostovega portala se pošljeta prek Bentrala. SendGrid je izključen. Pred ročno ponovitvijo sporočila z nejasnim izidom preverite pogovor v Bentralu.</p>
+    <p class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">PIN in sporočilo s povezavo do gostovega portala se pošljeta prek Bentrala. Pred ročno ponovitvijo sporočila z nejasnim izidom preverite pogovor v Bentralu.</p>
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold text-stone-800">Orchestrator</h1>
       <button
@@ -135,6 +149,13 @@ function heartbeatState(lastSeen: string | null | undefined) {
     >
       <span class="mr-1">{{ heartbeatState(data?.orchestratorLastSeen).ok ? '●' : '⚠' }}</span>
       {{ heartbeatState(data?.orchestratorLastSeen).label }}
+    </div>
+
+    <div class="rounded-xl border px-4 py-3 text-sm" :class="data?.watchdog?.ready ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-900'">
+      <p class="font-medium">Watchdog: {{ data?.watchdog?.label || 'Stanje še ni na voljo.' }}</p>
+      <p v-if="data?.watchdog?.lastReport" class="mt-1">Zadnje preverjanje namizja: {{ fmtTs(data.watchdog.lastReport) }}</p>
+      <p class="mt-1">{{ data?.watchdog?.rebootEnabled ? 'Po eni uri neprekinjene težave: največ en varen reboot. Preverjanje obnove: 5 minut.' : 'Samodejni reboot je izključen.' }}</p>
+      <p v-if="data?.watchdog?.incident && !data.watchdog.incident.resolvedAt" class="mt-1">Težava od {{ fmtTs(data.watchdog.incident.startedAt) }}<span v-if="data.watchdog.incident.rebootAt"> · reboot odobren {{ fmtTs(data.watchdog.incident.rebootAt) }}</span><span v-if="data.watchdog.incident.failedAt"> · obnova ni potrjena, potreben je ročni pregled</span></p>
     </div>
 
     <div class="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
@@ -177,6 +198,7 @@ function heartbeatState(lastSeen: string | null | undefined) {
         </button>
       </div>
 
+      <p v-if="jobActionError" role="alert" class="px-5 py-3 text-sm text-red-700">{{ jobActionError }}</p>
       <div v-if="pending" class="px-5 py-6 text-center text-stone-400 text-sm">Nalagam…</div>
       <div v-else-if="!data?.jobs.length" class="px-5 py-6 text-center text-stone-400 text-sm">
         Ni čakajočih jobov.
@@ -202,6 +224,7 @@ function heartbeatState(lastSeen: string | null | undefined) {
               </p>
             </div>
             <div class="flex gap-2">
+              <button v-if="job.status === 'failed'" :disabled="dismissingId !== null" class="text-xs px-3 py-1.5 rounded-lg font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:opacity-50" @click="dismissJob(job)">Odstrani s seznama</button>
               <button v-if="job.status === 'failed'" class="text-xs px-3 py-1.5 rounded-lg font-medium bg-red-50 text-red-700 hover:bg-red-100" @click="retryJob(job.id)">Ponovi</button>
               <button
                 class="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"

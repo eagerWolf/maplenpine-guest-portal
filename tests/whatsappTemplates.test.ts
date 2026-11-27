@@ -23,3 +23,15 @@ it('does not attempt a send without an approved template',async()=>{
   await expect(getWhatsAppProvider().send('+38640111111','Obvestilo')).rejects.toThrow('Content SID')
   expect(fetch).not.toHaveBeenCalled()
 })
+
+it('allows an explicit manual test while automatic delivery remains disabled',async()=>{
+  vi.stubEnv('PORTAL_WHATSAPP_ENABLED','false')
+  values.set('twilio_account_sid','ACtest');values.set('twilio_auth_token','secret');values.set('twilio_whatsapp_from','+10000000000');values.set('twilio_staff_content_sid',sid)
+  const fetch=vi.fn().mockResolvedValue({ok:true});vi.stubGlobal('fetch',fetch)
+  await expect(getWhatsAppProvider().send('+38640111111','Obvestilo')).rejects.toThrow('disabled')
+  expect(fetch).not.toHaveBeenCalled()
+  await getWhatsAppProvider({manualTest:true}).send('+38640111111','[TEST] Obvestilo')
+  expect(fetch).toHaveBeenCalledTimes(1)
+  await expect(getWhatsAppProvider().send('+38640111111','Obvestilo')).rejects.toThrow('disabled')
+  expect(fetch).toHaveBeenCalledTimes(1)
+})

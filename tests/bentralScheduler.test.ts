@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { createBentralScheduler } from '../server/utils/bentralScheduler'
 import { validBentralInterval } from '../shared/bentralIntervals'
 
-it('applies live intervals, covers narrower ranges and handles arbitrary hours', async () => {
+it('applies live intervals, runs each arrival range independently and handles arbitrary hours', async () => {
   let time = 0
   const settings = { hot_interval_minutes: '30', warm_interval_hours: '5', cold_interval_hours: '25', auto_sync_bentral: '1' }
   const runs: string[] = []
@@ -17,16 +17,16 @@ it('applies live intervals, covers narrower ranges and handles arbitrary hours',
   time = 5 * 3_600_000
   await tick()
   await tick()
-  expect(runs).toEqual(['hot', 'hot', 'warm'])
+  expect(runs).toEqual(['hot', 'hot', 'hot', 'warm'])
   time = 25 * 3_600_000
   await tick()
   await tick()
   expect(runs.at(-1)).toBe('cold')
-  expect(runs).toHaveLength(4)
+  expect(runs).toHaveLength(7)
   settings.auto_sync_bentral = '0'
   time += 30 * 3_600_000
   await tick()
-  expect(runs).toHaveLength(4)
+  expect(runs).toHaveLength(7)
 })
 
 it('does not overlap a slow run or immediately retry a failed request', async () => {
@@ -48,6 +48,8 @@ it('does not overlap a slow run or immediately retry a failed request', async ()
 it('rejects invalid interval input and accepts configured bounds', () => {
   for (const value of ['', '0', '4', '5.5', 'NaN', '121', 'Infinity']) expect(validBentralInterval('hot_interval_minutes', value)).toBe(false)
   expect(validBentralInterval('hot_interval_minutes', '5')).toBe(true)
+  expect(validBentralInterval('hot_interval_minutes', 30)).toBe(true)
+  for (const value of [null, true, {}, [], 5.5, NaN]) expect(validBentralInterval('hot_interval_minutes', value)).toBe(false)
   expect(validBentralInterval('cold_interval_hours', '168')).toBe(true)
   expect(validBentralInterval('cold_interval_hours', '169')).toBe(false)
 })

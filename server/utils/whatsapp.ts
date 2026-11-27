@@ -1,4 +1,4 @@
-import { messagingEnabled } from './servicePolicy'
+import { messagingEnabled, workerAlertsEnabled } from './servicePolicy'
 import { useRuntimeConfig } from '#imports'
 import { getDb } from '../db/index'
 import { decodeSetting } from './secretSettings'
@@ -76,9 +76,9 @@ class WebhookProvider implements WhatsAppProvider {
   }
 }
 
-export function getWhatsAppProvider(): WhatsAppProvider {
-  if (!messagingEnabled()) return new StubProvider()
-  const twilio = getTwilioConfig()
+export function getWhatsAppProvider(options: { manualTest?: boolean; workerAlert?: boolean } = {}): WhatsAppProvider {
+  if (!options.manualTest && !(options.workerAlert && workerAlertsEnabled()) && !messagingEnabled()) return new StubProvider()
+  const twilio = getTwilioConfig(options)
 
   if (twilio.configured) {
     return new TwilioProvider(twilio.accountSid, twilio.authToken, twilio.whatsappFrom, twilio.staffContentSid)
@@ -93,14 +93,14 @@ export function getWhatsAppProvider(): WhatsAppProvider {
   return new StubProvider()
 }
 
-export function getTwilioConfig(): {
+export function getTwilioConfig(options: { manualTest?: boolean; workerAlert?: boolean } = {}): {
   accountSid: string
   authToken: string
   whatsappFrom: string
   configured: boolean
   staffContentSid: string
 } {
-  if (!messagingEnabled()) return { accountSid: '', authToken: '', whatsappFrom: '', configured: false, staffContentSid: '' }
+  if (!options.manualTest && !(options.workerAlert && workerAlertsEnabled()) && !messagingEnabled()) return { accountSid: '', authToken: '', whatsappFrom: '', configured: false, staffContentSid: '' }
   const config = useRuntimeConfig()
 
   const db = getDb()

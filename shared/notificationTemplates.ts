@@ -4,6 +4,7 @@ export const notificationEvents = {
   cleaning_completed: 'Čiščenje potrjeno', job_failed: 'Napaka eKey',
   pin_send_failed: 'Napaka dostave', sync_error: 'Napaka Bentral sinhronizacije',
   orchestrator_offline: 'Windows worker ni dosegljiv', orchestrator_recovered: 'Windows worker ponovno deluje',
+  orchestrator_reboot: 'Ponovni zagon Windows', orchestrator_recovery_failed: 'Obnova Windows ni uspela',
   issue_recovered: 'Težava odpravljena', backup_failed: 'Napaka varnostne kopije',
 } as const
 export type EditableNotificationEvent = keyof typeof notificationEvents
@@ -30,6 +31,8 @@ export const notificationSamples: Record<EditableNotificationEvent,string> = {
   sync_error: 'Napaka Bentral sinhronizacije\nUvoz rezervacij ni uspel. Preverite povezavo z Bentralom.',
   orchestrator_offline: 'Windows worker ni dosegljiv\nWorker se ni javil več kot 15 minut. Preverite Windows računalnik.',
   orchestrator_recovered: 'Windows worker ponovno deluje\nPovezava z workerjem je obnovljena.',
+  orchestrator_reboot: 'Windows VM gre v ponovni zagon\nTežava traja eno uro. Obnovo preverjamo največ pet minut.',
+  orchestrator_recovery_failed: 'Obnova Windows workerja ni potrjena\nPo petih minutah ni potrjene obnove. Potreben je ročni pregled.',
   issue_recovered: 'Težava odpravljena\nIntegracija ponovno deluje.',
   backup_failed: 'Napaka varnostne kopije\nVarnostna kopija ni uspela. Preverite prostor in dnevnik varnostnih kopij.',
 }
